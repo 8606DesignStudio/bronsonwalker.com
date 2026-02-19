@@ -6,24 +6,81 @@
     <title>Doris</title>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .scene { display: none; }
+        .scene.active { display: block; }
+
+        .keypad-button {
+            position: absolute;
+            left: 5%;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 6px;
+            font-family: "Quicksand", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color: #4bb8e9;
+            text-decoration: none;
+            font-weight: 530;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #000000, #b95900);
+            font-size: clamp(0.8rem, 1.6vw, 1.1rem);
+            cursor: pointer;
+            border: none;
+            z-index: 40;
+            transition: transform 0.2s;
+        }
+        .keypad-button:hover {
+            transform: translateY(-50%) scale(1.05);
+        }
+        .keypad-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: flex-start;
+            padding-left: 2%;
+            cursor: pointer;
+        }
+        .keypad-overlay.active { display: flex; }
+        .keypad-overlay img {
+            height: 92vh;
+            width: auto;
+        }
+    </style>
 </head>
 <body>
-    <div class="cockpit-bg">
-        <img src="assets/Cockpit_Zoomed.jpg" alt="Cockpit" class="cockpit-img">
-        <div class="episode" id="episode">Episode 000: Welcome to the Show</div>
-        <div id="dial"></div>
-        <!-- <button class="cockpit-button" onclick="buttonClick()">test</button> -->
-        <div class="footer-buttons">
-            <!-- <a href="https://buy.stripe.com/00wcMX3W86cM4Eaa80d7q00" target="_blank">Stripe test</a> -->
-            <a href="cockpitDoor.html" class="new-page-link">Cockpit Door</a>
+    <!-- Scene 1: Cockpit -->
+    <div class="scene active" id="scene-cockpit">
+        <div class="cockpit-bg">
+            <img src="assets/Cockpit_Zoomed.jpg" alt="Cockpit" class="cockpit-img">
+            <div class="episode" id="episode">Episode 000: Welcome to the Show</div>
+            <div id="dial"></div>
+            <div class="footer-buttons">
+                <a href="#" class="new-page-link" data-scene="scene-door">Cockpit Door</a>
+            </div>
         </div>
     </div>
-    
-    <!-- <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100" fill="green" stroke="yellow" stroke-width="5">
-    <circle cx="50" cy="50" r="40"></circle>
-    </svg> -->
-        
+
+    <!-- Scene 2: Cockpit Door -->
+    <div class="scene" id="scene-door">
+        <div class="cockpit-bg">
+            <div class="keypad-overlay" id="keypadOverlay">
+                <img src="CockpitKeypad.png" alt="Cockpit Keypad">
+            </div>
+            <img src="cockpitDoor.jpg" alt="Cockpit Door" class="cockpit-img">
+            <button class="keypad-button" id="keypadBtn">Enlarge Keypad</button>
+            <div class="footer-buttons">
+                <a href="#" class="new-page-link" data-scene="scene-cockpit">Turn Around</a>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="script.js"></script>
 </body>
-
 </html>

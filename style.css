@@ -31,11 +31,12 @@ body {
 
 .episode {
   position: absolute;
-  top: 17.5%;
-  left: 51%;
+  top: 6%;
+  left: 33%;
   /* anchor top: remove vertical translate so height changes grow downward */
-  transform: translateX(-50%) perspective(400px) rotateX(-25deg);
-  width: 65%;
+  transform: perspective(400px) rotateX(-25deg);
+  width: 38%;
+  height: 10%;
   font-family: "Quicksand", sans-serif;
   font-size: clamp(1.3rem, 2.4vw, 1.7rem); /* fluid but bounded */
   font-weight: 550;
@@ -62,30 +63,26 @@ body {
 
 #dial {
   position: absolute;
-  top: 45%;
-  left: 50%;
+  top: 46%;
+  left: 51.7%;
   transform: translate(-50%, -50%);
   z-index: 30;
-  /* responsive width relative to cockpit container */
-  min-width: 44px;
-  max-width: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 44px;
   /* visual/interactive styles for the dial */
   font-family: "Quicksand", system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
   box-sizing: border-box;
   cursor: pointer;
   transition: transform 0.2s;
-  font-size: clamp(1rem, 6vw, 3rem);
+  font-size: clamp(0.8rem, 3vw, 1.8rem);
   font-weight: 550;
   color: #4bb8e9;
   opacity: 0.8;
   text-shadow: 0 0 5px rgba(138, 43, 226, 0.9),
     0 0 10px rgba(147, 112, 219, 0.8), 0 0 35px rgba(72, 61, 139, 0.3);
-
-  padding: 0.25rem 0;
 }
 /* removed stray .dial block; dial visuals are defined on #dial */
 
@@ -139,3 +136,27 @@ body {
 HI
 
 } */
+
+/* Fullscreen: lock to viewport height, center image, no vertical scroll */
+:fullscreen body,
+:-webkit-full-screen body {
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+:fullscreen .cockpit-bg,
+:-webkit-full-screen .cockpit-bg {
+  margin: 0;
+  height: calc(100vh - 4px);
+  width: fit-content;
+  max-width: none;
+  box-shadow: none;
+}
+:fullscreen .cockpit-img,
+:-webkit-full-screen .cockpit-img {
+  width: auto;
+  height: 100%;
+  max-width: none;
+}
