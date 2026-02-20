@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vertical Position Tool</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #530000; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .cockpit-bg { position: relative; width: 100%; }
+    .cockpit-img { display: block; width: 100%; height: auto; }
+    #tap-overlay { position: fixed; inset: 0; z-index: 1000; cursor: crosshair; }
+    #indicator { position: fixed; left: 0; right: 0; height: 2px; background: #F5B800; box-shadow: 0 0 8px #F5B800; display: none; pointer-events: none; z-index: 1001; }
+    #label { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); color: #F5B800; font-family: monospace; font-size: 14px; background: rgba(0,0,0,0.7); padding: 6px 12px; border-radius: 4px; z-index: 1002; pointer-events: none; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="cockpit-bg">
+    <img src="assets/Cockpit_Zoomed.jpg" class="cockpit-img">
+  </div>
+  <div id="tap-overlay"></div>
+  <div id="indicator"></div>
+  <div id="label">Tap where you want the image centered vertically</div>
+
+  <script>
+    var overlay = document.getElementById('tap-overlay');
+    var indicator = document.getElementById('indicator');
+    var label = document.getElementById('label');
+
+    overlay.addEventListener('click', function (e) {
+      var topPct = (e.clientY / window.innerHeight * 100).toFixed(1);
+      indicator.style.top = e.clientY + 'px';
+      indicator.style.display = 'block';
+      label.textContent = 'top: ' + topPct + '% -- sending...';
+
+      fetch('https://webhooks.srv901146.hstgr.cloud/webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'vpos', top: topPct + '%', clientY: e.clientY, viewH: window.innerHeight })
+      }).then(function () {
+        label.textContent = 'Sent! top: ' + topPct + '%';
+      }).catch(function (err) {
+        label.textContent = 'Error -- check console';
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>

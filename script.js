@@ -114,14 +114,180 @@ function updateEpisodeContent() {
 
 // Fullscreen + forced landscape on mobile
 (function () {
-    // Only show on touch devices (mobile/tablet)
     if (!('ontouchstart' in window)) return;
 
-    var overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;cursor:pointer;';
-    overlay.innerHTML = '<div style="color:#4bb8e9;font-family:Quicksand,sans-serif;font-size:clamp(1.2rem,4vw,2rem);text-align:center;padding:20px;">Tap to go fullscreen</div>';
+    // Inject keyframe animations and scanline style
+    var style = document.createElement('style');
+    style.textContent = [
+        '@keyframes goldPulse {',
+        '  0%,100% { text-shadow: 0 0 8px #F5B800, 0 0 20px #F5B800aa, 0 0 40px #c8860044; }',
+        '  50%     { text-shadow: 0 0 18px #F5B800, 0 0 45px #F5B800cc, 0 0 80px #c88600aa; }',
+        '}',
+        '@keyframes overlayFlicker {',
+        '  0%   { opacity: 1; }',
+        '  5%   { opacity: 0.1; }',
+        '  12%  { opacity: 1; }',
+        '  18%  { opacity: 0.15; }',
+        '  26%  { opacity: 1; }',
+        '  100% { opacity: 0; }',
+        '}',
+        '.fs-overlay { position: relative; overflow: hidden; }',
+        '.fs-overlay::after {',
+        '  content: "";',
+        '  position: absolute;',
+        '  inset: 0;',
+        '  background: repeating-linear-gradient(',
+        '    to bottom,',
+        '    transparent 0px, transparent 2px,',
+        '    rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px',
+        '  );',
+        '  pointer-events: none;',
+        '}',
+        '@keyframes arrowPulse {',
+        '  0%,100% { filter: drop-shadow(0 0 4px #F5B800aa); }',
+        '  50%     { filter: drop-shadow(0 0 10px #F5B800cc); }',
+        '}'
+    ].join('\n');
+    document.head.appendChild(style);
 
-    function enterFullscreen() {
+    // Build overlay with frosted glass background
+    var overlay = document.createElement('div');
+    overlay.className = 'fs-overlay';
+    overlay.style.cssText = [
+        'position:fixed;inset:0;z-index:9999;',
+        'background:rgba(10,5,0,0.45);',
+        'backdrop-filter:blur(14px);',
+        '-webkit-backdrop-filter:blur(14px);',
+        'display:flex;align-items:center;justify-content:center;cursor:pointer;'
+    ].join('');
+
+    // Arc text: each character placed along a quarter-circle, 11 o'clock to 4 o'clock
+    var arcText = 'PRESS AND FLIP';
+    var arcChars = arcText.split('');
+    var arcSpans = [];
+    var r = Math.min(window.innerWidth, window.innerHeight) * 0.40;
+    var fontSize = Math.max(20, r * 0.22);
+    var startAngle = -2 * Math.PI / 3;  // 11 o'clock
+    var totalArc  =  5 * Math.PI / 6;   // sweep 150deg clockwise to 4 o'clock
+    // Shift circle center left so the arc ends have equal horizontal margins
+    var hOffset = -(r * 0.183);
+
+    var arcContainer = document.createElement('div');
+    arcContainer.style.cssText = 'position:absolute;left:calc(50% + ' + hOffset.toFixed(1) + 'px);top:50%;width:0;height:0;';
+
+    arcChars.forEach(function (ch, i) {
+        var t = (arcChars.length > 1) ? i / (arcChars.length - 1) : 0;
+        var angle = startAngle + t * totalArc;
+        var x = r * Math.cos(angle);
+        var y = r * Math.sin(angle);
+        var rotDeg = (angle * 180 / Math.PI) + 90; // tangent rotation so letter faces outward
+
+        var span = document.createElement('span');
+        span.textContent = (ch === ' ') ? '\u00A0' : ch;
+        span.style.cssText = [
+            'position:absolute;',
+            'left:' + x.toFixed(1) + 'px;',
+            'top:' + y.toFixed(1) + 'px;',
+            'transform:translate(-50%,-50%) rotate(' + rotDeg.toFixed(1) + 'deg);',
+            'display:inline-block;',
+            'color:#F5B800;',
+            'font-family:Quicksand,sans-serif;',
+            'font-size:' + fontSize.toFixed(1) + 'px;',
+            'font-weight:700;',
+            '-webkit-text-stroke:1.5px #F5B800;',
+            'animation:goldPulse 2.5s ease-in-out infinite;',
+            'opacity:0;',
+            'transition:opacity 0.08s;'
+        ].join('');
+        arcContainer.appendChild(span);
+        arcSpans.push(span);
+    });
+
+    overlay.appendChild(arcContainer);
+
+    // Curved arrow: from 4 o'clock back to 11 o'clock, just inside the text arc
+    var arrowR = r * 0.72;
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;animation:arrowPulse 2.5s ease-in-out infinite;';
+
+    var defs = document.createElementNS(svgNS, 'defs');
+    var marker = document.createElementNS(svgNS, 'marker');
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('markerWidth', '7');
+    marker.setAttribute('markerHeight', '7');
+    marker.setAttribute('refX', '6');
+    marker.setAttribute('refY', '3.5');
+    marker.setAttribute('orient', 'auto');
+    marker.setAttribute('markerUnits', 'strokeWidth');
+    var arrowTip = document.createElementNS(svgNS, 'path');
+    arrowTip.setAttribute('d', 'M0,0 L7,3.5 L0,7 Z');
+    arrowTip.setAttribute('fill', '#F5B800');
+    marker.appendChild(arrowTip);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    var cx = window.innerWidth / 2 + hOffset;
+    var cy = window.innerHeight / 2;
+    // 4 o'clock = 30deg, 11 o'clock = -120deg
+    var ang4 = 30 * Math.PI / 180;
+    var ang11 = -120 * Math.PI / 180;
+    var ax1 = cx + arrowR * Math.cos(ang4);
+    var ay1 = cy + arrowR * Math.sin(ang4);
+    var ax2 = cx + arrowR * Math.cos(ang11);
+    var ay2 = cy + arrowR * Math.sin(ang11);
+
+    var arcArrow = document.createElementNS(svgNS, 'path');
+    // sweep-flag=0: counterclockwise in SVG (goes 4 -> 3 -> 12 -> 11), large-arc=0 (150deg < 180)
+    arcArrow.setAttribute('d', 'M ' + ax1.toFixed(1) + ',' + ay1.toFixed(1) + ' A ' + arrowR.toFixed(1) + ',' + arrowR.toFixed(1) + ' 0 0,0 ' + ax2.toFixed(1) + ',' + ay2.toFixed(1));
+    arcArrow.setAttribute('fill', 'none');
+    arcArrow.setAttribute('stroke', '#F5B800');
+    arcArrow.setAttribute('stroke-width', '6');
+    arcArrow.setAttribute('stroke-linecap', 'butt');
+    arcArrow.setAttribute('marker-end', 'url(#arrowhead)');
+    svg.appendChild(arcArrow);
+    overlay.appendChild(svg);
+
+    // Power symbol: SVG circle-with-gap icon centered in the arc
+    var powerSvg = document.createElementNS(svgNS, 'svg');
+    var pSize = (r * 0.30).toFixed(1);
+    powerSvg.setAttribute('viewBox', '0 0 24 24');
+    powerSvg.style.cssText = [
+        'position:absolute;',
+        'left:calc(50% + ' + hOffset.toFixed(1) + 'px);',
+        'top:50%;',
+        'transform:translate(-50%,-50%);',
+        'width:' + pSize + 'px;',
+        'height:' + pSize + 'px;',
+        'overflow:visible;',
+        'pointer-events:none;',
+        'animation:goldPulse 2.5s ease-in-out infinite;'
+    ].join('');
+    var powerPath = document.createElementNS(svgNS, 'path');
+    // 270deg arc (clockwise from upper-right to upper-left, gap at top) + vertical line
+    powerPath.setAttribute('d', 'M12,1 L12,8 M18.36,5.64 A9,9 0 1,1 5.64,5.64');
+    powerPath.setAttribute('fill', 'none');
+    powerPath.setAttribute('stroke', '#F5B800');
+    powerPath.setAttribute('stroke-width', '2');
+    powerPath.setAttribute('stroke-linecap', 'round');
+    powerSvg.appendChild(powerPath);
+    overlay.appendChild(powerSvg);
+
+    // Typewriter: reveal each character in sequence
+    function startTypewriter() {
+        arcSpans.forEach(function (s) { s.style.opacity = '0'; });
+        var i = 0;
+        var typeInterval = setInterval(function () {
+            if (i < arcSpans.length) {
+                arcSpans[i].style.opacity = '1';
+                i++;
+            } else {
+                clearInterval(typeInterval);
+            }
+        }, 65);
+    }
+
+    function doEnterFullscreen() {
         var el = document.documentElement;
         var rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
         if (rfs) {
@@ -129,14 +295,43 @@ function updateEpisodeContent() {
             if (p && p.then) {
                 p.then(function () {
                     try { screen.orientation.lock('landscape'); } catch (e) {}
-                    applyLandscapeIfNeeded();
+                    applyLandscapeIfNeeded(startDefrost);
                 });
             } else {
                 try { screen.orientation.lock('landscape'); } catch (e) {}
-                applyLandscapeIfNeeded();
+                applyLandscapeIfNeeded(startDefrost);
             }
+        } else {
+            startDefrost();
         }
-        overlay.style.display = 'none';
+    }
+
+    // Smart-glass defrost: runs after rotation is applied
+    function startDefrost() {
+        overlay.style.transition = [
+            'backdrop-filter 1.4s ease-out',
+            '-webkit-backdrop-filter 1.4s ease-out',
+            'background 1.4s ease-out'
+        ].join(',');
+        overlay.style.backdropFilter = 'blur(0px)';
+        overlay.style.webkitBackdropFilter = 'blur(0px)';
+        overlay.style.background = 'rgba(10,5,0,0)';
+        setTimeout(function () {
+            overlay.style.display = 'none';
+            overlay.style.transition = '';
+            overlay.style.backdropFilter = 'blur(14px)';
+            overlay.style.webkitBackdropFilter = 'blur(14px)';
+            overlay.style.background = 'rgba(10,5,0,0.45)';
+        }, 1400);
+    }
+
+    // On tap: hide UI instantly, rotate (hidden under overlay), then defrost
+    function enterFullscreen() {
+        overlay.removeEventListener('click', enterFullscreen);
+        arcSpans.forEach(function (s) { s.style.opacity = '0'; });
+        svg.style.opacity = '0';
+        powerSvg.style.opacity = '0';
+        doEnterFullscreen();
     }
 
     overlay.addEventListener('click', enterFullscreen);
@@ -144,7 +339,6 @@ function updateEpisodeContent() {
     // Re-show overlay when exiting fullscreen
     document.addEventListener('fullscreenchange', function () {
         if (!document.fullscreenElement) {
-            // Undo any CSS rotation
             document.body.style.transform = '';
             document.body.style.transformOrigin = '';
             document.body.style.width = '';
@@ -153,29 +347,41 @@ function updateEpisodeContent() {
             document.body.style.top = '';
             document.body.style.left = '';
             document.body.style.overflow = '';
-            // Show overlay again
             overlay.style.display = 'flex';
+            overlay.style.animation = '';
+            svg.style.opacity = '1';
+            powerSvg.style.opacity = '1';
+            overlay.addEventListener('click', enterFullscreen);
+            startTypewriter();
         }
     });
 
     // CSS rotation fallback for when orientation lock isn't supported (iOS)
-    function applyLandscapeIfNeeded() {
-        // Give the browser a moment to process orientation lock
+    // Overlay (on <html>) stays visible and hides the rotation; callback fires after rotation settles
+    function applyLandscapeIfNeeded(callback) {
         setTimeout(function () {
             if (window.innerHeight > window.innerWidth) {
-                // Still portrait -- rotate the page 90deg CCW
                 var w = window.innerWidth;
                 var h = window.innerHeight;
-                document.body.style.transform = 'rotate(-90deg)';
-                document.body.style.transformOrigin = 'top left';
-                document.body.style.width = h + 'px';
-                document.body.style.height = w + 'px';
-                document.body.style.position = 'absolute';
-                document.body.style.top = h + 'px';
-                document.body.style.left = '0';
-                document.body.style.overflow = 'hidden';
+                requestAnimationFrame(function () {
+                    document.body.style.transform = 'rotate(-90deg)';
+                    document.body.style.transformOrigin = 'top left';
+                    document.body.style.width = h + 'px';
+                    document.body.style.height = w + 'px';
+                    document.body.style.position = 'absolute';
+                    document.body.style.top = h + 'px';
+                    document.body.style.left = '0';
+                    document.body.style.overflow = 'hidden';
+                    requestAnimationFrame(function () {
+                        requestAnimationFrame(function () {
+                            if (callback) callback();
+                        });
+                    });
+                });
+            } else {
+                if (callback) callback();
             }
-        }, 300);
+        }, 50);
     }
 
     // Undo rotation if user physically rotates to landscape
@@ -194,7 +400,8 @@ function updateEpisodeContent() {
         });
     }
 
-    document.body.appendChild(overlay);
+    document.documentElement.appendChild(overlay);
+    startTypewriter();
 })();
 
 // Scene switching: instant toggle, no DOM swap

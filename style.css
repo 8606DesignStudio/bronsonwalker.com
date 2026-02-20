@@ -8,6 +8,12 @@
 body {
   background: #530000;
   border: #ffffff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 7.6vh; /* shifts content up so center lands at ~46% instead of 50% */
 }
 
 /* controllable block that contains the cockpit image and overlays */
@@ -145,6 +151,7 @@ HI
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-bottom: 0;
 }
 :fullscreen .cockpit-bg,
 :-webkit-full-screen .cockpit-bg {
