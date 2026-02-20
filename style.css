@@ -43,7 +43,7 @@ body {
   transform: perspective(400px) rotateX(-25deg);
   width: 38%;
   height: 10%;
-  font-family: "Quicksand", sans-serif;
+  font-family: "Nunito", sans-serif;
   font-size: clamp(1.3rem, 2.4vw, 1.7rem); /* fluid but bounded */
   font-weight: 550;
   color: #4bb8e9;
@@ -78,7 +78,7 @@ body {
   justify-content: center;
   min-width: 44px;
   /* visual/interactive styles for the dial */
-  font-family: "Quicksand", system-ui, -apple-system, "Segoe UI", Roboto,
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
   box-sizing: border-box;
   cursor: pointer;
@@ -122,7 +122,7 @@ body {
   width: 100%;
   justify-content: center;
   border-radius: 6px;
-  font-family: "Quicksand", system-ui, -apple-system, "Segoe UI", Roboto,
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
   color: #4bb8e9;
   text-decoration: none;

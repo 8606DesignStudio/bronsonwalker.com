@@ -191,7 +191,7 @@ function updateEpisodeContent() {
             'transform:translate(-50%,-50%) rotate(' + rotDeg.toFixed(1) + 'deg);',
             'display:inline-block;',
             'color:#F5B800;',
-            'font-family:Quicksand,sans-serif;',
+            'font-family:Nunito,sans-serif;',
             'font-size:' + fontSize.toFixed(1) + 'px;',
             'font-weight:700;',
             '-webkit-text-stroke:1.5px #F5B800;',
@@ -205,72 +205,78 @@ function updateEpisodeContent() {
 
     overlay.appendChild(arcContainer);
 
-    // Curved arrow: from 4 o'clock back to 11 o'clock, just inside the text arc
-    var arrowR = r * 0.72;
+    // Curved arrow: arc shaft + explicit polygon arrowhead (no marker junction issues)
     var svgNS = 'http://www.w3.org/2000/svg';
     var svg = document.createElementNS(svgNS, 'svg');
     svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;animation:arrowPulse 2.5s ease-in-out infinite;';
 
-    var defs = document.createElementNS(svgNS, 'defs');
-    var marker = document.createElementNS(svgNS, 'marker');
-    marker.setAttribute('id', 'arrowhead');
-    marker.setAttribute('markerWidth', '7');
-    marker.setAttribute('markerHeight', '7');
-    marker.setAttribute('refX', '6');
-    marker.setAttribute('refY', '3.5');
-    marker.setAttribute('orient', 'auto');
-    marker.setAttribute('markerUnits', 'strokeWidth');
-    var arrowTip = document.createElementNS(svgNS, 'path');
-    arrowTip.setAttribute('d', 'M0,0 L7,3.5 L0,7 Z');
-    arrowTip.setAttribute('fill', '#F5B800');
-    marker.appendChild(arrowTip);
-    defs.appendChild(marker);
-    svg.appendChild(defs);
-
+    var arrowR = r * 0.72;
     var cx = window.innerWidth / 2 + hOffset;
     var cy = window.innerHeight / 2;
-    // 4 o'clock = 30deg, 11 o'clock = -120deg
-    var ang4 = 30 * Math.PI / 180;
+    var ang4  =  30 * Math.PI / 180;
     var ang11 = -120 * Math.PI / 180;
     var ax1 = cx + arrowR * Math.cos(ang4);
     var ay1 = cy + arrowR * Math.sin(ang4);
     var ax2 = cx + arrowR * Math.cos(ang11);
     var ay2 = cy + arrowR * Math.sin(ang11);
 
-    var arcArrow = document.createElementNS(svgNS, 'path');
-    // sweep-flag=0: counterclockwise in SVG (goes 4 -> 3 -> 12 -> 11), large-arc=0 (150deg < 180)
-    arcArrow.setAttribute('d', 'M ' + ax1.toFixed(1) + ',' + ay1.toFixed(1) + ' A ' + arrowR.toFixed(1) + ',' + arrowR.toFixed(1) + ' 0 0,0 ' + ax2.toFixed(1) + ',' + ay2.toFixed(1));
-    arcArrow.setAttribute('fill', 'none');
-    arcArrow.setAttribute('stroke', '#F5B800');
-    arcArrow.setAttribute('stroke-width', '6');
-    arcArrow.setAttribute('stroke-linecap', 'butt');
-    arcArrow.setAttribute('marker-end', 'url(#arrowhead)');
-    svg.appendChild(arcArrow);
+    // Arc shaft
+    var arcShaft = document.createElementNS(svgNS, 'path');
+    arcShaft.setAttribute('d', 'M ' + ax1.toFixed(1) + ',' + ay1.toFixed(1) + ' A ' + arrowR.toFixed(1) + ',' + arrowR.toFixed(1) + ' 0 0,0 ' + ax2.toFixed(1) + ',' + ay2.toFixed(1));
+    arcShaft.setAttribute('fill', 'none');
+    arcShaft.setAttribute('stroke', '#F5B800');
+    arcShaft.setAttribute('stroke-width', '8');
+    arcShaft.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(arcShaft);
+
+    // Arrowhead: filled polygon at 11 o'clock endpoint, oriented along arc tangent
+    // Tangent direction at ang11 for CCW arc: (sin(ang11), -cos(ang11))
+    var tx = Math.sin(ang11);   // tangent x
+    var ty = -Math.cos(ang11);  // tangent y
+    var nx = ty;                // normal x (90deg CW from tangent)
+    var ny = -tx;               // normal y
+    var hl = arrowR * 0.16;    // arrowhead length
+    var hw = arrowR * 0.12;    // arrowhead half-width
+    var tipX  = ax2 + tx * hl;
+    var tipY  = ay2 + ty * hl;
+    var b1X = ax2 - tx * hl * 0.2 + nx * hw;
+    var b1Y = ay2 - ty * hl * 0.2 + ny * hw;
+    var b2X = ax2 - tx * hl * 0.2 - nx * hw;
+    var b2Y = ay2 - ty * hl * 0.2 - ny * hw;
+    var arrowHead = document.createElementNS(svgNS, 'polygon');
+    arrowHead.setAttribute('points', tipX.toFixed(1)+','+tipY.toFixed(1)+' '+b1X.toFixed(1)+','+b1Y.toFixed(1)+' '+b2X.toFixed(1)+','+b2Y.toFixed(1));
+    arrowHead.setAttribute('fill', '#F5B800');
+    svg.appendChild(arrowHead);
+
     overlay.appendChild(svg);
 
-    // Power symbol: SVG circle-with-gap icon centered in the arc
-    var powerSvg = document.createElementNS(svgNS, 'svg');
-    var pSize = (r * 0.30).toFixed(1);
-    powerSvg.setAttribute('viewBox', '0 0 24 24');
+    // Center: <3 in a simple gold circle
+    var powerSvg = document.createElement('div');
+    var btnSize = (r * 0.58).toFixed(1);
     powerSvg.style.cssText = [
         'position:absolute;',
         'left:calc(50% + ' + hOffset.toFixed(1) + 'px);',
         'top:50%;',
         'transform:translate(-50%,-50%);',
-        'width:' + pSize + 'px;',
-        'height:' + pSize + 'px;',
-        'overflow:visible;',
+        'width:' + btnSize + 'px;',
+        'height:' + btnSize + 'px;',
+        'border-radius:50%;',
+        'border:3px solid #F5B800;',
+        'display:flex;align-items:center;justify-content:center;',
         'pointer-events:none;',
         'animation:goldPulse 2.5s ease-in-out infinite;'
     ].join('');
-    var powerPath = document.createElementNS(svgNS, 'path');
-    // 270deg arc (clockwise from upper-right to upper-left, gap at top) + vertical line
-    powerPath.setAttribute('d', 'M12,1 L12,8 M18.36,5.64 A9,9 0 1,1 5.64,5.64');
-    powerPath.setAttribute('fill', 'none');
-    powerPath.setAttribute('stroke', '#F5B800');
-    powerPath.setAttribute('stroke-width', '2');
-    powerPath.setAttribute('stroke-linecap', 'round');
-    powerSvg.appendChild(powerPath);
+    var heartSpan = document.createElement('span');
+    heartSpan.textContent = '<3';
+    heartSpan.style.cssText = [
+        'color:#F5B800;',
+        'font-family:Nunito,sans-serif;',
+        'font-size:' + fontSize.toFixed(1) + 'px;',
+        'font-weight:700;',
+        '-webkit-text-stroke:1.5px #F5B800;',
+        'line-height:1;user-select:none;'
+    ].join('');
+    powerSvg.appendChild(heartSpan);
     overlay.appendChild(powerSvg);
 
     // Typewriter: reveal each character in sequence

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Touch Map – Arrow</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; width: 100vw; height: 100vh; }
+
+    /* Real page underneath, non-interactive */
+    iframe {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      border: none;
+      pointer-events: none;
+    }
+
+    /* Drawing canvas on top */
+    #c {
+      position: fixed; inset: 0;
+      touch-action: none;
+      z-index: 9999;
+    }
+
+    #label {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+      color: #F5B800; font-family: monospace; font-size: 14px;
+      background: rgba(0,0,0,0.75); padding: 7px 14px; border-radius: 6px;
+      pointer-events: none; white-space: nowrap; z-index: 10000;
+    }
+    #controls {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; z-index: 10000;
+    }
+    button {
+      padding: 12px 22px; font-size: 15px; font-family: monospace;
+      font-weight: bold; border: none; border-radius: 8px; cursor: pointer;
+    }
+    #undoBtn  { background: rgba(0,0,0,0.75); color: #F5B800; border: 1px solid #F5B800; }
+    #clearBtn { background: rgba(0,0,0,0.75); color: #888; border: 1px solid #555; }
+    #sendBtn  { background: #F5B800; color: #000; }
+  </style>
+</head>
+<body>
+  <iframe src="/"></iframe>
+  <canvas id="c"></canvas>
+  <div id="label">Draw your arrow, then tap Send</div>
+  <div id="controls">
+    <button id="undoBtn">Undo</button>
+    <button id="clearBtn">Clear</button>
+    <button id="sendBtn">Send to Claude</button>
+  </div>
+
+  <script>
+    var canvas = document.getElementById('c');
+    var ctx    = canvas.getContext('2d');
+    var label  = document.getElementById('label');
+
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    ctx.strokeStyle = '#F5B800';
+    ctx.lineWidth   = 10;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+
+    var paths   = [];
+    var current = null;
+
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      paths.forEach(function(path) {
+        if (path.length < 2) return;
+        ctx.beginPath();
+        ctx.moveTo(path[0].x, path[0].y);
+        for (var i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        ctx.stroke();
+      });
+    }
+
+    function getPos(e) {
+      var src = e.touches ? e.touches[0] : e;
+      return { x: src.clientX, y: src.clientY };
+    }
+
+    function onStart(e) { e.preventDefault(); current = [getPos(e)]; }
+
+    function onMove(e) {
+      e.preventDefault();
+      if (!current) return;
+      current.push(getPos(e));
+      redraw();
+      ctx.beginPath();
+      ctx.moveTo(current[0].x, current[0].y);
+      for (var i = 1; i < current.length; i++) ctx.lineTo(current[i].x, current[i].y);
+      ctx.stroke();
+    }
+
+    function onEnd(e) {
+      e.preventDefault();
+      if (current && current.length > 1) {
+        var simplified = current.filter(function(_, i) { return i % 3 === 0; });
+        if (simplified[simplified.length - 1] !== current[current.length - 1])
+          simplified.push(current[current.length - 1]);
+        paths.push(simplified);
+      }
+      current = null;
+      redraw();
+      label.textContent = paths.length + ' stroke(s). Undo, Clear, or Send.';
+    }
+
+    canvas.addEventListener('mousedown',  onStart);
+    canvas.addEventListener('mousemove',  onMove);
+    canvas.addEventListener('mouseup',    onEnd);
+    canvas.addEventListener('touchstart', onStart, { passive: false });
+    canvas.addEventListener('touchmove',  onMove,  { passive: false });
+    canvas.addEventListener('touchend',   onEnd,   { passive: false });
+
+    document.getElementById('undoBtn').addEventListener('click', function() {
+      paths.pop(); redraw();
+      label.textContent = paths.length + ' stroke(s).';
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', function() {
+      paths = []; redraw();
+      label.textContent = 'Cleared. Draw your arrow.';
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', function() {
+      if (paths.length === 0) { label.textContent = 'Nothing drawn yet!'; return; }
+      var W = canvas.width, H = canvas.height;
+      var normalized = paths.map(function(path) {
+        return path.map(function(p) {
+          return { x: +(p.x / W * 100).toFixed(2), y: +(p.y / H * 100).toFixed(2) };
+        });
+      });
+      label.textContent = 'Sending...';
+      fetch('https://webhooks.srv901146.hstgr.cloud/webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'arrow_drawing', viewW: W, viewH: H, strokeCount: paths.length, paths: normalized })
+      }).then(function() {
+        label.textContent = 'Sent! ' + paths.length + ' stroke(s).';
+      }).catch(function(err) {
+        label.textContent = 'Error -- check console';
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>
