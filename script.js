@@ -453,7 +453,7 @@ function updateEpisodeContent() {
 
     btn.addEventListener('click', function () {
         if (!ambient.playing()) ambient.play();
-        ambient.fade(0, 0.16, 3000);
+        ambient.fade(0, 0.03, 3000);
         btn.style.display = 'none';
         if (muteBtn) muteBtn.classList.add('visible');
     });

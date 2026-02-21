@@ -186,6 +186,8 @@ HI
 #headphones-btn svg {
   width: 100px;
   height: 70px;
+  filter: drop-shadow(0 0 5px rgba(245, 184, 0, 0.55))
+          drop-shadow(0 0 14px rgba(245, 184, 0, 0.25));
 }
 #headphones-btn:hover {
   opacity: 0.85;
@@ -201,7 +203,7 @@ HI
   color: #F5B800;
   opacity: 0.9;
   text-align: center;
-  margin-top: 5px;
+  margin-bottom: 2px;
   width: 110px;
   text-shadow: 0 0 6px rgba(245, 184, 0, 1),
                0 0 14px rgba(245, 184, 0, 0.8),
