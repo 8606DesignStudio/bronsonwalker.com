@@ -59,8 +59,31 @@
     <div class="scene active" id="scene-cockpit">
         <div class="cockpit-bg">
             <img src="assets/Cockpit_Zoomed.jpg" alt="Cockpit" class="cockpit-img">
+            <div class="cockpit-light" style="left:31.6%;top:51.9%;width:7px;height:7px;animation-duration:3.4s;animation-delay:0s;"></div>
+            <div class="cockpit-light" style="left:14.6%;top:90.7%;width:9px;height:9px;animation-duration:4.2s;animation-delay:0.8s;"></div>
+            <div class="cockpit-light" style="left:71.9%;top:52.3%;width:7px;height:7px;animation-duration:3.7s;animation-delay:1.5s;"></div>
+            <div class="cockpit-light" style="left:86.3%;top:83.0%;width:8px;height:8px;animation-duration:4.6s;animation-delay:0.4s;"></div>
+            <div class="cockpit-light" style="left:49.3%;top:82.1%;width:6px;height:6px;animation-duration:3.1s;animation-delay:1.1s;"></div>
             <div class="episode" id="episode">Episode 000: Welcome to the Show</div>
             <div id="dial"></div>
+            <div id="headphones-btn" aria-label="Toggle ambient sound">
+                <svg viewBox="0 0 90 70" xmlns="http://www.w3.org/2000/svg" fill="none" width="100%" height="100%">
+                    <!-- headband -->
+                    <path d="M 16,44 Q 45,12 74,44" stroke="#F5B800" stroke-width="4.5" stroke-linecap="round"/>
+                    <!-- left ear cup -->
+                    <ellipse cx="16" cy="50" rx="11" ry="14" fill="#1a1200" stroke="#F5B800" stroke-width="2.5"/>
+                    <ellipse cx="16" cy="50" rx="7" ry="9.5" fill="#0d0900" stroke="#c8a000" stroke-width="1.5"/>
+                    <!-- right ear cup -->
+                    <ellipse cx="74" cy="50" rx="11" ry="14" fill="#1a1200" stroke="#F5B800" stroke-width="2.5"/>
+                    <ellipse cx="74" cy="50" rx="7" ry="9.5" fill="#0d0900" stroke="#c8a000" stroke-width="1.5"/>
+                    <!-- boom mic arm -->
+                    <path d="M 10,58 Q -2,62 1,69" stroke="#F5B800" stroke-width="2.5" stroke-linecap="round"/>
+                    <!-- mic capsule -->
+                    <ellipse cx="1" cy="69" rx="4.5" ry="3" fill="#1a1200" stroke="#F5B800" stroke-width="1.5"/>
+                </svg>
+                <span id="unmute-label">Unmute</span>
+            </div>
+            <button id="mute-btn">Mute</button>
             <div class="footer-buttons">
                 <a href="#" class="new-page-link" data-scene="scene-door">Cockpit Door</a>
             </div>
@@ -81,6 +104,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>
     <script type="module" src="script.js"></script>
 </body>
 </html>

@@ -50,9 +50,30 @@ dialElement.addEventListener('click', () => spin());
 touchArea.addEventListener('touchstart', (e) => handleTouchStart(e));
 touchArea.addEventListener('touchmove', (e) => handleTouchMove(e));
 
+// Soft sine ping for dial — clean, musical, low volume
+var _dialCtx = null;
+function playDialTick() {
+    try {
+        if (!_dialCtx) _dialCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var ctx = _dialCtx;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 420;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.022, ctx.currentTime + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.28);
+    } catch(e) {}
+}
+
 // Click handler for desktop
 function spin() {
     currentNumber = (currentNumber + 1) % (maxEpisode + 1);
+    playDialTick();
     updateDialOnly();
     updateEpisodeContent();
 }
@@ -91,6 +112,7 @@ function handleTouchMove(e) {
         
         // Reset touch start position to prevent multiple changes
         touchStartX = currentTouchX;
+        playDialTick();
         updateDialOnly();
         updateEpisodeContent();
     }
@@ -408,6 +430,42 @@ function updateEpisodeContent() {
 
     document.documentElement.appendChild(overlay);
     startTypewriter();
+})();
+
+// Audio system — ambient cockpit sound, toggled by the headphones button
+// Requires: Howler.js (loaded via CDN before this script)
+// Sound file: place ambient audio at assets/ambient.mp3 (and .ogg for Firefox)
+(function () {
+    if (typeof Howl === 'undefined') return;
+
+    var ambient = new Howl({
+        src: ['assets/ambient.mp3', 'assets/ambient.ogg'],
+        loop: true,
+        volume: 0,
+        onloaderror: function () {
+            console.warn('bronsonwalker.com: ambient sound not found at assets/ambient.mp3');
+        }
+    });
+
+    var btn = document.getElementById('headphones-btn');
+    var muteBtn = document.getElementById('mute-btn');
+    if (!btn) return;
+
+    btn.addEventListener('click', function () {
+        if (!ambient.playing()) ambient.play();
+        ambient.fade(0, 0.16, 3000);
+        btn.style.display = 'none';
+        if (muteBtn) muteBtn.classList.add('visible');
+    });
+
+    if (muteBtn) {
+        muteBtn.addEventListener('click', function () {
+            ambient.fade(ambient.volume(), 0, 1500);
+            setTimeout(function () { ambient.pause(); }, 1600);
+            muteBtn.classList.remove('visible');
+            btn.style.display = '';
+        });
+    }
 })();
 
 // Scene switching: instant toggle, no DOM swap

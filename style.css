@@ -6,7 +6,7 @@
   padding: 0;
 }
 body {
-  background: #530000;
+  background: #000000;
   border: #ffffff;
   min-height: 100vh;
   display: flex;
@@ -23,7 +23,7 @@ body {
   max-width: 100%;
   margin: 18px auto; /* space around the cockpit block */
   padding: 0px; /* inner spacing so border doesn't touch the image */
-  border: 2px solid rgba(0, 204, 204, 0.897);
+  border: none;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
 }
 
@@ -124,11 +124,11 @@ body {
   border-radius: 6px;
   font-family: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
-  color: #4bb8e9;
+  color: #000;
   text-decoration: none;
-  font-weight: 530;
+  font-weight: 700;
   padding: 2px 8px;
-  background: linear-gradient(135deg, #000000, #b95900);
+  background: #F5B800;
   font-size: clamp(0.8rem, 1.6vw, 1.1rem);
 }
 
@@ -142,6 +142,96 @@ body {
 HI
 
 } */
+
+/* Pulsing cockpit indicator lights */
+@keyframes lightPulse {
+  0%, 100% {
+    opacity: 0.15;
+    box-shadow: 0 0 4px 2px rgba(255, 150, 20, 0.18);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 8px 4px rgba(255, 175, 35, 0.35),
+                0 0 18px 6px rgba(220, 100, 5, 0.15);
+  }
+}
+.cockpit-light {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 175, 35, 0.7);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 5;
+  animation: lightPulse ease-in-out infinite;
+}
+
+/* Headphones audio toggle */
+#headphones-btn {
+  position: absolute;
+  top: 66.5%;
+  left: 30.1%;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: auto;
+  cursor: pointer;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#headphones-btn svg {
+  width: 100px;
+  height: 70px;
+}
+#headphones-btn:hover {
+  opacity: 0.85;
+  filter: drop-shadow(0 0 6px rgba(245, 184, 0, 0.6));
+}
+
+/* Unmute label below headphones SVG */
+#unmute-label {
+  display: block;
+  font-family: "Nunito", sans-serif;
+  font-size: clamp(0.85rem, 1.8vw, 1.1rem);
+  font-weight: 700;
+  color: #F5B800;
+  opacity: 0.9;
+  text-align: center;
+  margin-top: 5px;
+  width: 110px;
+  text-shadow: 0 0 6px rgba(245, 184, 0, 1),
+               0 0 14px rgba(245, 184, 0, 0.8),
+               0 0 28px rgba(200, 134, 0, 0.55),
+               0 0 50px rgba(200, 134, 0, 0.3);
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+/* Mute button — bottom right, hidden until audio is active */
+#mute-btn {
+  display: none;
+  position: absolute;
+  bottom: 2%;
+  right: 3%;
+  z-index: 40;
+  border-radius: 6px;
+  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #000;
+  font-weight: 700;
+  padding: 2px 8px;
+  background: #F5B800;
+  font-size: clamp(0.8rem, 1.6vw, 1.1rem);
+  border: none;
+  cursor: pointer;
+}
+#mute-btn.visible {
+  display: block;
+}
 
 /* Fullscreen: lock to viewport height, center image, no vertical scroll */
 :fullscreen body,
