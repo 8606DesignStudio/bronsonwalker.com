@@ -37,7 +37,7 @@ body {
 
 .episode {
   position: absolute;
-  top: 1%;
+  top: 3.5%;
   left: 33%;
   /* anchor top: remove vertical translate so height changes grow downward */
   transform: perspective(400px) rotateX(-25deg);
