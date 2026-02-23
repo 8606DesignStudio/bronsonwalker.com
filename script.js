@@ -127,10 +127,18 @@ function updateDialOnly() {
 }
 
 function updateEpisodeContent() {
+    const instruction = document.getElementById('dial-instruction');
     if (episodes.length === 0) {
         document.getElementById('episode').innerHTML = "Loading...";
+        if (instruction) instruction.style.display = 'none';
     } else {
-        document.getElementById('episode').innerHTML = episodes[currentNumber] || "";
+        if (currentNumber === 0) {
+            document.getElementById('episode').innerHTML = "";
+            if (instruction) instruction.style.display = '';
+        } else {
+            document.getElementById('episode').innerHTML = episodes[currentNumber] || "";
+            if (instruction) instruction.style.display = 'none';
+        }
     }
 }
 

@@ -61,6 +61,29 @@ body {
     0 0 25px rgba(106, 90, 205, 0.5), 0 0 35px rgba(72, 61, 139, 0.3);
 }
 
+#dial-instruction {
+  position: absolute;
+  top: 38%;
+  left: 35%;
+  width: 36%;
+  font-family: "Nunito", sans-serif;
+  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  font-weight: 550;
+  color: #4bb8e9;
+  opacity: 0.43;
+  text-align: center;
+  line-height: 1.1;
+  text-shadow: 0 0 5px rgba(138, 43, 226, 0.9),
+    0 0 10px rgba(147, 112, 219, 0.8), 0 0 15px rgba(123, 104, 238, 0.7),
+    0 0 25px rgba(106, 90, 205, 0.5), 0 0 35px rgba(72, 61, 139, 0.3);
+  pointer-events: none;
+}
+
+#dial-instruction .dial-arrows {
+  font-size: 2em;
+  font-weight: 700;
+}
+
 .episode a {
   color: #4bb8e9;
   text-decoration: none;
