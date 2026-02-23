@@ -64,8 +64,8 @@ body {
 #dial-instruction {
   position: absolute;
   top: 38%;
-  left: 35%;
-  width: 36%;
+  left: 31%;
+  width: 42%;
   font-family: "Nunito", sans-serif;
   font-size: clamp(1.3rem, 2.4vw, 1.7rem);
   font-weight: 550;
