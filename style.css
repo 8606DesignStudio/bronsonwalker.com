@@ -38,10 +38,10 @@ body {
 .episode {
   position: absolute;
   top: 3.5%;
-  left: 33%;
+  left: 35%;
   /* anchor top: remove vertical translate so height changes grow downward */
   transform: perspective(400px) rotateX(-25deg);
-  width: 38%;
+  width: 36%;
   height: 88%;
   font-family: "Nunito", sans-serif;
   font-size: clamp(1.3rem, 2.4vw, 1.7rem); /* fluid but bounded */
