@@ -42,7 +42,7 @@ body {
   /* anchor top: remove vertical translate so height changes grow downward */
   transform: perspective(400px) rotateX(-25deg);
   width: 38%;
-  height: 10%;
+  height: 88%;
   font-family: "Nunito", sans-serif;
   font-size: clamp(1.3rem, 2.4vw, 1.7rem); /* fluid but bounded */
   font-weight: 550;
