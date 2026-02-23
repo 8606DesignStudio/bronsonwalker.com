@@ -92,7 +92,7 @@ function generateEpisodesArray() {
     const episodes = new Array(maxEpisode + 1).fill('');
     
     // Set the welcome message at index 0
-    episodes[0] = "<span style=\"display:inline-block;margin-top:33.5vh\">start scrolling <3</span>";
+    episodes[0] = "<span style=\"display:inline-block;margin-top:33.5vh\">\u2190 tune in \u2192</span>";
     
     // Fill in the episodes
     Object.keys(episodeData).forEach(episodeNum => {
