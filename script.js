@@ -79,6 +79,7 @@ function stopDialPulse() {
 // Click handler for desktop
 function spin() {
     stopDialPulse();
+    showDescription = false;
     currentNumber = (currentNumber + 1) % (maxEpisode + 1);
     playDialTick();
     updateDialOnly();
@@ -109,6 +110,7 @@ function handleTouchMove(e) {
 
     if (Math.abs(totalDeltaX) > swipeSensitivity) {
         stopDialPulse();
+        showDescription = false;
         // Determine direction: positive = right, negative = left
         const direction = totalDeltaX > 0 ? 1 : -1;
         
@@ -134,20 +136,46 @@ function updateDialOnly() {
     if (t) t.textContent = currentNumber === 0 ? '<0>' : String(currentNumber).padStart(3, '0');
 }
 
+let showDescription = false;
+
 function updateEpisodeContent() {
     const instruction = document.getElementById('dial-instruction');
-    if (episodes.length === 0) {
-        document.getElementById('episode').innerHTML = "Loading...";
+    const epDiv = document.getElementById('episode');
+
+    if (!episodes || episodes.length === 0) {
+        epDiv.innerHTML = 'Loading...';
         if (instruction) instruction.style.display = 'none';
-    } else {
-        if (currentNumber === 0) {
-            document.getElementById('episode').innerHTML = "";
-            if (instruction) instruction.style.display = '';
-        } else {
-            document.getElementById('episode').innerHTML = episodes[currentNumber] || "";
-            if (instruction) instruction.style.display = 'none';
-        }
+        return;
     }
+
+    if (currentNumber === 0) {
+        epDiv.innerHTML = '';
+        showDescription = false;
+        if (instruction) instruction.style.display = '';
+        return;
+    }
+
+    const ep = episodes[currentNumber];
+    if (!ep) {
+        epDiv.innerHTML = '';
+        if (instruction) instruction.style.display = 'none';
+        return;
+    }
+
+    if (instruction) instruction.style.display = 'none';
+
+    const content = showDescription
+        ? '<span class="ep-desc">' + ep.description + '</span>'
+        : '<a href="' + ep.link + '" target="_blank" rel="noopener">' + ep.title + '</a>';
+
+    epDiv.innerHTML = '<span id="ep-info-btn" title="Toggle description">\u24d8</span>' + content;
+
+    document.getElementById('ep-info-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        showDescription = !showDescription;
+        updateEpisodeContent();
+    });
 }
 
 // Fullscreen + forced landscape on mobile
