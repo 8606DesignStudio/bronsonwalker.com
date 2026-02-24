@@ -71,8 +71,14 @@ function playDialTick() {
     } catch(e) {}
 }
 
+// Stop pulse animation on first interaction
+function stopDialPulse() {
+    if (dialElement) dialElement.classList.add('dialed');
+}
+
 // Click handler for desktop
 function spin() {
+    stopDialPulse();
     currentNumber = (currentNumber + 1) % (maxEpisode + 1);
     playDialTick();
     updateDialOnly();
@@ -100,8 +106,9 @@ function handleTouchStart(e) {
 function handleTouchMove(e) {
     const currentTouchX = e.touches[0].clientX;
     const totalDeltaX = currentTouchX - touchStartX;
-    
+
     if (Math.abs(totalDeltaX) > swipeSensitivity) {
+        stopDialPulse();
         // Determine direction: positive = right, negative = left
         const direction = totalDeltaX > 0 ? 1 : -1;
         
