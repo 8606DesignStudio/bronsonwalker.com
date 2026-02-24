@@ -23,6 +23,16 @@ let maxEpisode = 192; // Will be updated when episodes load
 
 loadEpisodes();
 
+// Hint animation: briefly tick to 001 and back to show the dial is interactive
+setTimeout(function() {
+    const t = document.getElementById('dial-text');
+    if (!t || currentNumber !== 0) return;
+    t.textContent = '001';
+    setTimeout(function() {
+        if (currentNumber === 0) t.textContent = '<0>';
+    }, 420);
+}, 1800);
+
 // Use the existing #dial container as the interactive element and create
 // a dedicated child for the numeric text so we don't overwrite children.
 const dialContainer = document.getElementById('dial');
