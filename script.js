@@ -23,23 +23,6 @@ let maxEpisode = 192; // Will be updated when episodes load
 
 loadEpisodes();
 
-// Hint animation: briefly tick to 001 and back to show the dial is interactive
-// Fires after 'cockpit-ready' event (dispatched by overlay on mobile, or on timeout on desktop)
-function runDialHint() {
-    const t = document.getElementById('dial-text');
-    if (!t || currentNumber !== 0) return;
-    t.textContent = '001';
-    setTimeout(function() {
-        if (currentNumber === 0) t.textContent = '<0>';
-    }, 420);
-}
-window.addEventListener('cockpit-ready', function() {
-    setTimeout(runDialHint, 1000);
-}, { once: true });
-// Desktop has no overlay — fire cockpit-ready directly
-if (!('ontouchstart' in window)) {
-    setTimeout(function() { window.dispatchEvent(new Event('cockpit-ready')); }, 1000);
-}
 
 // Use the existing #dial container as the interactive element and create
 // a dedicated child for the numeric text so we don't overwrite children.
@@ -376,7 +359,7 @@ function updateEpisodeContent() {
             overlay.style.backdropFilter = 'blur(14px)';
             overlay.style.webkitBackdropFilter = 'blur(14px)';
             overlay.style.background = 'rgba(10,5,0,0.45)';
-            window.dispatchEvent(new Event('cockpit-ready'));
+
         }, 1400);
     }
 
