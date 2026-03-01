@@ -29,7 +29,7 @@ loadEpisodes();
 const dialContainer = document.getElementById('dial');
 const dialText = document.createElement('span');
 dialText.id = 'dial-text';
-dialText.textContent = currentNumber === 0 ? '<0>' : String(currentNumber).padStart(3, '0');
+dialText.textContent = currentNumber === 0 ? '<3>' : String(currentNumber).padStart(3, '0');
 if (dialContainer) dialContainer.appendChild(dialText);
 
 const dialElement = dialContainer;
@@ -133,7 +133,7 @@ function handleTouchMove(e) {
 // Update functions
 function updateDialOnly() {
     const t = document.getElementById('dial-text');
-    if (t) t.textContent = currentNumber === 0 ? '<0>' : String(currentNumber).padStart(3, '0');
+    if (t) t.textContent = currentNumber === 0 ? '<3>' : String(currentNumber).padStart(3, '0');
 }
 
 let showDescription = false;
