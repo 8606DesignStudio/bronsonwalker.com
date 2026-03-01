@@ -37,6 +37,10 @@ body {
   object-position: top;
 }
 
+#scene-door .cockpit-img {
+  transform: scaleX(-1);
+}
+
 .episode {
   position: absolute;
   top: 3.5%;
