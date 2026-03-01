@@ -263,6 +263,30 @@ HI
   display: block;
 }
 
+/* Arch display on door scene */
+#door-arch {
+  position: absolute;
+  top: 9%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22%;
+  padding: 3px 10px;
+  font-family: "Nunito", sans-serif;
+  font-size: clamp(0.85rem, 1.6vw, 1.2rem);
+  font-weight: 700;
+  color: #4bb8e9;
+  opacity: 0.75;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(75, 184, 233, 0.15);
+  border-radius: 3px;
+  z-index: 10;
+  pointer-events: none;
+  text-shadow: 0 0 5px rgba(138, 43, 226, 0.9),
+    0 0 10px rgba(147, 112, 219, 0.8), 0 0 15px rgba(123, 104, 238, 0.7),
+    0 0 25px rgba(106, 90, 205, 0.5);
+}
+
 /* Fullscreen: lock to viewport height, center image, no vertical scroll */
 :fullscreen body,
 :-webkit-full-screen body {
