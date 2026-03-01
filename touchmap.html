@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Touch Map</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        #container { position: relative; width: 100vw; height: 56.25vw; max-height: 100vh; max-width: calc(100vh * 16 / 9); cursor: crosshair; flex-shrink: 0; }
+        #container img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+        .dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #F5B800;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 6px #F5B800;
+        }
+        #log {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.75);
+            color: #F5B800;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 6px 10px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <img src="assets/cockpit.png" id="img">
+    </div>
+    <div id="log"></div>
+
+    <script>
+        var container = document.getElementById('container');
+        var img = document.getElementById('img');
+        var log = document.getElementById('log');
+        var pins = [];
+        var count = 0;
+
+        function save() {
+            fetch('https://webhooks.srv901146.hstgr.cloud/pins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pins)
+            });
+        }
+
+        function placeDot(p) {
+            var r = img.getBoundingClientRect();
+            var cr = container.getBoundingClientRect();
+            var dot = document.createElement('div');
+            dot.className = 'dot';
+            dot.style.left = ((p.x / 100) * r.width + (r.left - cr.left)) + 'px';
+            dot.style.top  = ((p.y / 100) * r.height + (r.top  - cr.top))  + 'px';
+            container.appendChild(dot);
+        }
+
+        container.addEventListener('click', function (e) {
+            var r = img.getBoundingClientRect();
+            var x = ((e.clientX - r.left) / r.width  * 100).toFixed(1);
+            var y = ((e.clientY - r.top)  / r.height * 100).toFixed(1);
+            count++;
+            var p = { n: count, x: x, y: y };
+            pins.push(p);
+            save();
+            placeDot(p);
+            renderLog();
+        });
+
+        function renderLog() {
+            log.innerHTML = pins.map(function (p) {
+                return '#' + p.n + '  left:' + p.x + '%  top:' + p.y + '%';
+            }).join('&nbsp;&nbsp;|&nbsp;&nbsp;');
+            log.scrollLeft = log.scrollWidth;
+        }
+    </script>
+</body>
+</html>

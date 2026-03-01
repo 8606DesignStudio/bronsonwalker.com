@@ -168,27 +168,14 @@ function updateEpisodeContent() {
         ? '<span class="ep-desc">' + ep.description + '</span>'
         : '<a href="' + ep.link + '" target="_blank" rel="noopener">' + ep.title + '</a>';
 
-    epDiv.innerHTML = '<span id="ep-info-btn" title="Toggle description">\u24d8</span>' + content;
-
-    document.getElementById('ep-info-btn').addEventListener('click', function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-        showDescription = !showDescription;
-        updateEpisodeContent();
-    });
+    epDiv.innerHTML = content;
 }
 
-// Fullscreen + forced landscape on mobile
+// Frosted entry overlay with ENTER button
 (function () {
-    if (!('ontouchstart' in window)) return;
-
-    // Inject keyframe animations and scanline style
+    // Inject scanline + enter button styles
     var style = document.createElement('style');
     style.textContent = [
-        '@keyframes goldPulse {',
-        '  0%,100% { text-shadow: 0 0 8px #F5B800, 0 0 20px #F5B800aa, 0 0 40px #c8860044; }',
-        '  50%     { text-shadow: 0 0 18px #F5B800, 0 0 45px #F5B800cc, 0 0 80px #c88600aa; }',
-        '}',
         '@keyframes overlayFlicker {',
         '  0%   { opacity: 1; }',
         '  5%   { opacity: 0.1; }',
@@ -209,14 +196,14 @@ function updateEpisodeContent() {
         '  );',
         '  pointer-events: none;',
         '}',
-        '@keyframes arrowPulse {',
-        '  0%,100% { filter: drop-shadow(0 0 4px #F5B800aa); }',
-        '  50%     { filter: drop-shadow(0 0 10px #F5B800cc); }',
+        '@keyframes enterPulse {',
+        '  0%,100% { box-shadow: 0 0 8px rgba(245,184,0,0.3), inset 0 0 0 1.5px #F5B800; }',
+        '  50%     { box-shadow: 0 0 20px rgba(245,184,0,0.7), inset 0 0 0 1.5px #F5B800; }',
         '}'
     ].join('\n');
     document.head.appendChild(style);
 
-    // Build overlay with frosted glass background
+    // Build frosted overlay
     var overlay = document.createElement('div');
     overlay.className = 'fs-overlay';
     overlay.style.cssText = [
@@ -224,140 +211,33 @@ function updateEpisodeContent() {
         'background:rgba(10,5,0,0.45);',
         'backdrop-filter:blur(14px);',
         '-webkit-backdrop-filter:blur(14px);',
-        'display:flex;align-items:center;justify-content:center;cursor:pointer;'
+        'display:flex;align-items:center;justify-content:center;'
     ].join('');
 
-    // Arc text: each character placed along a quarter-circle, 11 o'clock to 4 o'clock
-    var arcText = 'PRESS AND FLIP';
-    var arcChars = arcText.split('');
-    var arcSpans = [];
-    var r = Math.min(window.innerWidth, window.innerHeight) * 0.40;
-    var fontSize = Math.max(20, r * 0.22);
-    var startAngle = -2 * Math.PI / 3;  // 11 o'clock
-    var totalArc  =  5 * Math.PI / 6;   // sweep 150deg clockwise to 4 o'clock
-    // Shift circle center left so the arc ends have equal horizontal margins
-    var hOffset = -(r * 0.183);
-
-    var arcContainer = document.createElement('div');
-    arcContainer.style.cssText = 'position:absolute;left:calc(50% + ' + hOffset.toFixed(1) + 'px);top:50%;width:0;height:0;';
-
-    arcChars.forEach(function (ch, i) {
-        var t = (arcChars.length > 1) ? i / (arcChars.length - 1) : 0;
-        var angle = startAngle + t * totalArc;
-        var x = r * Math.cos(angle);
-        var y = r * Math.sin(angle);
-        var rotDeg = (angle * 180 / Math.PI) + 90; // tangent rotation so letter faces outward
-
-        var span = document.createElement('span');
-        span.textContent = (ch === ' ') ? '\u00A0' : ch;
-        span.style.cssText = [
-            'position:absolute;',
-            'left:' + x.toFixed(1) + 'px;',
-            'top:' + y.toFixed(1) + 'px;',
-            'transform:translate(-50%,-50%) rotate(' + rotDeg.toFixed(1) + 'deg);',
-            'display:inline-block;',
-            'color:#F5B800;',
-            'font-family:Nunito,sans-serif;',
-            'font-size:' + fontSize.toFixed(1) + 'px;',
-            'font-weight:700;',
-            '-webkit-text-stroke:1.5px #F5B800;',
-            'animation:goldPulse 2.5s ease-in-out infinite;',
-            'opacity:0;',
-            'transition:opacity 0.08s;'
-        ].join('');
-        arcContainer.appendChild(span);
-        arcSpans.push(span);
-    });
-
-    overlay.appendChild(arcContainer);
-
-    // Curved arrow: arc shaft + explicit polygon arrowhead (no marker junction issues)
-    var svgNS = 'http://www.w3.org/2000/svg';
-    var svg = document.createElementNS(svgNS, 'svg');
-    svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;animation:arrowPulse 2.5s ease-in-out infinite;';
-
-    var arrowR = r * 0.72;
-    var cx = window.innerWidth / 2 + hOffset;
-    var cy = window.innerHeight / 2;
-    var ang4  =  30 * Math.PI / 180;
-    var ang11 = -120 * Math.PI / 180;
-    var ax1 = cx + arrowR * Math.cos(ang4);
-    var ay1 = cy + arrowR * Math.sin(ang4);
-    var ax2 = cx + arrowR * Math.cos(ang11);
-    var ay2 = cy + arrowR * Math.sin(ang11);
-
-    // Arc shaft
-    var arcShaft = document.createElementNS(svgNS, 'path');
-    arcShaft.setAttribute('d', 'M ' + ax1.toFixed(1) + ',' + ay1.toFixed(1) + ' A ' + arrowR.toFixed(1) + ',' + arrowR.toFixed(1) + ' 0 0,0 ' + ax2.toFixed(1) + ',' + ay2.toFixed(1));
-    arcShaft.setAttribute('fill', 'none');
-    arcShaft.setAttribute('stroke', '#F5B800');
-    arcShaft.setAttribute('stroke-width', '8');
-    arcShaft.setAttribute('stroke-linecap', 'round');
-    svg.appendChild(arcShaft);
-
-    // Arrowhead: filled polygon at 11 o'clock endpoint, oriented along arc tangent
-    // Tangent direction at ang11 for CCW arc: (sin(ang11), -cos(ang11))
-    var tx = Math.sin(ang11);   // tangent x
-    var ty = -Math.cos(ang11);  // tangent y
-    var nx = ty;                // normal x (90deg CW from tangent)
-    var ny = -tx;               // normal y
-    var hl = arrowR * 0.16;    // arrowhead length
-    var hw = arrowR * 0.12;    // arrowhead half-width
-    var tipX  = ax2 + tx * hl;
-    var tipY  = ay2 + ty * hl;
-    var b1X = ax2 - tx * hl * 0.2 + nx * hw;
-    var b1Y = ay2 - ty * hl * 0.2 + ny * hw;
-    var b2X = ax2 - tx * hl * 0.2 - nx * hw;
-    var b2Y = ay2 - ty * hl * 0.2 - ny * hw;
-    var arrowHead = document.createElementNS(svgNS, 'polygon');
-    arrowHead.setAttribute('points', tipX.toFixed(1)+','+tipY.toFixed(1)+' '+b1X.toFixed(1)+','+b1Y.toFixed(1)+' '+b2X.toFixed(1)+','+b2Y.toFixed(1));
-    arrowHead.setAttribute('fill', '#F5B800');
-    svg.appendChild(arrowHead);
-
-    overlay.appendChild(svg);
-
-    // Center: <3 in a simple gold circle
-    var powerSvg = document.createElement('div');
-    var btnSize = (r * 0.58).toFixed(1);
-    powerSvg.style.cssText = [
-        'position:absolute;',
-        'left:calc(50% + ' + hOffset.toFixed(1) + 'px);',
-        'top:50%;',
-        'transform:translate(-50%,-50%);',
-        'width:' + btnSize + 'px;',
-        'height:' + btnSize + 'px;',
-        'border-radius:50%;',
-        'border:3px solid #F5B800;',
-        'display:flex;align-items:center;justify-content:center;',
-        'pointer-events:none;',
-        'animation:goldPulse 2.5s ease-in-out infinite;'
-    ].join('');
-    var heartSpan = document.createElement('span');
-    heartSpan.textContent = '<3';
-    heartSpan.style.cssText = [
-        'color:#F5B800;',
+    // ENTER button
+    var enterBtn = document.createElement('button');
+    enterBtn.textContent = 'ENTER';
+    enterBtn.style.cssText = [
         'font-family:Nunito,sans-serif;',
-        'font-size:' + fontSize.toFixed(1) + 'px;',
+        'font-size:clamp(1rem,2vw,1.4rem);',
         'font-weight:700;',
-        '-webkit-text-stroke:1.5px #F5B800;',
-        'line-height:1;user-select:none;'
+        'letter-spacing:0.15em;',
+        'color:#F5B800;',
+        'background:#000;',
+        'border:1.5px solid #F5B800;',
+        'border-radius:8px;',
+        'padding:10px 28px;',
+        'cursor:pointer;',
+        'box-shadow:0 0 8px rgba(245,184,0,0.3);',
+        'transform:translateY(0);',
+        'transition:box-shadow 0.08s,transform 0.08s;',
+        'animation:enterPulse 2.4s ease-in-out infinite;'
     ].join('');
-    powerSvg.appendChild(heartSpan);
-    overlay.appendChild(powerSvg);
-
-    // Typewriter: reveal each character in sequence
-    function startTypewriter() {
-        arcSpans.forEach(function (s) { s.style.opacity = '0'; });
-        var i = 0;
-        var typeInterval = setInterval(function () {
-            if (i < arcSpans.length) {
-                arcSpans[i].style.opacity = '1';
-                i++;
-            } else {
-                clearInterval(typeInterval);
-            }
-        }, 65);
-    }
+    enterBtn.addEventListener('mousedown', function () {
+        enterBtn.style.boxShadow = '0 0 4px rgba(245,184,0,0.2)';
+        enterBtn.style.transform = 'translateY(4px)';
+    });
+    overlay.appendChild(enterBtn);
 
     function doEnterFullscreen() {
         var el = document.documentElement;
@@ -378,7 +258,7 @@ function updateEpisodeContent() {
         }
     }
 
-    // Smart-glass defrost: runs after rotation is applied
+    // Smart-glass defrost
     function startDefrost() {
         overlay.style.transition = [
             'backdrop-filter 1.4s ease-out',
@@ -394,22 +274,16 @@ function updateEpisodeContent() {
             overlay.style.backdropFilter = 'blur(14px)';
             overlay.style.webkitBackdropFilter = 'blur(14px)';
             overlay.style.background = 'rgba(10,5,0,0.45)';
-
         }, 1400);
     }
 
-    // On tap: hide UI instantly, rotate (hidden under overlay), then defrost
-    function enterFullscreen() {
-        overlay.removeEventListener('click', enterFullscreen);
-        arcSpans.forEach(function (s) { s.style.opacity = '0'; });
-        svg.style.opacity = '0';
-        powerSvg.style.opacity = '0';
+    // On ENTER click: hide button immediately, then trigger fullscreen + defrost
+    enterBtn.addEventListener('click', function () {
+        enterBtn.style.display = 'none';
         doEnterFullscreen();
-    }
+    });
 
-    overlay.addEventListener('click', enterFullscreen);
-
-    // Re-show overlay when exiting fullscreen
+    // Reset body rotation if user exits fullscreen
     document.addEventListener('fullscreenchange', function () {
         if (!document.fullscreenElement) {
             document.body.style.transform = '';
@@ -420,17 +294,10 @@ function updateEpisodeContent() {
             document.body.style.top = '';
             document.body.style.left = '';
             document.body.style.overflow = '';
-            overlay.style.display = 'flex';
-            overlay.style.animation = '';
-            svg.style.opacity = '1';
-            powerSvg.style.opacity = '1';
-            overlay.addEventListener('click', enterFullscreen);
-            startTypewriter();
         }
     });
 
-    // CSS rotation fallback for when orientation lock isn't supported (iOS)
-    // Overlay (on <html>) stays visible and hides the rotation; callback fires after rotation settles
+    // CSS rotation fallback for iOS (orientation lock not supported)
     function applyLandscapeIfNeeded(callback) {
         setTimeout(function () {
             if (window.innerHeight > window.innerWidth) {
@@ -457,7 +324,7 @@ function updateEpisodeContent() {
         }, 50);
     }
 
-    // Undo rotation if user physically rotates to landscape
+    // Undo CSS rotation if user physically rotates to landscape
     if (screen.orientation) {
         screen.orientation.addEventListener('change', function () {
             if (screen.orientation.type.startsWith('landscape')) {
@@ -474,7 +341,6 @@ function updateEpisodeContent() {
     }
 
     document.documentElement.appendChild(overlay);
-    startTypewriter();
 })();
 
 // Audio system — ambient cockpit sound, toggled by the headphones button
@@ -492,45 +358,39 @@ function updateEpisodeContent() {
         }
     });
 
-    var btn = document.getElementById('headphones-btn');
-    var muteBtn = document.getElementById('mute-btn');
-    if (!btn) return;
+    var btns = document.querySelectorAll('.headphones-btn');
+    var muteBtns = document.querySelectorAll('.mute-btn');
+    if (!btns.length) return;
 
-    btn.addEventListener('click', function () {
-        if (!ambient.playing()) ambient.play();
-        ambient.fade(0, 0.03, 3000);
-        btn.style.display = 'none';
-        if (muteBtn) muteBtn.classList.add('visible');
+    btns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (!ambient.playing()) ambient.play();
+            ambient.fade(0, 0.03, 3000);
+            btns.forEach(function (b) { b.style.display = 'none'; });
+            muteBtns.forEach(function (b) { b.classList.add('visible'); });
+        });
     });
 
-    if (muteBtn) {
+    muteBtns.forEach(function (muteBtn) {
         muteBtn.addEventListener('click', function () {
             ambient.fade(ambient.volume(), 0, 1500);
             setTimeout(function () { ambient.pause(); }, 1600);
-            muteBtn.classList.remove('visible');
-            btn.style.display = '';
+            muteBtns.forEach(function (b) { b.classList.remove('visible'); });
+            btns.forEach(function (b) { b.style.display = ''; });
         });
-    }
+    });
 })();
 
 // Scene switching: instant toggle, no DOM swap
 (function () {
-    document.querySelectorAll('.new-page-link').forEach(function (link) {
-        link.addEventListener('click', function (e) {
+    document.querySelectorAll('.turn-around-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
             e.preventDefault();
-            var target = link.getAttribute('data-scene');
+            var target = btn.getAttribute('data-scene');
             if (target) {
                 document.querySelectorAll('.scene').forEach(function (s) { s.classList.remove('active'); });
                 document.getElementById(target).classList.add('active');
             }
         });
     });
-
-    // Keypad overlay
-    var keypadBtn = document.getElementById('keypadBtn');
-    var keypadOverlay = document.getElementById('keypadOverlay');
-    if (keypadBtn && keypadOverlay) {
-        keypadBtn.addEventListener('click', function () { keypadOverlay.classList.add('active'); });
-        keypadOverlay.addEventListener('click', function () { keypadOverlay.classList.remove('active'); });
-    }
 })();

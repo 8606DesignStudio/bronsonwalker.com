@@ -9,56 +9,13 @@
     <style>
         .scene { display: none; }
         .scene.active { display: block; }
-
-        .keypad-button {
-            position: absolute;
-            left: 5%;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-radius: 6px;
-            font-family: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-            color: #4bb8e9;
-            text-decoration: none;
-            font-weight: 530;
-            padding: 8px 12px;
-            background: linear-gradient(135deg, #000000, #b95900);
-            font-size: clamp(0.8rem, 1.6vw, 1.1rem);
-            cursor: pointer;
-            border: none;
-            z-index: 40;
-            transition: transform 0.2s;
-        }
-        .keypad-button:hover {
-            transform: translateY(-50%) scale(1.05);
-        }
-        .keypad-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: flex-start;
-            padding-left: 2%;
-            cursor: pointer;
-        }
-        .keypad-overlay.active { display: flex; }
-        .keypad-overlay img {
-            height: 92vh;
-            width: auto;
-        }
     </style>
 </head>
 <body>
     <!-- Scene 1: Cockpit -->
-    <div class="scene active" id="scene-cockpit">
+    <div class="scene" id="scene-cockpit">
         <div class="cockpit-bg">
-            <img src="assets/Cockpit_Zoomed.jpg" alt="Cockpit" class="cockpit-img">
+            <img src="assets/cockpit.png" alt="Cockpit" class="cockpit-img">
             <div class="cockpit-light" style="left:31.6%;top:51.9%;width:7px;height:7px;animation-duration:3.4s;animation-delay:0s;"></div>
             <div class="cockpit-light" style="left:14.6%;top:90.7%;width:9px;height:9px;animation-duration:4.2s;animation-delay:0.8s;"></div>
             <div class="cockpit-light" style="left:71.9%;top:52.3%;width:7px;height:7px;animation-duration:3.7s;animation-delay:1.5s;"></div>
@@ -69,41 +26,19 @@
                 scroll to tune in <3
             </div>
             <div id="dial"></div>
-            <div id="headphones-btn" aria-label="Toggle ambient sound">
-                <span id="unmute-label">Unmute</span>
-                <svg viewBox="0 0 90 70" xmlns="http://www.w3.org/2000/svg" fill="none" width="100%" height="100%">
-                    <!-- headband -->
-                    <path d="M 16,44 Q 45,12 74,44" stroke="#F5B800" stroke-width="4.5" stroke-linecap="round"/>
-                    <!-- left ear cup -->
-                    <ellipse cx="16" cy="50" rx="11" ry="14" fill="#1a1200" stroke="#F5B800" stroke-width="2.5"/>
-                    <ellipse cx="16" cy="50" rx="7" ry="9.5" fill="#0d0900" stroke="#c8a000" stroke-width="1.5"/>
-                    <!-- right ear cup -->
-                    <ellipse cx="74" cy="50" rx="11" ry="14" fill="#1a1200" stroke="#F5B800" stroke-width="2.5"/>
-                    <ellipse cx="74" cy="50" rx="7" ry="9.5" fill="#0d0900" stroke="#c8a000" stroke-width="1.5"/>
-                    <!-- boom mic arm -->
-                    <path d="M 10,58 Q -2,62 1,69" stroke="#F5B800" stroke-width="2.5" stroke-linecap="round"/>
-                    <!-- mic capsule -->
-                    <ellipse cx="1" cy="69" rx="4.5" ry="3" fill="#1a1200" stroke="#F5B800" stroke-width="1.5"/>
-                </svg>
-            </div>
-            <button id="mute-btn">Mute</button>
-            <div class="footer-buttons">
-                <a href="#" class="new-page-link" data-scene="scene-door">Cockpit Door</a>
-            </div>
+            <button class="headphones-btn" aria-label="Toggle ambient sound">Unmute</button>
+            <button class="mute-btn">Mute</button>
+            <a href="#" class="turn-around-btn" data-scene="scene-door">Turn Around</a>
         </div>
     </div>
 
-    <!-- Scene 2: Cockpit Door -->
-    <div class="scene" id="scene-door">
+    <!-- Scene 2: Cockpit Door (landing page) -->
+    <div class="scene active" id="scene-door">
         <div class="cockpit-bg">
-            <div class="keypad-overlay" id="keypadOverlay">
-                <img src="assets/CockpitKeypad.png" alt="Cockpit Keypad">
-            </div>
-            <img src="assets/cockpitDoor.jpg" alt="Cockpit Door" class="cockpit-img">
-            <button class="keypad-button" id="keypadBtn">Enlarge Keypad</button>
-            <div class="footer-buttons">
-                <a href="#" class="new-page-link" data-scene="scene-cockpit">Turn Around</a>
-            </div>
+            <img src="assets/cockpitDoor.png" alt="Cockpit Door" class="cockpit-img">
+            <button class="headphones-btn" aria-label="Toggle ambient sound">Unmute</button>
+            <button class="mute-btn">Mute</button>
+            <a href="#" class="turn-around-btn" data-scene="scene-cockpit">Turn Around</a>
         </div>
     </div>
 
