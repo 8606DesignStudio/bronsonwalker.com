@@ -283,9 +283,9 @@ function updateEpisodeContent() {
         doEnterFullscreen();
     });
 
-    // Reset body rotation if user exits fullscreen
-    document.addEventListener('fullscreenchange', function () {
-        if (!document.fullscreenElement) {
+    // Re-show overlay when fullscreen exits (tab switch, back button, ESC, link click)
+    function onFullscreenExit() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
             document.body.style.transform = '';
             document.body.style.transformOrigin = '';
             document.body.style.width = '';
@@ -294,6 +294,26 @@ function updateEpisodeContent() {
             document.body.style.top = '';
             document.body.style.left = '';
             document.body.style.overflow = '';
+            enterBtn.style.display = '';
+            overlay.style.backdropFilter = 'blur(14px)';
+            overlay.style.webkitBackdropFilter = 'blur(14px)';
+            overlay.style.background = 'rgba(10,5,0,0.45)';
+            overlay.style.transition = '';
+            overlay.style.display = 'flex';
+        }
+    }
+    document.addEventListener('fullscreenchange', onFullscreenExit);
+    document.addEventListener('webkitfullscreenchange', onFullscreenExit);
+
+    // Re-show overlay when returning from bfcache (browser back button)
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted && !document.fullscreenElement) {
+            enterBtn.style.display = '';
+            overlay.style.backdropFilter = 'blur(14px)';
+            overlay.style.webkitBackdropFilter = 'blur(14px)';
+            overlay.style.background = 'rgba(10,5,0,0.45)';
+            overlay.style.transition = '';
+            overlay.style.display = 'flex';
         }
     });
 
