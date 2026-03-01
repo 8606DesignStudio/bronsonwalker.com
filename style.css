@@ -70,7 +70,7 @@ body {
 #dial-instruction {
   position: absolute;
   top: 38%;
-  left: 31%;
+  left: 29%;
   width: 42%;
   font-family: "Nunito", sans-serif;
   font-size: clamp(2rem, 4vw, 3rem);
