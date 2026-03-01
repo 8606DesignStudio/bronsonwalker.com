@@ -73,7 +73,7 @@ body {
   left: 31%;
   width: 42%;
   font-family: "Nunito", sans-serif;
-  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 550;
   color: #4bb8e9;
   opacity: 0.43;
