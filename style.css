@@ -174,9 +174,9 @@ body {
 
 .bonsai-btn {
   position: absolute;
-  top: 57.5%;
-  left: 93.5%;
-  transform: translateX(-100%);
+  top: 73.3%;
+  left: 85.6%;
+  transform: translate(-50%, -50%);
   z-index: 40;
   border-radius: 6px;
   font-family: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
