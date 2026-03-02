@@ -401,30 +401,32 @@ function updateEpisodeContent() {
     });
 })();
 
-// Bonsai lightbox — shows image in-page to keep fullscreen active
+// Linktree scene — full-bleed, consistent with cockpit scenes
 (function () {
     var lightbox = document.createElement('div');
     lightbox.style.cssText = [
         'position:fixed;inset:0;z-index:9998;',
-        'background:rgba(0,0,0,0.92);',
-        'display:none;align-items:center;justify-content:center;',
-        'cursor:pointer;'
+        'background:#000;',
+        'display:none;align-items:center;justify-content:center;'
     ].join('');
+
     var img = document.createElement('img');
     img.src = 'assets/BonsaiTree.png';
-    img.style.cssText = 'max-width:90%;max-height:90vh;object-fit:contain;pointer-events:none;';
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;';
     lightbox.appendChild(img);
-    var backBtn = document.createElement('button');
+
+    var backBtn = document.createElement('a');
     backBtn.textContent = 'Back';
+    backBtn.href = '#';
     backBtn.style.cssText = [
-        'position:absolute;bottom:3%;left:3%;',
-        'font-family:Nunito,sans-serif;font-weight:700;',
+        'position:absolute;bottom:2%;left:3%;',
+        'font-family:Nunito,system-ui,sans-serif;font-weight:700;',
         'font-size:clamp(0.8rem,1.6vw,1.1rem);',
-        'color:#F5B800;background:#000;',
+        'color:#F5B800;background:#000;text-decoration:none;',
         'border:1.5px solid #F5B800;border-radius:6px;',
-        'padding:2px 8px;cursor:pointer;'
+        'padding:2px 8px;cursor:pointer;z-index:1;'
     ].join('');
-    backBtn.addEventListener('click', function (e) { e.stopPropagation(); lightbox.style.display = 'none'; });
+    backBtn.addEventListener('click', function (e) { e.preventDefault(); lightbox.style.display = 'none'; });
     lightbox.appendChild(backBtn);
     document.documentElement.appendChild(lightbox);
 
