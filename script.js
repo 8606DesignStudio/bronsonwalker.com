@@ -401,39 +401,49 @@ function updateEpisodeContent() {
     });
 })();
 
-// Linktree scene — full-bleed, consistent with cockpit scenes
+// Linktree scene — mirrors cockpit-bg structure for consistent sizing
 (function () {
-    var lightbox = document.createElement('div');
-    lightbox.style.cssText = [
+    var overlay = document.createElement('div');
+    overlay.style.cssText = [
         'position:fixed;inset:0;z-index:9998;',
         'background:#000;',
-        'display:none;align-items:center;justify-content:center;'
+        'display:none;flex-direction:column;',
+        'align-items:center;justify-content:center;',
+        'padding-bottom:7.6vh;'
+    ].join('');
+
+    var frame = document.createElement('div');
+    frame.style.cssText = [
+        'position:relative;width:100%;max-width:100%;',
+        'aspect-ratio:16/9;overflow:hidden;',
+        'margin:18px auto;',
+        'box-shadow:0 6px 18px rgba(0,0,0,0.6);'
     ].join('');
 
     var img = document.createElement('img');
     img.src = 'assets/BonsaiTree.png';
-    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;';
-    lightbox.appendChild(img);
+    img.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;object-position:top;pointer-events:none;';
+    frame.appendChild(img);
 
     var backBtn = document.createElement('a');
     backBtn.textContent = 'Back';
     backBtn.href = '#';
     backBtn.style.cssText = [
-        'position:absolute;bottom:2%;left:3%;',
+        'position:absolute;bottom:2%;left:3%;z-index:1;',
         'font-family:Nunito,system-ui,sans-serif;font-weight:700;',
         'font-size:clamp(0.8rem,1.6vw,1.1rem);',
         'color:#F5B800;background:#000;text-decoration:none;',
         'border:1.5px solid #F5B800;border-radius:6px;',
-        'padding:2px 8px;cursor:pointer;z-index:1;'
+        'padding:2px 8px;cursor:pointer;'
     ].join('');
-    backBtn.addEventListener('click', function (e) { e.preventDefault(); lightbox.style.display = 'none'; });
-    lightbox.appendChild(backBtn);
-    document.documentElement.appendChild(lightbox);
+    backBtn.addEventListener('click', function (e) { e.preventDefault(); overlay.style.display = 'none'; });
+    frame.appendChild(backBtn);
+
+    overlay.appendChild(frame);
+    document.documentElement.appendChild(overlay);
 
     document.querySelectorAll('.bonsai-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            lightbox.style.display = 'flex';
-        });
+        btn.addEventListener('click', function () { overlay.style.display = 'flex'; });
     });
 })();
 
