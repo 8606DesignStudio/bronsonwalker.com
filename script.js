@@ -414,7 +414,18 @@ function updateEpisodeContent() {
     img.src = 'assets/BonsaiTree.png';
     img.style.cssText = 'max-width:90%;max-height:90vh;object-fit:contain;pointer-events:none;';
     lightbox.appendChild(img);
-    lightbox.addEventListener('click', function () { lightbox.style.display = 'none'; });
+    var backBtn = document.createElement('button');
+    backBtn.textContent = 'Back';
+    backBtn.style.cssText = [
+        'position:absolute;bottom:3%;left:3%;',
+        'font-family:Nunito,sans-serif;font-weight:700;',
+        'font-size:clamp(0.8rem,1.6vw,1.1rem);',
+        'color:#F5B800;background:#000;',
+        'border:1.5px solid #F5B800;border-radius:6px;',
+        'padding:2px 8px;cursor:pointer;'
+    ].join('');
+    backBtn.addEventListener('click', function (e) { e.stopPropagation(); lightbox.style.display = 'none'; });
+    lightbox.appendChild(backBtn);
     document.documentElement.appendChild(lightbox);
 
     document.querySelectorAll('.bonsai-btn').forEach(function (btn) {
