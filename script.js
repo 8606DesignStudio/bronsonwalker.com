@@ -401,6 +401,29 @@ function updateEpisodeContent() {
     });
 })();
 
+// Bonsai lightbox — shows image in-page to keep fullscreen active
+(function () {
+    var lightbox = document.createElement('div');
+    lightbox.style.cssText = [
+        'position:fixed;inset:0;z-index:9998;',
+        'background:rgba(0,0,0,0.92);',
+        'display:none;align-items:center;justify-content:center;',
+        'cursor:pointer;'
+    ].join('');
+    var img = document.createElement('img');
+    img.src = 'assets/BonsaiTree.png';
+    img.style.cssText = 'max-width:90%;max-height:90vh;object-fit:contain;pointer-events:none;';
+    lightbox.appendChild(img);
+    lightbox.addEventListener('click', function () { lightbox.style.display = 'none'; });
+    document.documentElement.appendChild(lightbox);
+
+    document.querySelectorAll('.bonsai-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            lightbox.style.display = 'flex';
+        });
+    });
+})();
+
 // Scene switching: instant toggle, no DOM swap
 (function () {
     document.querySelectorAll('.turn-around-btn').forEach(function (btn) {
