@@ -16,12 +16,7 @@
     <div class="scene" id="scene-cockpit">
         <div class="cockpit-bg">
             <img src="assets/cockpit.png" alt="Cockpit" class="cockpit-img">
-            <div class="cockpit-light" style="left:31.6%;top:51.9%;width:7px;height:7px;animation-duration:3.4s;animation-delay:0s;"></div>
-            <div class="cockpit-light" style="left:14.6%;top:90.7%;width:9px;height:9px;animation-duration:4.2s;animation-delay:0.8s;"></div>
-            <div class="cockpit-light" style="left:71.9%;top:52.3%;width:7px;height:7px;animation-duration:3.7s;animation-delay:1.5s;"></div>
-            <div class="cockpit-light" style="left:86.3%;top:83.0%;width:8px;height:8px;animation-duration:4.6s;animation-delay:0.4s;"></div>
-            <div class="cockpit-light" style="left:49.3%;top:82.1%;width:6px;height:6px;animation-duration:3.1s;animation-delay:1.1s;"></div>
-            <div class="episode" id="episode"></div>
+<div class="episode" id="episode"></div>
             <div id="dial-instruction">
                 &lt;-----&gt;
             </div>
@@ -36,7 +31,20 @@
     <div class="scene active" id="scene-door">
         <div class="cockpit-bg">
             <img src="assets/cockpitDoor.png" alt="Cockpit Door" class="cockpit-img">
-            <div id="door-arch">---</div>
+            <svg id="door-arch" viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="arch-glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="0.5" result="blur1"/>
+                        <feGaussianBlur stdDeviation="1.2" result="blur2"/>
+                        <feMerge><feMergeNode in="blur2"/><feMergeNode in="blur1"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                </defs>
+                <path id="arch-path" filter="url(#arch-glow)" style="pointer-events:none;"
+                    d="M 33.98 50.42 C 33.997 48.547 33.757 42.413 34.08 39.18 C 34.403 35.947 34.763 33.802 35.92 31.02 C 37.077 28.238 39.167 24.667 41.02 22.49 C 42.873 20.313 45.255 18.837 47.04 17.96 C 48.825 17.083 50.167 17.23 51.73 17.23 C 53.293 17.23 54.635 17.083 56.42 17.96 C 58.205 18.837 60.587 20.313 62.44 22.49 C 64.293 24.667 66.383 28.238 67.54 31.02 C 68.697 33.802 69.057 35.947 69.38 39.18 C 69.703 42.413 69.463 48.547 69.48 50.42"
+                    fill="none" stroke="#4bb8e9" stroke-width="0.35" stroke-linecap="round"/>
+                <rect id="arch-hit" x="30" y="12" width="44" height="42" fill="transparent" style="cursor:pointer;"/>
+            </svg>
+            <div id="arch-number">00</div>
             <button class="bonsai-btn">Linktree</button>
             <button class="headphones-btn" aria-label="Toggle ambient sound">Unmute</button>
             <button class="mute-btn">Mute</button>

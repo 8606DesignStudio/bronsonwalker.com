@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arch Plotter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        #container { position: relative; width: 100vw; height: 56.25vw; max-height: 100vh; max-width: calc(100vh * 16 / 9); cursor: crosshair; flex-shrink: 0; }
+        #container img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+        #svg-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        .dot {
+            position: absolute;
+            width: 8px; height: 8px;
+            background: #F5B800;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 6px #F5B800;
+        }
+        .dot-label {
+            position: absolute;
+            color: #F5B800;
+            font-family: monospace;
+            font-size: 10px;
+            transform: translate(-50%, -180%);
+            pointer-events: none;
+        }
+        #log {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.8);
+            color: #F5B800;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 5px 10px;
+            max-height: 80px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        #controls {
+            position: fixed;
+            top: 8px; right: 8px;
+            display: flex; gap: 6px;
+        }
+        #controls button {
+            background: #000; color: #F5B800;
+            border: 1.5px solid #F5B800;
+            font-family: monospace; font-size: 12px;
+            padding: 3px 10px; cursor: pointer; border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <img src="assets/cockpitDoor.png" id="img">
+        <svg id="svg-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path id="arch-path" fill="none" stroke="#4bb8e9" stroke-width="0.3" opacity="0.8"/>
+        </svg>
+    </div>
+    <div id="controls">
+        <button onclick="undo()">Undo</button>
+        <button onclick="clearAll()">Clear</button>
+        <button onclick="copyPath()">Copy Path</button>
+    </div>
+    <div id="log">Click to plot points along the arch.</div>
+
+    <script>
+        var container = document.getElementById('container');
+        var img = document.getElementById('img');
+        var log = document.getElementById('log');
+        var archPath = document.getElementById('arch-path');
+        var points = []; // [{x, y}] in % of image
+
+        container.addEventListener('click', function (e) {
+            var r = img.getBoundingClientRect();
+            var x = parseFloat(((e.clientX - r.left) / r.width  * 100).toFixed(2));
+            var y = parseFloat(((e.clientY - r.top)  / r.height * 100).toFixed(2));
+            points.push({x, y});
+            addDot(x, y, points.length);
+            redrawCurve();
+            renderLog();
+        });
+
+        function addDot(x, y, n) {
+            var r = img.getBoundingClientRect();
+            var cr = container.getBoundingClientRect();
+            var px = (x / 100) * r.width  + (r.left - cr.left);
+            var py = (y / 100) * r.height + (r.top  - cr.top);
+
+            var dot = document.createElement('div');
+            dot.className = 'dot';
+            dot.style.left = px + 'px';
+            dot.style.top  = py + 'px';
+            dot.dataset.idx = n - 1;
+            container.appendChild(dot);
+
+            var label = document.createElement('div');
+            label.className = 'dot-label';
+            label.textContent = n;
+            label.style.left = px + 'px';
+            label.style.top  = py + 'px';
+            label.dataset.idx = n - 1;
+            container.appendChild(label);
+        }
+
+        // Catmull-Rom to cubic bezier smooth curve through all points
+        function catmullRomPath(pts) {
+            if (pts.length < 2) return '';
+            if (pts.length === 2) {
+                return 'M ' + pts[0].x + ' ' + pts[0].y + ' L ' + pts[1].x + ' ' + pts[1].y;
+            }
+
+            var d = 'M ' + pts[0].x + ' ' + pts[0].y;
+            for (var i = 0; i < pts.length - 1; i++) {
+                var p0 = pts[Math.max(i - 1, 0)];
+                var p1 = pts[i];
+                var p2 = pts[i + 1];
+                var p3 = pts[Math.min(i + 2, pts.length - 1)];
+
+                var cp1x = p1.x + (p2.x - p0.x) / 6;
+                var cp1y = p1.y + (p2.y - p0.y) / 6;
+                var cp2x = p2.x - (p3.x - p1.x) / 6;
+                var cp2y = p2.y - (p3.y - p1.y) / 6;
+
+                d += ' C ' + cp1x.toFixed(3) + ' ' + cp1y.toFixed(3)
+                           + ' ' + cp2x.toFixed(3) + ' ' + cp2y.toFixed(3)
+                           + ' ' + p2.x + ' ' + p2.y;
+            }
+            return d;
+        }
+
+        function redrawCurve() {
+            archPath.setAttribute('d', catmullRomPath(points));
+        }
+
+        function renderLog() {
+            var coords = points.map(function(p, i) {
+                return (i+1) + ':(' + p.x + '%,' + p.y + '%)';
+            }).join('  ');
+            log.textContent = coords || 'Click to plot points along the arch.';
+        }
+
+        function undo() {
+            if (!points.length) return;
+            points.pop();
+            // Remove last dot and label
+            var dots = container.querySelectorAll('.dot');
+            var labels = container.querySelectorAll('.dot-label');
+            if (dots.length) dots[dots.length - 1].remove();
+            if (labels.length) labels[labels.length - 1].remove();
+            redrawCurve();
+            renderLog();
+        }
+
+        function clearAll() {
+            points = [];
+            container.querySelectorAll('.dot, .dot-label').forEach(function(el) { el.remove(); });
+            redrawCurve();
+            renderLog();
+        }
+
+        function copyPath() {
+            var d = catmullRomPath(points);
+            if (!d) { log.textContent = 'No points yet.'; return; }
+            navigator.clipboard.writeText(d).then(function() {
+                log.textContent = 'Copied: ' + d;
+            }).catch(function() {
+                log.textContent = d;
+            });
+        }
+    </script>
+</body>
+</html>

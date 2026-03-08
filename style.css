@@ -84,12 +84,6 @@ body {
   pointer-events: none;
 }
 
-#dial-instruction .dial-arrows {
-  font-size: 2em;
-  font-weight: 700;
-  padding: 0;
-  letter-spacing: -0.05em;
-}
 
 .episode a {
   color: #4bb8e9;
@@ -97,20 +91,6 @@ body {
   transition: color 0.2s;
 }
 
-#ep-info-btn {
-  position: absolute;
-  top: 6px;
-  left: 8px;
-  font-size: 0.72em;
-  cursor: pointer;
-  user-select: none;
-  pointer-events: auto;
-  opacity: 0.7;
-  line-height: 1;
-}
-#ep-info-btn:hover {
-  opacity: 1;
-}
 
 @keyframes dialPulse {
   0%, 100% {
@@ -156,21 +136,6 @@ body {
 }
 /* removed stray .dial block; dial visuals are defined on #dial */
 
-/* .cockpit-button {
-  position: absolute;
-  top: 80%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: #b95900;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  z-index: 20;
-} */
 
 .bonsai-btn {
   position: absolute;
@@ -205,38 +170,7 @@ body {
   font-size: clamp(0.8rem, 1.6vw, 1.1rem);
 }
 
-/* #svg1 {
-  position: absolute;
-  top: 80%;
-  left: 80%;
-  transform: translate(-50%, -50%);
-  z-index: 10;
 
-HI
-
-} */
-
-/* Pulsing cockpit indicator lights */
-@keyframes lightPulse {
-  0%, 100% {
-    opacity: 0.15;
-    box-shadow: 0 0 4px 2px rgba(255, 150, 20, 0.18);
-  }
-  50% {
-    opacity: 0.5;
-    box-shadow: 0 0 8px 4px rgba(255, 175, 35, 0.35),
-                0 0 18px 6px rgba(220, 100, 5, 0.15);
-  }
-}
-.cockpit-light {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 175, 35, 0.7);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 5;
-  animation: lightPulse ease-in-out infinite;
-}
 
 /* Headphones audio toggle */
 .headphones-btn {
@@ -277,25 +211,28 @@ HI
   display: block;
 }
 
-/* Arch display on door scene */
+/* Arch SVG overlay on door scene */
 #door-arch {
   position: absolute;
-  top: 9%;
-  left: 50%;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  opacity: 0.72;
+}
+
+#arch-number {
+  position: absolute;
+  top: 30%;
+  left: 51.73%;
   transform: translateX(-50%);
-  width: 22%;
-  padding: 3px 10px;
   font-family: "Nunito", sans-serif;
-  font-size: clamp(0.85rem, 1.6vw, 1.2rem);
+  font-size: clamp(1.4rem, 3.5vw, 2.8rem);
   font-weight: 700;
   color: #4bb8e9;
-  opacity: 0.75;
-  text-align: center;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(75, 184, 233, 0.15);
-  border-radius: 3px;
-  z-index: 10;
+  opacity: 0.72;
   pointer-events: none;
+  z-index: 11;
   text-shadow: 0 0 5px rgba(138, 43, 226, 0.9),
     0 0 10px rgba(147, 112, 219, 0.8), 0 0 15px rgba(123, 104, 238, 0.7),
     0 0 25px rgba(106, 90, 205, 0.5);

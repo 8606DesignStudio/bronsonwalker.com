@@ -79,7 +79,6 @@ function stopDialPulse() {
 // Click handler for desktop
 function spin() {
     stopDialPulse();
-    showDescription = false;
     currentNumber = (currentNumber + 1) % (maxEpisode + 1);
     playDialTick();
     updateDialOnly();
@@ -110,7 +109,6 @@ function handleTouchMove(e) {
 
     if (Math.abs(totalDeltaX) > swipeSensitivity) {
         stopDialPulse();
-        showDescription = false;
         // Determine direction: positive = right, negative = left
         const direction = totalDeltaX > 0 ? 1 : -1;
         
@@ -136,8 +134,6 @@ function updateDialOnly() {
     if (t) t.textContent = currentNumber === 0 ? '<3' : String(currentNumber).padStart(3, '0');
 }
 
-let showDescription = false;
-
 function updateEpisodeContent() {
     const instruction = document.getElementById('dial-instruction');
     const epDiv = document.getElementById('episode');
@@ -150,7 +146,6 @@ function updateEpisodeContent() {
 
     if (currentNumber === 0) {
         epDiv.innerHTML = '';
-        showDescription = false;
         if (instruction) instruction.style.display = '';
         return;
     }
@@ -163,12 +158,7 @@ function updateEpisodeContent() {
     }
 
     if (instruction) instruction.style.display = 'none';
-
-    const content = showDescription
-        ? '<span class="ep-desc">' + ep.description + '</span>'
-        : '<a href="' + ep.link + '" target="_blank" rel="noopener">' + ep.title + '</a>';
-
-    epDiv.innerHTML = content;
+    epDiv.innerHTML = '<a href="' + ep.link + '" target="_blank" rel="noopener">' + ep.title + '</a>';
 }
 
 // Frosted entry overlay with ENTER button
@@ -445,6 +435,35 @@ function updateEpisodeContent() {
     document.querySelectorAll('.bonsai-btn').forEach(function (btn) {
         btn.addEventListener('click', function () { overlay.style.display = 'flex'; });
     });
+})();
+
+// Arch number — drag along arch to scrub 0–99
+(function () {
+    var archHit = document.getElementById('arch-hit');
+    var archNumber = document.getElementById('arch-number');
+    if (!archHit || !archNumber) return;
+
+    var X_MIN = 33.98, X_MAX = 69.48;
+
+    function valueFromClientX(clientX) {
+        var svg = document.getElementById('door-arch');
+        var r = svg.getBoundingClientRect();
+        var xPct = (clientX - r.left) / r.width * 100;
+        var val = Math.round((xPct - X_MIN) / (X_MAX - X_MIN) * 99);
+        return Math.max(0, Math.min(99, val));
+    }
+
+    function update(clientX) {
+        archNumber.textContent = String(valueFromClientX(clientX)).padStart(2, '0');
+    }
+
+    var dragging = false;
+    archHit.addEventListener('mousedown', function (e) { dragging = true; update(e.clientX); });
+    document.addEventListener('mousemove', function (e) { if (dragging) update(e.clientX); });
+    document.addEventListener('mouseup', function () { dragging = false; });
+
+    archHit.addEventListener('touchstart', function (e) { update(e.touches[0].clientX); e.preventDefault(); }, { passive: false });
+    archHit.addEventListener('touchmove',  function (e) { update(e.touches[0].clientX); e.preventDefault(); }, { passive: false });
 })();
 
 // Scene switching: instant toggle, no DOM swap
