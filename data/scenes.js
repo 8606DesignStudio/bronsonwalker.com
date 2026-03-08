@@ -1,5 +1,9 @@
 // Scene registry — define scenes here, no HTML/JS changes needed to add new ones.
 // Each scene: id, image path, optional named overlay, buttons array.
+//
+// Portal destinations: listed in the door scene's `portals` array.
+// Each portal entry: { target, label, color }
+// The window selector cycles through these; tapping the door enters the selected one.
 
 export const initialScene = 'door';
 

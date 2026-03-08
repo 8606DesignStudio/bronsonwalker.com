@@ -24,6 +24,21 @@ const audioMuteBtn = (() => {
     return b;
 })();
 
+// ── Shared tick sound (used by episode-dial and window arrow) ────────────────
+let _tickCtx = null;
+function playTick() {
+    try {
+        if (!_tickCtx) _tickCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = _tickCtx.createOscillator(), gain = _tickCtx.createGain();
+        osc.type = 'sine'; osc.frequency.value = 420;
+        gain.gain.setValueAtTime(0.0001, _tickCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.022, _tickCtx.currentTime + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.001, _tickCtx.currentTime + 0.28);
+        osc.connect(gain); gain.connect(_tickCtx.destination);
+        osc.start(_tickCtx.currentTime); osc.stop(_tickCtx.currentTime + 0.28);
+    } catch(e) {}
+}
+
 // ── Episode data (loaded once, persists across scene changes) ─────────────────
 let episodes = {};
 let maxEpisode = 192;
@@ -71,7 +86,7 @@ function buildScene(sceneId) {
     }
 
     if (scene.overlay && overlayHandlers[scene.overlay]) {
-        overlayHandlers[scene.overlay].mount(container);
+        overlayHandlers[scene.overlay].mount(container, scene);
     }
     (scene.buttons || []).forEach(cfg => container.appendChild(buildButton(cfg)));
 
@@ -170,20 +185,6 @@ const overlayHandlers = {
             dialEl.appendChild(touchArea);
             container.appendChild(dialEl);
 
-            // Soft sine ping
-            let _ctx = null;
-            function playTick() {
-                try {
-                    if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = _ctx.createOscillator(), gain = _ctx.createGain();
-                    osc.type = 'sine'; osc.frequency.value = 420;
-                    gain.gain.setValueAtTime(0.0001, _ctx.currentTime);
-                    gain.gain.linearRampToValueAtTime(0.022, _ctx.currentTime + 0.025);
-                    gain.gain.exponentialRampToValueAtTime(0.001, _ctx.currentTime + 0.28);
-                    osc.connect(gain); gain.connect(_ctx.destination);
-                    osc.start(_ctx.currentTime); osc.stop(_ctx.currentTime + 0.28);
-                } catch(e) {}
-            }
 
             function updateDialText() {
                 dialText.textContent = currentEpisodeNumber === 0 ? '<3' : String(currentEpisodeNumber).padStart(3, '0');
@@ -239,7 +240,7 @@ const overlayHandlers = {
 
     // ── Arch dial (door scene) ────────────────────────────────────────────────
     'arch-dial': {
-        mount(container) {
+        mount(container, scene) {
             const NS = 'http://www.w3.org/2000/svg';
             const ARCH_D = 'M 33.98 50.42 C 33.997 48.547 33.757 42.413 34.08 39.18 C 34.403 35.947 34.763 33.802 35.92 31.02 C 37.077 28.238 39.167 24.667 41.02 22.49 C 42.873 20.313 45.255 18.837 47.04 17.96 C 48.825 17.083 50.167 17.23 51.73 17.23 C 53.293 17.23 54.635 17.083 56.42 17.96 C 58.205 18.837 60.587 20.313 62.44 22.49 C 64.293 24.667 66.383 28.238 67.54 31.02 C 68.697 33.802 69.057 35.947 69.38 39.18 C 69.703 42.413 69.463 48.547 69.48 50.42';
 
@@ -273,6 +274,7 @@ const overlayHandlers = {
             spotBlur.setAttribute('width', '500%'); spotBlur.setAttribute('height', '500%');
             spotBlur.innerHTML = '<feGaussianBlur stdDeviation="2"/>';
             defs.appendChild(spotBlur);
+
 
             const mask = document.createElementNS(NS, 'mask');
             mask.id = 'arch-mask';
@@ -313,17 +315,18 @@ const overlayHandlers = {
             archPath.setAttribute('filter', 'url(#arch-glow)');
             archPath.setAttribute('mask', 'url(#arch-mask)');
             archPath.style.pointerEvents = 'none';
+            // Arch hidden for now — re-enable by removing the next line
+            archPath.style.display = 'none';
             svg.appendChild(archPath);
 
-            // Arch hit — invisible stroke-width touch target
-            const archHit = document.createElementNS(NS, 'path');
-            archHit.id = 'arch-hit';
-            archHit.setAttribute('d', ARCH_D);
-            archHit.setAttribute('fill', 'none');
-            archHit.setAttribute('stroke', 'transparent');
-            archHit.setAttribute('stroke-width', '6');
-            archHit.style.cssText = 'cursor:pointer;pointer-events:stroke;';
-            svg.appendChild(archHit);
+
+            // Window hit area — invisible, covers the full window pane
+            const windowHit = document.createElementNS(NS, 'rect');
+            windowHit.setAttribute('x', '27'); windowHit.setAttribute('y', '29');
+            windowHit.setAttribute('width', '7'); windowHit.setAttribute('height', '52');
+            windowHit.setAttribute('fill', 'transparent');
+            windowHit.style.cssText = 'cursor:ns-resize;pointer-events:all;';
+            svg.appendChild(windowHit);
 
             // Append SVG to container BEFORE calling getTotalLength()
             container.appendChild(svg);
@@ -334,38 +337,50 @@ const overlayHandlers = {
             archNumber.textContent = '00';
             container.appendChild(archNumber);
 
-            // Safe to call now — SVG is in live DOM
-            const totalLen = archPath.getTotalLength();
-            const SAMPLES = 300;
-            const samples = [];
-            for (let i = 0; i <= SAMPLES; i++) {
-                const pt = archPath.getPointAtLength((i / SAMPLES) * totalLen);
-                samples.push({ x: pt.x, y: pt.y, t: i / SAMPLES });
-            }
+            // Window arrow — large SVG path, CSS drop-shadow for purple glow
+            // matches cockpit overlay aesthetic: #4bb8e9, opacity 0.43, purple halo
+            const windowArrow = document.createElementNS(NS, 'path');
+            windowArrow.setAttribute('d', [
+                'M 30.5 35 L 30.5 75',
+                'M 29.3 38.5 L 30.5 34 L 31.7 38.5',
+                'M 29.3 71.5 L 30.5 76 L 31.7 71.5'
+            ].join(' '));
+            windowArrow.setAttribute('fill', 'none');
+            windowArrow.setAttribute('stroke', '#4bb8e9');
+            windowArrow.setAttribute('stroke-width', '0.5');
+            windowArrow.setAttribute('stroke-linecap', 'round');
+            windowArrow.setAttribute('stroke-linejoin', 'round');
+            windowArrow.setAttribute('opacity', '0.55');
+            windowArrow.style.filter = [
+                'drop-shadow(0 0 3px rgba(147,112,219,0.7))',
+                'drop-shadow(0 0 10px rgba(106,90,205,0.4))'
+            ].join(' ');
+            windowArrow.style.pointerEvents = 'none';
+            svg.appendChild(windowArrow);
 
-            function toSVG(clientX, clientY) {
+            // Arch scrubber — DISABLED (arch is decorative; number now driven by window)
+            // Keeping arch path and glow active as visual element.
+            // archHit removed — arch no longer interactive.
+
+            // ── Window swipe controls the number ─────────────────────────────
+            // SVG window y-range: 29 (top=99) to 81 (bottom=0)
+            const WIN_TOP = 29, WIN_BOT = 81;
+            let winVal = 0;
+
+            function toSVGY(clientY) {
                 const p = svg.createSVGPoint();
-                p.x = clientX; p.y = clientY;
-                return p.matrixTransform(svg.getScreenCTM().inverse());
+                p.x = 0; p.y = clientY;
+                return p.matrixTransform(svg.getScreenCTM().inverse()).y;
             }
 
-            function closestT(clientX, clientY) {
-                const s = toSVG(clientX, clientY);
-                let bestD = Infinity, bestT = 0;
-                for (let i = 0; i < samples.length; i++) {
-                    const dx = samples[i].x - s.x, dy = samples[i].y - s.y;
-                    const d = dx * dx + dy * dy;
-                    if (d < bestD) { bestD = d; bestT = samples[i].t; }
-                }
-                return bestT;
+            function setFromSVGY(svgY) {
+                const clamped = Math.max(WIN_TOP, Math.min(WIN_BOT, svgY));
+                const newVal = Math.round((1 - (clamped - WIN_TOP) / (WIN_BOT - WIN_TOP)) * 99);
+                if (newVal !== winVal) { playTick(); winVal = newVal; }
+                applyVal(winVal);
             }
 
-            function update(clientX, clientY) {
-                const t = closestT(clientX, clientY);
-                const val = Math.round(t * 99);
-                const pt = archPath.getPointAtLength(t * totalLen);
-                darkSpot.setAttribute('cx', pt.x);
-                darkSpot.setAttribute('cy', pt.y);
+            function applyVal(val) {
                 archNumber.textContent = String(val).padStart(2, '0');
                 const hue = Math.round(val / 99 * 360);
                 doorShape.setAttribute('fill', `hsla(${hue},90%,55%,0.35)`);
@@ -374,18 +389,15 @@ const overlayHandlers = {
                 archNumber.style.color = `hsl(${hue},80%,65%)`;
             }
 
-            function hideDot() { darkSpot.setAttribute('cx', '-50'); }
+            let winDragging = false;
+            const onWinMouseMove = e => { if (winDragging) setFromSVGY(toSVGY(e.clientY)); };
+            const onWinMouseUp   = () => { winDragging = false; };
 
-            let dragging = false;
-            const onMouseMove = e => { if (dragging) update(e.clientX, e.clientY); };
-            const onMouseUp   = () => { dragging = false; hideDot(); };
-
-            archHit.addEventListener('mousedown', e => { dragging = true; update(e.clientX, e.clientY); });
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-            archHit.addEventListener('touchstart', e => { update(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
-            archHit.addEventListener('touchmove',  e => { update(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
-            archHit.addEventListener('touchend', hideDot);
+            windowHit.addEventListener('mousedown', e => { winDragging = true; setFromSVGY(toSVGY(e.clientY)); });
+            document.addEventListener('mousemove', onWinMouseMove);
+            document.addEventListener('mouseup', onWinMouseUp);
+            windowHit.addEventListener('touchstart', e => { setFromSVGY(toSVGY(e.touches[0].clientY)); e.preventDefault(); }, { passive: false });
+            windowHit.addEventListener('touchmove',  e => { setFromSVGY(toSVGY(e.touches[0].clientY)); e.preventDefault(); }, { passive: false });
 
             // Listeners stay for the lifetime of the page (overlay is permanent)
         }
