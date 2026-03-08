@@ -6,50 +6,12 @@
     <title>Doris</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <style>
-        .scene { display: none; }
-        .scene.active { display: block; }
-    </style>
 </head>
 <body>
-    <!-- Scene 1: Cockpit -->
-    <div class="scene" id="scene-cockpit">
-        <div class="cockpit-bg">
-            <img src="assets/cockpit.png" alt="Cockpit" class="cockpit-img">
-<div class="episode" id="episode"></div>
-            <div id="dial-instruction">
-                &lt;-----&gt;
-            </div>
-            <div id="dial"></div>
-            <button class="headphones-btn" aria-label="Toggle ambient sound">Unmute</button>
-            <button class="mute-btn">Mute</button>
-            <a href="#" class="turn-around-btn" data-scene="scene-door">Turn Around</a>
-        </div>
-    </div>
-
-    <!-- Scene 2: Cockpit Door (landing page) -->
-    <div class="scene active" id="scene-door">
-        <div class="cockpit-bg">
-            <img src="assets/cockpitDoor.png" alt="Cockpit Door" class="cockpit-img">
-            <svg id="door-arch" viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <filter id="arch-glow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="0.5" result="blur1"/>
-                        <feGaussianBlur stdDeviation="1.2" result="blur2"/>
-                        <feMerge><feMergeNode in="blur2"/><feMergeNode in="blur1"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                </defs>
-                <path id="arch-path" filter="url(#arch-glow)" style="pointer-events:none;"
-                    d="M 33.98 50.42 C 33.997 48.547 33.757 42.413 34.08 39.18 C 34.403 35.947 34.763 33.802 35.92 31.02 C 37.077 28.238 39.167 24.667 41.02 22.49 C 42.873 20.313 45.255 18.837 47.04 17.96 C 48.825 17.083 50.167 17.23 51.73 17.23 C 53.293 17.23 54.635 17.083 56.42 17.96 C 58.205 18.837 60.587 20.313 62.44 22.49 C 64.293 24.667 66.383 28.238 67.54 31.02 C 68.697 33.802 69.057 35.947 69.38 39.18 C 69.703 42.413 69.463 48.547 69.48 50.42"
-                    fill="none" stroke="#4bb8e9" stroke-width="0.35" stroke-linecap="round"/>
-                <rect id="arch-hit" x="30" y="12" width="44" height="42" fill="transparent" style="cursor:pointer;"/>
-            </svg>
-            <div id="arch-number">00</div>
-            <button class="bonsai-btn">Linktree</button>
-            <button class="headphones-btn" aria-label="Toggle ambient sound">Unmute</button>
-            <button class="mute-btn">Mute</button>
-            <a href="#" class="turn-around-btn" data-scene="scene-cockpit">Turn Around</a>
-        </div>
+    <!-- Door scene is static HTML — shows instantly before JS runs -->
+    <div class="cockpit-bg" data-scene="door">
+        <img src="assets/cockpitDoor.png" alt="Cockpit Door" class="cockpit-img">
+        <!-- JS mounts overlay and buttons here after load -->
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>

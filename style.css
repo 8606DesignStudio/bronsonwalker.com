@@ -19,7 +19,9 @@ body {
 /* controllable block that contains the cockpit image and overlays */
 .cockpit-bg {
   position: relative;
-  width: 100%;
+  /* Width is constrained by whichever is smaller: full viewport width, or
+     the width that would make the 16:9 image fit within viewport height */
+  width: min(100vw, calc((100vh - 40px) * 16 / 9));
   max-width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
@@ -223,7 +225,7 @@ body {
 
 #arch-number {
   position: absolute;
-  top: 30%;
+  top: 7%;
   left: 51.73%;
   transform: translateX(-50%);
   font-family: "Nunito", sans-serif;

@@ -1,264 +1,450 @@
-// Load episodes data with Firefox-compatible cache busting
-// Episode data loading and initialization
+// Virtual Adventures Scene Engine — bronsonwalker.com
+import { scenes, initialScene } from './data/scenes.js';
+
+// ── Scene map + pre-built containers ─────────────────────────────────────────
+const sceneMap = {};
+scenes.forEach(s => { sceneMap[s.id] = s; });
+
+// Each scene gets its own .cockpit-bg div built once at startup.
+// navigate() just toggles display — no DOM rebuild, instant transitions.
+const builtContainers = {};
+
+// ── Persistent audio buttons (re-parented on each navigate, never destroyed) ──
+const audioUnmuteBtn = (() => {
+    const b = document.createElement('button');
+    b.className = 'headphones-btn';
+    b.setAttribute('aria-label', 'Toggle ambient sound');
+    b.textContent = 'Unmute';
+    return b;
+})();
+const audioMuteBtn = (() => {
+    const b = document.createElement('button');
+    b.className = 'mute-btn';
+    b.textContent = 'Mute';
+    return b;
+})();
+
+// ── Episode data (loaded once, persists across scene changes) ─────────────────
 let episodes = {};
+let maxEpisode = 192;
+let currentEpisodeNumber = 0;
 
 async function loadEpisodes() {
     try {
-        const module = await import('./data/generatedEpisodes.js?t=' + Math.random());
-        episodes = module.episodes;
-        maxEpisode = episodes.length - 1; // Dynamically set max episode
-        updateEpisodeContent();
-    } catch (error) {
-        console.error('Failed to load episodes:', error);
-        const fallbackModule = await import('./data/generatedEpisodes.js');
-        episodes = fallbackModule.episodes;
-        maxEpisode = episodes.length - 1; // Dynamically set max episode
-        updateEpisodeContent();
+        const m = await import('./data/generatedEpisodes.js?t=' + Math.random());
+        episodes = m.episodes;
+        maxEpisode = episodes.length - 1;
+    } catch (e) {
+        try {
+            const m = await import('./data/generatedEpisodes.js');
+            episodes = m.episodes;
+            maxEpisode = episodes.length - 1;
+        } catch (e2) { console.error('Failed to load episodes:', e2); }
     }
 }
 
-// Dial state and setup
-let currentNumber = 0;
-let maxEpisode = 192; // Will be updated when episodes load
+// ── Scene builder (lazy) ──────────────────────────────────────────────────────
+// Initial scene reuses the static HTML container from index.html.
+// All other scenes are built on demand and cached — never rebuilt.
+const building = new Set();
 
-loadEpisodes();
+function buildScene(sceneId) {
+    if (builtContainers[sceneId] || building.has(sceneId)) return;
+    building.add(sceneId);
 
+    const scene = sceneMap[sceneId];
+    if (!scene) { building.delete(sceneId); return; }
 
-// Use the existing #dial container as the interactive element and create
-// a dedicated child for the numeric text so we don't overwrite children.
-const dialContainer = document.getElementById('dial');
-const dialText = document.createElement('span');
-dialText.id = 'dial-text';
-dialText.textContent = currentNumber === 0 ? '<3' : String(currentNumber).padStart(3, '0');
-if (dialContainer) dialContainer.appendChild(dialText);
-
-const dialElement = dialContainer;
-
-// Create invisible touch area for better mobile interaction
-const touchArea = document.createElement('div');
-touchArea.style.position = 'absolute';
-touchArea.style.width = '225px';
-touchArea.style.height = '150px';
-touchArea.style.left = '50%';
-touchArea.style.top = '50%';
-touchArea.style.transform = 'translate(-50%, -50%)';
-touchArea.style.zIndex = '10';
-
-document.getElementById('dial').appendChild(touchArea);
-
-// Event listeners
-dialElement.addEventListener('click', () => spin());
-touchArea.addEventListener('touchstart', (e) => handleTouchStart(e));
-touchArea.addEventListener('touchmove', (e) => handleTouchMove(e));
-
-// Soft sine ping for dial — clean, musical, low volume
-var _dialCtx = null;
-function playDialTick() {
-    try {
-        if (!_dialCtx) _dialCtx = new (window.AudioContext || window.webkitAudioContext)();
-        var ctx = _dialCtx;
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 420;
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.022, ctx.currentTime + 0.025);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.28);
-    } catch(e) {}
-}
-
-// Stop pulse animation on first interaction
-function stopDialPulse() {
-    if (dialElement) dialElement.classList.add('dialed');
-}
-
-// Click handler for desktop
-function spin() {
-    stopDialPulse();
-    currentNumber = (currentNumber + 1) % (maxEpisode + 1);
-    playDialTick();
-    updateDialOnly();
-    updateEpisodeContent();
-}
-
-// Touch handling variables
-let touchStartY = 0;
-let touchStartX = 0;
-const swipeSensitivity = 8;
-
-// Touch event handlers
-function handleTouchStart(e) {
-    // Hide instruction arrow on first touch
-    const arrow = document.querySelector('.instruction-arrow');
-    if (arrow) {
-        arrow.style.display = 'none';
+    // Reuse existing static HTML container if present, otherwise create one
+    let container = document.querySelector(`[data-scene="${sceneId}"]`);
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'cockpit-bg';
+        container.setAttribute('data-scene', sceneId);
+        container.style.display = 'none';
+        const img = document.createElement('img');
+        img.src = scene.image;
+        img.alt = scene.imageAlt || sceneId;
+        img.className = 'cockpit-img';
+        container.appendChild(img);
+        document.body.appendChild(container);
     }
-    
-    touchStartY = e.touches[0].clientY;
-    touchStartX = e.touches[0].clientX;
-    e.preventDefault();
+
+    if (scene.overlay && overlayHandlers[scene.overlay]) {
+        overlayHandlers[scene.overlay].mount(container);
+    }
+    (scene.buttons || []).forEach(cfg => container.appendChild(buildButton(cfg)));
+
+    builtContainers[sceneId] = container;
+    building.delete(sceneId);
 }
 
-function handleTouchMove(e) {
-    const currentTouchX = e.touches[0].clientX;
-    const totalDeltaX = currentTouchX - touchStartX;
+// ── Navigate ──────────────────────────────────────────────────────────────────
+function navigate(id) {
+    if (!sceneMap[id]) { console.warn('Unknown scene:', id); return; }
+    if (!builtContainers[id]) buildScene(id);
 
-    if (Math.abs(totalDeltaX) > swipeSensitivity) {
-        stopDialPulse();
-        // Determine direction: positive = right, negative = left
-        const direction = totalDeltaX > 0 ? 1 : -1;
-        
-        // Apply single step change
-        currentNumber = (currentNumber + direction) % (maxEpisode + 1);
-        if (currentNumber < 0) {
-            currentNumber += (maxEpisode + 1);
+    Object.values(builtContainers).forEach(c => c.style.display = 'none');
+    const target = builtContainers[id];
+    target.style.display = '';
+    target.appendChild(audioUnmuteBtn);
+    target.appendChild(audioMuteBtn);
+
+    // Evict scenes more than one click away, then preload immediate neighbors
+    evictDistantScenes(id);
+    preloadNeighbors(id);
+}
+
+function preloadNeighbors(sceneId) {
+    const scene = sceneMap[sceneId];
+    if (!scene) return;
+    // Preload any scene reachable from this one — nav buttons AND action buttons with a target
+    (scene.buttons || [])
+        .filter(b => b.target && !builtContainers[b.target])
+        .forEach(b => setTimeout(() => buildScene(b.target), 50));
+}
+
+function evictDistantScenes(currentId) {
+    // Keep current scene + its immediate neighbors. Evict everything else.
+    const keep = new Set([currentId]);
+    const scene = sceneMap[currentId];
+    if (scene) {
+        (scene.buttons || []).filter(b => b.target).forEach(b => keep.add(b.target));
+    }
+    Object.keys(builtContainers).forEach(id => {
+        if (!keep.has(id)) {
+            builtContainers[id].remove();
+            delete builtContainers[id];
         }
-        
-        // Reset touch start position to prevent multiple changes
-        touchStartX = currentTouchX;
-        playDialTick();
-        updateDialOnly();
-        updateEpisodeContent();
-    }
-    
-    e.preventDefault();
+    });
 }
 
-// Update functions
-function updateDialOnly() {
-    const t = document.getElementById('dial-text');
-    if (t) t.textContent = currentNumber === 0 ? '<3' : String(currentNumber).padStart(3, '0');
+// ── Button builder ────────────────────────────────────────────────────────────
+const actionHandlers = {
+    'go-linktree': () => navigate('linktree')
+};
+
+function buildButton(cfg) {
+    const el = document.createElement('button');
+    el.textContent = cfg.label;
+    if (cfg.className) el.className = cfg.className;
+    if (cfg.type === 'nav') {
+        el.addEventListener('click', e => { e.preventDefault(); navigate(cfg.target); });
+    } else if (cfg.type === 'action') {
+        el.addEventListener('click', e => { e.preventDefault(); actionHandlers[cfg.action]?.(); });
+    }
+    return el;
 }
 
-function updateEpisodeContent() {
-    const instruction = document.getElementById('dial-instruction');
-    const epDiv = document.getElementById('episode');
+// ── Overlay handlers ──────────────────────────────────────────────────────────
+// Each handler: { mount(container) → cleanup fn | null }
+// mount() appends DOM into container, then wires behavior.
+// getTotalLength() and other DOM queries are safe here — container is live.
 
-    if (!episodes || episodes.length === 0) {
-        epDiv.innerHTML = 'Loading...';
-        if (instruction) instruction.style.display = 'none';
-        return;
+const overlayHandlers = {
+
+    // ── Episode dial (cockpit scene) ──────────────────────────────────────────
+    'episode-dial': {
+        mount(container) {
+            // Episode title display
+            const epDiv = document.createElement('div');
+            epDiv.id = 'episode';
+            epDiv.className = 'episode';
+            container.appendChild(epDiv);
+
+            // Instruction arrows
+            const instruction = document.createElement('div');
+            instruction.id = 'dial-instruction';
+            instruction.innerHTML = '&lt;-----&gt;';
+            container.appendChild(instruction);
+
+            // Dial container + text + touch area
+            const dialEl = document.createElement('div');
+            dialEl.id = 'dial';
+            const dialText = document.createElement('span');
+            dialText.id = 'dial-text';
+            dialText.textContent = currentEpisodeNumber === 0 ? '<3' : String(currentEpisodeNumber).padStart(3, '0');
+            dialEl.appendChild(dialText);
+            const touchArea = document.createElement('div');
+            touchArea.style.cssText = 'position:absolute;width:225px;height:150px;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;';
+            dialEl.appendChild(touchArea);
+            container.appendChild(dialEl);
+
+            // Soft sine ping
+            let _ctx = null;
+            function playTick() {
+                try {
+                    if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = _ctx.createOscillator(), gain = _ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.value = 420;
+                    gain.gain.setValueAtTime(0.0001, _ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.022, _ctx.currentTime + 0.025);
+                    gain.gain.exponentialRampToValueAtTime(0.001, _ctx.currentTime + 0.28);
+                    osc.connect(gain); gain.connect(_ctx.destination);
+                    osc.start(_ctx.currentTime); osc.stop(_ctx.currentTime + 0.28);
+                } catch(e) {}
+            }
+
+            function updateDialText() {
+                dialText.textContent = currentEpisodeNumber === 0 ? '<3' : String(currentEpisodeNumber).padStart(3, '0');
+            }
+
+            function updateEpisodeContent() {
+                if (!episodes || episodes.length === 0) {
+                    epDiv.innerHTML = 'Loading...';
+                    instruction.style.display = 'none';
+                    return;
+                }
+                if (currentEpisodeNumber === 0) {
+                    epDiv.innerHTML = '';
+                    instruction.style.display = '';
+                    return;
+                }
+                const ep = episodes[currentEpisodeNumber];
+                if (!ep) { epDiv.innerHTML = ''; instruction.style.display = 'none'; return; }
+                instruction.style.display = 'none';
+                epDiv.innerHTML = '<a href="' + ep.link + '" target="_blank" rel="noopener">' + ep.title + '</a>';
+            }
+
+            updateEpisodeContent();
+
+            function spin() {
+                dialEl.classList.add('dialed');
+                currentEpisodeNumber = (currentEpisodeNumber + 1) % (maxEpisode + 1);
+                playTick(); updateDialText(); updateEpisodeContent();
+            }
+
+            dialEl.addEventListener('click', spin);
+
+            let touchStartX = 0;
+            touchArea.addEventListener('touchstart', e => {
+                touchStartX = e.touches[0].clientX;
+                e.preventDefault();
+            }, { passive: false });
+            touchArea.addEventListener('touchmove', e => {
+                const dx = e.touches[0].clientX - touchStartX;
+                if (Math.abs(dx) > 8) {
+                    dialEl.classList.add('dialed');
+                    const dir = dx > 0 ? 1 : -1;
+                    currentEpisodeNumber = (currentEpisodeNumber + dir + maxEpisode + 1) % (maxEpisode + 1);
+                    touchStartX = e.touches[0].clientX;
+                    playTick(); updateDialText(); updateEpisodeContent();
+                }
+                e.preventDefault();
+            }, { passive: false });
+
+            return null; // no document-level listeners to clean up
+        }
+    },
+
+    // ── Arch dial (door scene) ────────────────────────────────────────────────
+    'arch-dial': {
+        mount(container) {
+            const NS = 'http://www.w3.org/2000/svg';
+            const ARCH_D = 'M 33.98 50.42 C 33.997 48.547 33.757 42.413 34.08 39.18 C 34.403 35.947 34.763 33.802 35.92 31.02 C 37.077 28.238 39.167 24.667 41.02 22.49 C 42.873 20.313 45.255 18.837 47.04 17.96 C 48.825 17.083 50.167 17.23 51.73 17.23 C 53.293 17.23 54.635 17.083 56.42 17.96 C 58.205 18.837 60.587 20.313 62.44 22.49 C 64.293 24.667 66.383 28.238 67.54 31.02 C 68.697 33.802 69.057 35.947 69.38 39.18 C 69.703 42.413 69.463 48.547 69.48 50.42';
+
+            // Build SVG
+            const svg = document.createElementNS(NS, 'svg');
+            svg.id = 'door-arch';
+            svg.setAttribute('viewBox', '0 0 100 100');
+            svg.setAttribute('preserveAspectRatio', 'none');
+            svg.setAttribute('xmlns', NS);
+
+            // defs
+            const defs = document.createElementNS(NS, 'defs');
+
+            const archGlow = document.createElementNS(NS, 'filter');
+            archGlow.id = 'arch-glow';
+            archGlow.setAttribute('x', '-20%'); archGlow.setAttribute('y', '-20%');
+            archGlow.setAttribute('width', '140%'); archGlow.setAttribute('height', '140%');
+            archGlow.innerHTML = '<feGaussianBlur stdDeviation="0.5" result="blur1"/><feGaussianBlur stdDeviation="1.2" result="blur2"/><feMerge><feMergeNode in="blur2"/><feMergeNode in="blur1"/><feMergeNode in="SourceGraphic"/></feMerge>';
+            defs.appendChild(archGlow);
+
+            const doorBlur = document.createElementNS(NS, 'filter');
+            doorBlur.id = 'door-blur';
+            doorBlur.setAttribute('x', '-5%'); doorBlur.setAttribute('y', '-5%');
+            doorBlur.setAttribute('width', '110%'); doorBlur.setAttribute('height', '110%');
+            doorBlur.innerHTML = '<feGaussianBlur stdDeviation="0.6"/>';
+            defs.appendChild(doorBlur);
+
+            const spotBlur = document.createElementNS(NS, 'filter');
+            spotBlur.id = 'spot-blur';
+            spotBlur.setAttribute('x', '-200%'); spotBlur.setAttribute('y', '-200%');
+            spotBlur.setAttribute('width', '500%'); spotBlur.setAttribute('height', '500%');
+            spotBlur.innerHTML = '<feGaussianBlur stdDeviation="2"/>';
+            defs.appendChild(spotBlur);
+
+            const mask = document.createElementNS(NS, 'mask');
+            mask.id = 'arch-mask';
+            mask.setAttribute('maskUnits', 'userSpaceOnUse');
+            const maskRect = document.createElementNS(NS, 'rect');
+            maskRect.setAttribute('x', '0'); maskRect.setAttribute('y', '0');
+            maskRect.setAttribute('width', '100'); maskRect.setAttribute('height', '100');
+            maskRect.setAttribute('fill', 'white');
+            const darkSpot = document.createElementNS(NS, 'circle');
+            darkSpot.id = 'arch-dark-spot';
+            darkSpot.setAttribute('cx', '-50'); darkSpot.setAttribute('cy', '-50');
+            darkSpot.setAttribute('r', '14'); darkSpot.setAttribute('fill', 'black');
+            darkSpot.setAttribute('filter', 'url(#spot-blur)');
+            mask.appendChild(maskRect); mask.appendChild(darkSpot);
+            defs.appendChild(mask);
+            svg.appendChild(defs);
+
+            // Door shape (colored fill)
+            const doorShape = document.createElementNS(NS, 'path');
+            doorShape.id = 'door-shape';
+            doorShape.setAttribute('d', 'M 37.5 50.5 C 37.5 35 44.5 24 51.73 24 C 59 24 65.96 35 65.96 50.5 L 65.96 82 L 62.5 88.5 L 40.96 88.5 L 37.5 82 Z');
+            doorShape.setAttribute('fill', 'rgba(75,184,233,0.30)');
+            doorShape.setAttribute('stroke', '#4bb8e9');
+            doorShape.setAttribute('stroke-width', '0.5');
+            doorShape.setAttribute('filter', 'url(#door-blur)');
+            doorShape.setAttribute('opacity', '0.85');
+            doorShape.style.pointerEvents = 'none';
+            svg.appendChild(doorShape);
+
+            // Arch path — visible glowing line
+            const archPath = document.createElementNS(NS, 'path');
+            archPath.id = 'arch-path';
+            archPath.setAttribute('d', ARCH_D);
+            archPath.setAttribute('fill', 'none');
+            archPath.setAttribute('stroke', '#4bb8e9');
+            archPath.setAttribute('stroke-width', '0.35');
+            archPath.setAttribute('stroke-linecap', 'round');
+            archPath.setAttribute('filter', 'url(#arch-glow)');
+            archPath.setAttribute('mask', 'url(#arch-mask)');
+            archPath.style.pointerEvents = 'none';
+            svg.appendChild(archPath);
+
+            // Arch hit — invisible stroke-width touch target
+            const archHit = document.createElementNS(NS, 'path');
+            archHit.id = 'arch-hit';
+            archHit.setAttribute('d', ARCH_D);
+            archHit.setAttribute('fill', 'none');
+            archHit.setAttribute('stroke', 'transparent');
+            archHit.setAttribute('stroke-width', '6');
+            archHit.style.cssText = 'cursor:pointer;pointer-events:stroke;';
+            svg.appendChild(archHit);
+
+            // Append SVG to container BEFORE calling getTotalLength()
+            container.appendChild(svg);
+
+            // Number display
+            const archNumber = document.createElement('div');
+            archNumber.id = 'arch-number';
+            archNumber.textContent = '00';
+            container.appendChild(archNumber);
+
+            // Safe to call now — SVG is in live DOM
+            const totalLen = archPath.getTotalLength();
+            const SAMPLES = 300;
+            const samples = [];
+            for (let i = 0; i <= SAMPLES; i++) {
+                const pt = archPath.getPointAtLength((i / SAMPLES) * totalLen);
+                samples.push({ x: pt.x, y: pt.y, t: i / SAMPLES });
+            }
+
+            function toSVG(clientX, clientY) {
+                const p = svg.createSVGPoint();
+                p.x = clientX; p.y = clientY;
+                return p.matrixTransform(svg.getScreenCTM().inverse());
+            }
+
+            function closestT(clientX, clientY) {
+                const s = toSVG(clientX, clientY);
+                let bestD = Infinity, bestT = 0;
+                for (let i = 0; i < samples.length; i++) {
+                    const dx = samples[i].x - s.x, dy = samples[i].y - s.y;
+                    const d = dx * dx + dy * dy;
+                    if (d < bestD) { bestD = d; bestT = samples[i].t; }
+                }
+                return bestT;
+            }
+
+            function update(clientX, clientY) {
+                const t = closestT(clientX, clientY);
+                const val = Math.round(t * 99);
+                const pt = archPath.getPointAtLength(t * totalLen);
+                darkSpot.setAttribute('cx', pt.x);
+                darkSpot.setAttribute('cy', pt.y);
+                archNumber.textContent = String(val).padStart(2, '0');
+                const hue = Math.round(val / 99 * 360);
+                doorShape.setAttribute('fill', `hsla(${hue},90%,55%,0.35)`);
+                doorShape.setAttribute('stroke', `hsl(${hue},100%,70%)`);
+                doorShape.setAttribute('stroke-width', '0.5');
+                archNumber.style.color = `hsl(${hue},80%,65%)`;
+            }
+
+            function hideDot() { darkSpot.setAttribute('cx', '-50'); }
+
+            let dragging = false;
+            const onMouseMove = e => { if (dragging) update(e.clientX, e.clientY); };
+            const onMouseUp   = () => { dragging = false; hideDot(); };
+
+            archHit.addEventListener('mousedown', e => { dragging = true; update(e.clientX, e.clientY); });
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            archHit.addEventListener('touchstart', e => { update(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+            archHit.addEventListener('touchmove',  e => { update(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+            archHit.addEventListener('touchend', hideDot);
+
+            // Listeners stay for the lifetime of the page (overlay is permanent)
+        }
     }
 
-    if (currentNumber === 0) {
-        epDiv.innerHTML = '';
-        if (instruction) instruction.style.display = '';
-        return;
-    }
+};
 
-    const ep = episodes[currentNumber];
-    if (!ep) {
-        epDiv.innerHTML = '';
-        if (instruction) instruction.style.display = 'none';
-        return;
-    }
-
-    if (instruction) instruction.style.display = 'none';
-    epDiv.innerHTML = '<a href="' + ep.link + '" target="_blank" rel="noopener">' + ep.title + '</a>';
+// ── Audio system (wired once to persistent buttons) ───────────────────────────
+function initAudio() {
+    if (typeof Howl === 'undefined') return;
+    const ambient = new Howl({
+        src: ['assets/ambient.mp3', 'assets/ambient.ogg'],
+        loop: true, volume: 0,
+        onloaderror: () => console.warn('bronsonwalker.com: ambient sound not found at assets/ambient.mp3')
+    });
+    audioUnmuteBtn.addEventListener('click', () => {
+        if (!ambient.playing()) ambient.play();
+        ambient.fade(0, 0.03, 3000);
+        audioUnmuteBtn.style.display = 'none';
+        audioMuteBtn.classList.add('visible');
+    });
+    audioMuteBtn.addEventListener('click', () => {
+        ambient.fade(ambient.volume(), 0, 1500);
+        setTimeout(() => ambient.pause(), 1600);
+        audioMuteBtn.classList.remove('visible');
+        audioUnmuteBtn.style.display = '';
+    });
 }
 
-// Frosted entry overlay with ENTER button
-(function () {
-    // Inject scanline + enter button styles
-    var style = document.createElement('style');
+// ── Fullscreen overlay ────────────────────────────────────────────────────────
+function initFullscreenOverlay() {
+    const style = document.createElement('style');
     style.textContent = [
-        '@keyframes overlayFlicker {',
-        '  0%   { opacity: 1; }',
-        '  5%   { opacity: 0.1; }',
-        '  12%  { opacity: 1; }',
-        '  18%  { opacity: 0.15; }',
-        '  26%  { opacity: 1; }',
-        '  100% { opacity: 0; }',
-        '}',
-        '.fs-overlay { position: relative; overflow: hidden; }',
-        '.fs-overlay::after {',
-        '  content: "";',
-        '  position: absolute;',
-        '  inset: 0;',
-        '  background: repeating-linear-gradient(',
-        '    to bottom,',
-        '    transparent 0px, transparent 2px,',
-        '    rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px',
-        '  );',
-        '  pointer-events: none;',
-        '}',
-        '@keyframes enterPulse {',
-        '  0%,100% { box-shadow: 0 0 8px rgba(245,184,0,0.3), inset 0 0 0 1.5px #F5B800; }',
-        '  50%     { box-shadow: 0 0 20px rgba(245,184,0,0.7), inset 0 0 0 1.5px #F5B800; }',
-        '}'
+        '@keyframes overlayFlicker{0%{opacity:1}5%{opacity:0.1}12%{opacity:1}18%{opacity:0.15}26%{opacity:1}100%{opacity:0}}',
+        '.fs-overlay{position:relative;overflow:hidden}',
+        '.fs-overlay::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent 0px,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px);pointer-events:none}',
+        '@keyframes enterPulse{0%,100%{box-shadow:0 0 8px rgba(245,184,0,0.3),inset 0 0 0 1.5px #F5B800}50%{box-shadow:0 0 20px rgba(245,184,0,0.7),inset 0 0 0 1.5px #F5B800}}'
     ].join('\n');
     document.head.appendChild(style);
 
-    // Build frosted overlay
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'fs-overlay';
-    overlay.style.cssText = [
-        'position:fixed;inset:0;z-index:9999;',
-        'background:rgba(10,5,0,0.45);',
-        'backdrop-filter:blur(14px);',
-        '-webkit-backdrop-filter:blur(14px);',
-        'display:flex;align-items:center;justify-content:center;'
-    ].join('');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,5,0,0.45);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;';
 
-    // ENTER button
-    var enterBtn = document.createElement('button');
+    const enterBtn = document.createElement('button');
     enterBtn.textContent = 'ENTER';
-    enterBtn.style.cssText = [
-        'font-family:Nunito,sans-serif;',
-        'font-size:clamp(1rem,2vw,1.4rem);',
-        'font-weight:700;',
-        'letter-spacing:0.15em;',
-        'color:#F5B800;',
-        'background:#000;',
-        'border:1.5px solid #F5B800;',
-        'border-radius:8px;',
-        'padding:10px 28px;',
-        'cursor:pointer;',
-        'box-shadow:0 0 8px rgba(245,184,0,0.3);',
-        'transform:translateY(0);',
-        'transition:box-shadow 0.08s,transform 0.08s;',
-        'animation:enterPulse 2.4s ease-in-out infinite;'
-    ].join('');
-    enterBtn.addEventListener('mousedown', function () {
+    enterBtn.style.cssText = 'font-family:Nunito,sans-serif;font-size:clamp(1rem,2vw,1.4rem);font-weight:700;letter-spacing:0.15em;color:#F5B800;background:#000;border:1.5px solid #F5B800;border-radius:8px;padding:10px 28px;cursor:pointer;box-shadow:0 0 8px rgba(245,184,0,0.3);transform:translateY(0);transition:box-shadow 0.08s,transform 0.08s;animation:enterPulse 2.4s ease-in-out infinite;';
+    enterBtn.addEventListener('mousedown', () => {
         enterBtn.style.boxShadow = '0 0 4px rgba(245,184,0,0.2)';
         enterBtn.style.transform = 'translateY(4px)';
     });
     overlay.appendChild(enterBtn);
 
-    function doEnterFullscreen() {
-        var el = document.documentElement;
-        var rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-        if (rfs) {
-            var p = rfs.call(el);
-            if (p && p.then) {
-                p.then(function () {
-                    try { screen.orientation.lock('landscape'); } catch (e) {}
-                    applyLandscapeIfNeeded(startDefrost);
-                });
-            } else {
-                try { screen.orientation.lock('landscape'); } catch (e) {}
-                applyLandscapeIfNeeded(startDefrost);
-            }
-        } else {
-            startDefrost();
-        }
-    }
-
-    // Smart-glass defrost
     function startDefrost() {
-        overlay.style.transition = [
-            'backdrop-filter 1.4s ease-out',
-            '-webkit-backdrop-filter 1.4s ease-out',
-            'background 1.4s ease-out'
-        ].join(',');
+        overlay.style.transition = 'backdrop-filter 1.4s ease-out,-webkit-backdrop-filter 1.4s ease-out,background 1.4s ease-out';
         overlay.style.backdropFilter = 'blur(0px)';
         overlay.style.webkitBackdropFilter = 'blur(0px)';
         overlay.style.background = 'rgba(10,5,0,0)';
-        setTimeout(function () {
+        setTimeout(() => {
             overlay.style.display = 'none';
             overlay.style.transition = '';
             overlay.style.backdropFilter = 'blur(14px)';
@@ -267,53 +453,44 @@ function updateEpisodeContent() {
         }, 1400);
     }
 
-    // On ENTER click: hide button immediately, then trigger fullscreen + defrost
-    enterBtn.addEventListener('click', function () {
-        enterBtn.style.display = 'none';
-        doEnterFullscreen();
-    });
+    function showOverlay() {
+        enterBtn.style.display = '';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,5,0,0.45);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;';
+    }
 
-    // Re-show overlay when fullscreen exits (tab switch, back button, ESC, link click)
+    function doEnterFullscreen() {
+        const el = document.documentElement;
+        const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        if (rfs) {
+            const p = rfs.call(el);
+            if (p && p.then) {
+                p.then(() => { try { screen.orientation.lock('landscape'); } catch(e) {} applyLandscapeIfNeeded(startDefrost); });
+            } else {
+                try { screen.orientation.lock('landscape'); } catch(e) {}
+                applyLandscapeIfNeeded(startDefrost);
+            }
+        } else { startDefrost(); }
+    }
+
+    enterBtn.addEventListener('click', () => { enterBtn.style.display = 'none'; doEnterFullscreen(); });
+
     function onFullscreenExit() {
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            document.body.style.transform = '';
-            document.body.style.transformOrigin = '';
-            document.body.style.width = '';
-            document.body.style.height = '';
-            document.body.style.position = '';
-            document.body.style.top = '';
-            document.body.style.left = '';
-            document.body.style.overflow = '';
-            enterBtn.style.display = '';
-            overlay.style.backdropFilter = 'blur(14px)';
-            overlay.style.webkitBackdropFilter = 'blur(14px)';
-            overlay.style.background = 'rgba(10,5,0,0.45)';
-            overlay.style.transition = '';
-            overlay.style.display = 'flex';
+            document.body.style.cssText = '';
+            showOverlay();
         }
     }
     document.addEventListener('fullscreenchange', onFullscreenExit);
     document.addEventListener('webkitfullscreenchange', onFullscreenExit);
-
-    // Re-show overlay when returning from bfcache (browser back button)
-    window.addEventListener('pageshow', function (e) {
-        if (e.persisted && !document.fullscreenElement) {
-            enterBtn.style.display = '';
-            overlay.style.backdropFilter = 'blur(14px)';
-            overlay.style.webkitBackdropFilter = 'blur(14px)';
-            overlay.style.background = 'rgba(10,5,0,0.45)';
-            overlay.style.transition = '';
-            overlay.style.display = 'flex';
-        }
+    window.addEventListener('pageshow', e => {
+        if (e.persisted && !document.fullscreenElement) showOverlay();
     });
 
-    // CSS rotation fallback for iOS (orientation lock not supported)
     function applyLandscapeIfNeeded(callback) {
-        setTimeout(function () {
+        setTimeout(() => {
             if (window.innerHeight > window.innerWidth) {
-                var w = window.innerWidth;
-                var h = window.innerHeight;
-                requestAnimationFrame(function () {
+                const w = window.innerWidth, h = window.innerHeight;
+                requestAnimationFrame(() => {
                     document.body.style.transform = 'rotate(-90deg)';
                     document.body.style.transformOrigin = 'top left';
                     document.body.style.width = h + 'px';
@@ -322,21 +499,14 @@ function updateEpisodeContent() {
                     document.body.style.top = h + 'px';
                     document.body.style.left = '0';
                     document.body.style.overflow = 'hidden';
-                    requestAnimationFrame(function () {
-                        requestAnimationFrame(function () {
-                            if (callback) callback();
-                        });
-                    });
+                    requestAnimationFrame(() => { requestAnimationFrame(() => { if (callback) callback(); }); });
                 });
-            } else {
-                if (callback) callback();
-            }
+            } else { if (callback) callback(); }
         }, 50);
     }
 
-    // Undo CSS rotation if user physically rotates to landscape
     if (screen.orientation) {
-        screen.orientation.addEventListener('change', function () {
+        screen.orientation.addEventListener('change', () => {
             if (screen.orientation.type.startsWith('landscape')) {
                 document.body.style.transform = '';
                 document.body.style.transformOrigin = '';
@@ -351,131 +521,14 @@ function updateEpisodeContent() {
     }
 
     document.documentElement.appendChild(overlay);
-})();
+}
 
-// Audio system — ambient cockpit sound, toggled by the headphones button
-// Requires: Howler.js (loaded via CDN before this script)
-// Sound file: place ambient audio at assets/ambient.mp3 (and .ogg for Firefox)
-(function () {
-    if (typeof Howl === 'undefined') return;
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+    loadEpisodes();         // start loading in background, don't block
+    initAudio();
+    initFullscreenOverlay();
+    navigate(initialScene); // takes over static HTML container, starts neighbor preload
+}
 
-    var ambient = new Howl({
-        src: ['assets/ambient.mp3', 'assets/ambient.ogg'],
-        loop: true,
-        volume: 0,
-        onloaderror: function () {
-            console.warn('bronsonwalker.com: ambient sound not found at assets/ambient.mp3');
-        }
-    });
-
-    var btns = document.querySelectorAll('.headphones-btn');
-    var muteBtns = document.querySelectorAll('.mute-btn');
-    if (!btns.length) return;
-
-    btns.forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            if (!ambient.playing()) ambient.play();
-            ambient.fade(0, 0.03, 3000);
-            btns.forEach(function (b) { b.style.display = 'none'; });
-            muteBtns.forEach(function (b) { b.classList.add('visible'); });
-        });
-    });
-
-    muteBtns.forEach(function (muteBtn) {
-        muteBtn.addEventListener('click', function () {
-            ambient.fade(ambient.volume(), 0, 1500);
-            setTimeout(function () { ambient.pause(); }, 1600);
-            muteBtns.forEach(function (b) { b.classList.remove('visible'); });
-            btns.forEach(function (b) { b.style.display = ''; });
-        });
-    });
-})();
-
-// Linktree scene — mirrors cockpit-bg structure for consistent sizing
-(function () {
-    var overlay = document.createElement('div');
-    overlay.style.cssText = [
-        'position:fixed;inset:0;z-index:9998;',
-        'background:#000;',
-        'display:none;flex-direction:column;',
-        'align-items:center;justify-content:center;',
-        'padding-bottom:7.6vh;'
-    ].join('');
-
-    var frame = document.createElement('div');
-    frame.style.cssText = [
-        'position:relative;width:100%;max-width:100%;',
-        'aspect-ratio:16/9;overflow:hidden;',
-        'margin:18px auto;',
-        'box-shadow:0 6px 18px rgba(0,0,0,0.6);'
-    ].join('');
-
-    var img = document.createElement('img');
-    img.src = 'assets/BonsaiTree.png';
-    img.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;object-position:top;pointer-events:none;';
-    frame.appendChild(img);
-
-    var backBtn = document.createElement('a');
-    backBtn.textContent = 'Back';
-    backBtn.href = '#';
-    backBtn.style.cssText = [
-        'position:absolute;bottom:2%;left:3%;z-index:1;',
-        'font-family:Nunito,system-ui,sans-serif;font-weight:700;',
-        'font-size:clamp(0.8rem,1.6vw,1.1rem);',
-        'color:#F5B800;background:#000;text-decoration:none;',
-        'border:1.5px solid #F5B800;border-radius:6px;',
-        'padding:2px 8px;cursor:pointer;'
-    ].join('');
-    backBtn.addEventListener('click', function (e) { e.preventDefault(); overlay.style.display = 'none'; });
-    frame.appendChild(backBtn);
-
-    overlay.appendChild(frame);
-    document.documentElement.appendChild(overlay);
-
-    document.querySelectorAll('.bonsai-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () { overlay.style.display = 'flex'; });
-    });
-})();
-
-// Arch number — drag along arch to scrub 0–99
-(function () {
-    var archHit = document.getElementById('arch-hit');
-    var archNumber = document.getElementById('arch-number');
-    if (!archHit || !archNumber) return;
-
-    var X_MIN = 33.98, X_MAX = 69.48;
-
-    function valueFromClientX(clientX) {
-        var svg = document.getElementById('door-arch');
-        var r = svg.getBoundingClientRect();
-        var xPct = (clientX - r.left) / r.width * 100;
-        var val = Math.round((xPct - X_MIN) / (X_MAX - X_MIN) * 99);
-        return Math.max(0, Math.min(99, val));
-    }
-
-    function update(clientX) {
-        archNumber.textContent = String(valueFromClientX(clientX)).padStart(2, '0');
-    }
-
-    var dragging = false;
-    archHit.addEventListener('mousedown', function (e) { dragging = true; update(e.clientX); });
-    document.addEventListener('mousemove', function (e) { if (dragging) update(e.clientX); });
-    document.addEventListener('mouseup', function () { dragging = false; });
-
-    archHit.addEventListener('touchstart', function (e) { update(e.touches[0].clientX); e.preventDefault(); }, { passive: false });
-    archHit.addEventListener('touchmove',  function (e) { update(e.touches[0].clientX); e.preventDefault(); }, { passive: false });
-})();
-
-// Scene switching: instant toggle, no DOM swap
-(function () {
-    document.querySelectorAll('.turn-around-btn').forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
-            e.preventDefault();
-            var target = btn.getAttribute('data-scene');
-            if (target) {
-                document.querySelectorAll('.scene').forEach(function (s) { s.classList.remove('active'); });
-                document.getElementById(target).classList.add('active');
-            }
-        });
-    });
-})();
+init();

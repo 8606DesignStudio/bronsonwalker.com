@@ -51,28 +51,54 @@
             font-family: monospace; font-size: 12px;
             padding: 3px 10px; cursor: pointer; border-radius: 4px;
         }
+        #controls button.active { background: #F5B800; color: #000; }
+        #mode-label {
+            position: fixed;
+            top: 8px; left: 8px;
+            color: #F5B800;
+            font-family: monospace;
+            font-size: 12px;
+            background: rgba(0,0,0,0.7);
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div id="container">
         <img src="assets/cockpitDoor.png" id="img">
         <svg id="svg-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path id="arch-path" fill="none" stroke="#4bb8e9" stroke-width="0.3" opacity="0.8"/>
+            <path id="draw-path" fill="none" stroke="#4bb8e9" stroke-width="0.3" opacity="0.8"/>
+            <path id="poly-fill" fill="rgba(75,184,233,0.1)" stroke="#4bb8e9" stroke-width="0.3" stroke-dasharray="1,1" opacity="0.8"/>
         </svg>
     </div>
+    <div id="mode-label">MODE: CURVE</div>
     <div id="controls">
+        <button id="btn-curve" class="active" onclick="setMode('curve')">Curve</button>
+        <button id="btn-poly" onclick="setMode('poly')">Polygon</button>
         <button onclick="undo()">Undo</button>
         <button onclick="clearAll()">Clear</button>
-        <button onclick="copyPath()">Copy Path</button>
+        <button onclick="copyPath()">Copy</button>
     </div>
-    <div id="log">Click to plot points along the arch.</div>
+    <div id="log">Click to plot points.</div>
 
     <script>
         var container = document.getElementById('container');
         var img = document.getElementById('img');
         var log = document.getElementById('log');
-        var archPath = document.getElementById('arch-path');
-        var points = []; // [{x, y}] in % of image
+        var drawPath = document.getElementById('draw-path');
+        var polyFill = document.getElementById('poly-fill');
+        var modeLabel = document.getElementById('mode-label');
+        var points = [];
+        var mode = 'curve'; // 'curve' or 'poly'
+
+        function setMode(m) {
+            mode = m;
+            modeLabel.textContent = 'MODE: ' + m.toUpperCase();
+            document.getElementById('btn-curve').classList.toggle('active', m === 'curve');
+            document.getElementById('btn-poly').classList.toggle('active', m === 'poly');
+            redraw();
+        }
 
         container.addEventListener('click', function (e) {
             var r = img.getBoundingClientRect();
@@ -80,7 +106,7 @@
             var y = parseFloat(((e.clientY - r.top)  / r.height * 100).toFixed(2));
             points.push({x, y});
             addDot(x, y, points.length);
-            redrawCurve();
+            redraw();
             renderLog();
         });
 
@@ -94,7 +120,6 @@
             dot.className = 'dot';
             dot.style.left = px + 'px';
             dot.style.top  = py + 'px';
-            dot.dataset.idx = n - 1;
             container.appendChild(dot);
 
             var label = document.createElement('div');
@@ -102,68 +127,76 @@
             label.textContent = n;
             label.style.left = px + 'px';
             label.style.top  = py + 'px';
-            label.dataset.idx = n - 1;
             container.appendChild(label);
         }
 
-        // Catmull-Rom to cubic bezier smooth curve through all points
         function catmullRomPath(pts) {
             if (pts.length < 2) return '';
-            if (pts.length === 2) {
-                return 'M ' + pts[0].x + ' ' + pts[0].y + ' L ' + pts[1].x + ' ' + pts[1].y;
-            }
-
+            if (pts.length === 2) return 'M ' + pts[0].x + ' ' + pts[0].y + ' L ' + pts[1].x + ' ' + pts[1].y;
             var d = 'M ' + pts[0].x + ' ' + pts[0].y;
             for (var i = 0; i < pts.length - 1; i++) {
                 var p0 = pts[Math.max(i - 1, 0)];
                 var p1 = pts[i];
                 var p2 = pts[i + 1];
                 var p3 = pts[Math.min(i + 2, pts.length - 1)];
-
                 var cp1x = p1.x + (p2.x - p0.x) / 6;
                 var cp1y = p1.y + (p2.y - p0.y) / 6;
                 var cp2x = p2.x - (p3.x - p1.x) / 6;
                 var cp2y = p2.y - (p3.y - p1.y) / 6;
-
-                d += ' C ' + cp1x.toFixed(3) + ' ' + cp1y.toFixed(3)
-                           + ' ' + cp2x.toFixed(3) + ' ' + cp2y.toFixed(3)
-                           + ' ' + p2.x + ' ' + p2.y;
+                d += ' C ' + cp1x.toFixed(3) + ' ' + cp1y.toFixed(3) + ' ' + cp2x.toFixed(3) + ' ' + cp2y.toFixed(3) + ' ' + p2.x + ' ' + p2.y;
             }
             return d;
         }
 
-        function redrawCurve() {
-            archPath.setAttribute('d', catmullRomPath(points));
+        function polyPath(pts, close) {
+            if (pts.length < 2) return '';
+            var d = 'M ' + pts[0].x + ' ' + pts[0].y;
+            for (var i = 1; i < pts.length; i++) d += ' L ' + pts[i].x + ' ' + pts[i].y;
+            if (close) d += ' Z';
+            return d;
+        }
+
+        function redraw() {
+            if (mode === 'curve') {
+                drawPath.setAttribute('d', catmullRomPath(points));
+                drawPath.setAttribute('stroke', '#4bb8e9');
+                drawPath.setAttribute('stroke-dasharray', 'none');
+                polyFill.setAttribute('d', '');
+            } else {
+                drawPath.setAttribute('d', polyPath(points, false));
+                drawPath.setAttribute('stroke', '#F5B800');
+                drawPath.setAttribute('stroke-dasharray', 'none');
+                polyFill.setAttribute('d', points.length >= 3 ? polyPath(points, true) : '');
+            }
         }
 
         function renderLog() {
             var coords = points.map(function(p, i) {
                 return (i+1) + ':(' + p.x + '%,' + p.y + '%)';
             }).join('  ');
-            log.textContent = coords || 'Click to plot points along the arch.';
+            log.textContent = coords || 'Click to plot points.';
         }
 
         function undo() {
             if (!points.length) return;
             points.pop();
-            // Remove last dot and label
             var dots = container.querySelectorAll('.dot');
             var labels = container.querySelectorAll('.dot-label');
             if (dots.length) dots[dots.length - 1].remove();
             if (labels.length) labels[labels.length - 1].remove();
-            redrawCurve();
+            redraw();
             renderLog();
         }
 
         function clearAll() {
             points = [];
             container.querySelectorAll('.dot, .dot-label').forEach(function(el) { el.remove(); });
-            redrawCurve();
+            redraw();
             renderLog();
         }
 
         function copyPath() {
-            var d = catmullRomPath(points);
+            var d = mode === 'curve' ? catmullRomPath(points) : polyPath(points, true);
             if (!d) { log.textContent = 'No points yet.'; return; }
             navigator.clipboard.writeText(d).then(function() {
                 log.textContent = 'Copied: ' + d;

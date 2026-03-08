@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draw Plotter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        #container { position: relative; width: 100vw; height: 56.25vw; max-height: 100vh; max-width: calc(100vh * 16 / 9); cursor: crosshair; flex-shrink: 0; }
+        #container img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+        #svg-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+        #log {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.8);
+            color: #F5B800;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 5px 10px;
+            max-height: 60px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        #controls {
+            position: fixed;
+            top: 8px; right: 8px;
+            display: flex; gap: 6px;
+        }
+        #controls button {
+            background: #000; color: #F5B800;
+            border: 1.5px solid #F5B800;
+            font-family: monospace; font-size: 12px;
+            padding: 3px 10px; cursor: pointer; border-radius: 4px;
+        }
+        #hint {
+            position: fixed;
+            top: 8px; left: 8px;
+            color: #F5B800;
+            font-family: monospace;
+            font-size: 12px;
+            background: rgba(0,0,0,0.7);
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <img src="assets/cockpitDoor.png" id="img">
+        <svg id="svg-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path id="drawn-path" fill="none" stroke="#4bb8e9" stroke-width="0.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+        </svg>
+    </div>
+    <div id="hint">Draw freely — drag to trace</div>
+    <div id="controls">
+        <button onclick="clearAll()">Clear</button>
+        <button onclick="copyPath()">Copy Path</button>
+    </div>
+    <div id="log">Draw on the image by dragging.</div>
+
+    <script>
+        var container = document.getElementById('container');
+        var img = document.getElementById('img');
+        var svg = document.getElementById('svg-overlay');
+        var drawnPath = document.getElementById('drawn-path');
+        var log = document.getElementById('log');
+
+        var drawing = false;
+        var pts = [];
+        var SIMPLIFY = 1.5; // min distance in SVG units before adding a point
+
+        function toSVG(clientX, clientY) {
+            var p = svg.createSVGPoint();
+            p.x = clientX; p.y = clientY;
+            return p.matrixTransform(svg.getScreenCTM().inverse());
+        }
+
+        function dist(a, b) {
+            return Math.sqrt((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y));
+        }
+
+        function buildPath(points) {
+            if (points.length < 2) return '';
+            var d = 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2);
+            for (var i = 1; i < points.length; i++) {
+                d += ' L ' + points[i].x.toFixed(2) + ' ' + points[i].y.toFixed(2);
+            }
+            return d;
+        }
+
+        function startDraw(clientX, clientY) {
+            drawing = true;
+            pts = [];
+            var p = toSVG(clientX, clientY);
+            pts.push(p);
+            drawnPath.setAttribute('d', buildPath(pts));
+        }
+
+        function moveDraw(clientX, clientY) {
+            if (!drawing) return;
+            var p = toSVG(clientX, clientY);
+            if (pts.length === 0 || dist(p, pts[pts.length - 1]) > SIMPLIFY) {
+                pts.push(p);
+                drawnPath.setAttribute('d', buildPath(pts));
+            }
+        }
+
+        function endDraw() {
+            if (!drawing) return;
+            drawing = false;
+            var d = buildPath(pts);
+            log.textContent = pts.length + ' points. Path: ' + d;
+        }
+
+        // Mouse
+        container.addEventListener('mousedown', function(e) { e.preventDefault(); startDraw(e.clientX, e.clientY); });
+        window.addEventListener('mousemove', function(e) { moveDraw(e.clientX, e.clientY); });
+        window.addEventListener('mouseup', endDraw);
+
+        // Touch
+        container.addEventListener('touchstart', function(e) { e.preventDefault(); startDraw(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+        container.addEventListener('touchmove', function(e) { e.preventDefault(); moveDraw(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+        container.addEventListener('touchend', endDraw);
+
+        function clearAll() {
+            pts = [];
+            drawnPath.setAttribute('d', '');
+            log.textContent = 'Draw on the image by dragging.';
+        }
+
+        function copyPath() {
+            var d = buildPath(pts);
+            if (!d) { log.textContent = 'Nothing drawn yet.'; return; }
+            navigator.clipboard.writeText(d).then(function() {
+                log.textContent = 'Copied!';
+            }).catch(function() {
+                log.textContent = d;
+            });
+        }
+    </script>
+</body>
+</html>
