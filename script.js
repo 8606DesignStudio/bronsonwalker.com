@@ -39,6 +39,43 @@ function playTick() {
     } catch(e) {}
 }
 
+// ── Compressor/limiter for door tick (created once) ───────────────────────────
+let _doorCompressor = null;
+function getDoorCompressor() {
+    if (_doorCompressor) return _doorCompressor;
+    _doorCompressor = _tickCtx.createDynamicsCompressor();
+    _doorCompressor.threshold.value = -6;
+    _doorCompressor.knee.value = 3;
+    _doorCompressor.ratio.value = 12;
+    _doorCompressor.attack.value = 0.003;
+    _doorCompressor.release.value = 0.1;
+    _doorCompressor.connect(_tickCtx.destination);
+    return _doorCompressor;
+}
+
+// ── Door swipe tick — 110 Hz + 52.5 Hz sub ───────────────────────────────────
+function playDoorTick() {
+    try {
+        if (!_tickCtx) _tickCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const t = _tickCtx.currentTime;
+        const comp = getDoorCompressor();
+        const osc1 = _tickCtx.createOscillator(), g1 = _tickCtx.createGain();
+        osc1.type = 'sine'; osc1.frequency.value = 110;
+        g1.gain.setValueAtTime(0.0001, t);
+        g1.gain.linearRampToValueAtTime(0.102, t + 0.04);
+        g1.gain.exponentialRampToValueAtTime(0.00001, t + 0.32);
+        osc1.connect(g1); g1.connect(comp);
+        osc1.start(t); osc1.stop(t + 0.34);
+        const osc2 = _tickCtx.createOscillator(), g2 = _tickCtx.createGain();
+        osc2.type = 'sine'; osc2.frequency.value = 52.5;
+        g2.gain.setValueAtTime(0.0001, t);
+        g2.gain.linearRampToValueAtTime(0.066, t + 0.04);
+        g2.gain.exponentialRampToValueAtTime(0.00001, t + 0.32);
+        osc2.connect(g2); g2.connect(comp);
+        osc2.start(t); osc2.stop(t + 0.34);
+    } catch(e) {}
+}
+
 // ── Episode data (loaded once, persists across scene changes) ─────────────────
 let episodes = {};
 let maxEpisode = 192;
@@ -375,8 +412,8 @@ const overlayHandlers = {
 
             function setFromSVGY(svgY) {
                 const clamped = Math.max(WIN_TOP, Math.min(WIN_BOT, svgY));
-                const newVal = Math.round((1 - (clamped - WIN_TOP) / (WIN_BOT - WIN_TOP)) * 99);
-                if (newVal !== winVal) { playTick(); winVal = newVal; }
+                const newVal = Math.round((1 - (clamped - WIN_TOP) / (WIN_BOT - WIN_TOP)) * 13);
+                if (newVal !== winVal) { playDoorTick(); winVal = newVal; }
                 applyVal(winVal);
             }
 
