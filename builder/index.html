@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tour Builder</title>
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #111;
+  color: #eee;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* TOOLBAR */
+#toolbar {
+  background: #1e1e1e;
+  border-bottom: 1px solid #333;
+  padding: 8px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+#toolbar .title {
+  font-weight: bold;
+  color: #F5B800;
+  margin-right: 4px;
+  font-size: 15px;
+}
+
+.sep {
+  width: 1px;
+  height: 20px;
+  background: #444;
+  margin: 0 2px;
+}
+
+button {
+  background: #2a2a2a;
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 5px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+
+button:hover { background: #3a3a3a; }
+
+button.primary {
+  background: #F5B800;
+  color: #000;
+  border-color: #F5B800;
+  font-weight: bold;
+}
+
+button.primary:hover { background: #ffd000; }
+
+button.danger {
+  background: #5a1a1a;
+  border-color: #8b2222;
+  color: #ff9999;
+}
+
+button.danger:hover { background: #7a2222; }
+
+/* MAIN LAYOUT */
+#main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* SCENE LIST */
+#scene-list {
+  width: 155px;
+  background: #1a1a1a;
+  border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+#scene-list-header {
+  padding: 8px 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #666;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.scene-thumb {
+  padding: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #222;
+}
+
+.scene-thumb:hover { background: #212121; }
+.scene-thumb.active { background: #252525; border-left: 3px solid #F5B800; }
+
+.scene-thumb-img {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #222;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  font-size: 10px;
+}
+
+.scene-thumb-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.scene-thumb-meta {
+  margin-top: 5px;
+}
+
+.scene-thumb-num { font-size: 10px; color: #555; }
+.scene-thumb-name { font-size: 12px; color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#add-scene-btn {
+  margin: 10px;
+  width: calc(100% - 20px);
+  flex-shrink: 0;
+}
+
+/* CANVAS AREA */
+#canvas-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d0d0d;
+  overflow: hidden;
+  padding: 20px;
+  min-width: 0;
+}
+
+#canvas {
+  position: relative;
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.6);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+#canvas-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+#canvas-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  gap: 8px;
+  font-size: 14px;
+}
+
+#canvas-placeholder .hint { font-size: 12px; color: #333; }
+
+#hotspot-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.hotspot-el {
+  position: absolute;
+  background: rgba(0,0,0,0.75);
+  border: 2px solid #F5B800;
+  color: #F5B800;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: move;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 2px 6px;
+  line-height: 1.2;
+  overflow: hidden;
+  user-select: none;
+}
+
+.hotspot-el:hover { border-color: #ffd000; }
+
+.hotspot-el.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px #F5B800;
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  background: #F5B800;
+  cursor: se-resize;
+  border-radius: 3px 0 3px 0;
+  flex-shrink: 0;
+}
+
+/* PROPERTIES PANEL */
+#properties {
+  width: 195px;
+  background: #1a1a1a;
+  border-left: 1px solid #333;
+  padding: 12px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+#properties h3 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.prop-group { margin-bottom: 12px; }
+
+.prop-label { font-size: 11px; color: #777; margin-bottom: 4px; }
+
+.prop-input {
+  width: 100%;
+  background: #222;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  color: #eee;
+  padding: 5px 8px;
+  font-size: 13px;
+}
+
+.prop-input:focus { outline: none; border-color: #F5B800; }
+
+select.prop-input { cursor: pointer; }
+
+.prop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.empty-state { color: #555; font-size: 12px; line-height: 1.6; }
+
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="title">Tour Builder</span>
+  <div class="sep"></div>
+  <button id="btn-upload-bg">Upload Background</button>
+  <button id="btn-add-hotspot">+ Add Button</button>
+  <div class="sep"></div>
+  <button id="btn-preview">Preview</button>
+  <div class="sep"></div>
+  <button id="btn-save">Save Project</button>
+  <button id="btn-load">Load Project</button>
+  <div class="sep"></div>
+  <button id="btn-export" class="primary">Export Tour</button>
+  <input type="file" id="input-bg" accept="image/*" hidden>
+  <input type="file" id="input-load" accept=".json" hidden>
+</div>
+
+<div id="main">
+  <div id="scene-list">
+    <div id="scene-list-header">Scenes</div>
+    <div id="scene-thumbs"></div>
+    <button id="add-scene-btn">+ Add Scene</button>
+  </div>
+
+  <div id="canvas-area">
+    <div id="canvas">
+      <img id="canvas-bg" style="display:none" alt="">
+      <div id="canvas-placeholder">
+        <span>No scene selected</span>
+        <span class="hint">Add a scene to get started</span>
+      </div>
+      <div id="hotspot-layer"></div>
+    </div>
+  </div>
+
+  <div id="properties">
+    <h3>Properties</h3>
+    <div id="props-content">
+      <div class="empty-state">Select a button on the canvas to edit its properties.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+
+const state = {
+  scenes: [],
+  currentSceneId: null,
+  selectedHotspotId: null,
+  drag: null,   // { hotspotId, sceneId, startX, startY, origX, origY, canvasW, canvasH }
+  resize: null  // { hotspotId, sceneId, startX, startY, origW, origH, canvasW, canvasH }
+};
+
+function uid() { return 'id_' + Math.random().toString(36).slice(2, 9); }
+
+function getCurrentScene() {
+  return state.scenes.find(s => s.id === state.currentSceneId) || null;
+}
+
+function getHotspot(sceneId, hotspotId) {
+  const scene = state.scenes.find(s => s.id === sceneId);
+  return scene ? scene.hotspots.find(h => h.id === hotspotId) || null : null;
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── SCENE MANAGEMENT ───────────────────────────────────────────────────────
+
+function addScene() {
+  const n = state.scenes.length + 1;
+  const scene = { id: uid(), name: 'Scene ' + n, background: null, hotspots: [] };
+  state.scenes.push(scene);
+  selectScene(scene.id);
+}
+
+function selectScene(id) {
+  state.currentSceneId = id;
+  state.selectedHotspotId = null;
+  renderAll();
+}
+
+function deleteCurrentScene() {
+  if (!state.currentSceneId) return;
+  if (state.scenes.length <= 1) { alert('Cannot delete the only scene.'); return; }
+  const idx = state.scenes.findIndex(s => s.id === state.currentSceneId);
+  state.scenes.splice(idx, 1);
+  state.currentSceneId = state.scenes[Math.max(0, idx - 1)].id;
+  state.selectedHotspotId = null;
+  renderAll();
+}
+
+// ── HOTSPOT MANAGEMENT ─────────────────────────────────────────────────────
+
+function addHotspot() {
+  const scene = getCurrentScene();
+  if (!scene) { alert('Select a scene first.'); return; }
+  const hotspot = { id: uid(), label: 'Button', x: 0.35, y: 0.42, w: 0.20, h: 0.10, linksTo: null };
+  scene.hotspots.push(hotspot);
+  state.selectedHotspotId = hotspot.id;
+  renderCanvas();
+  renderProperties();
+}
+
+function deleteSelectedHotspot() {
+  const scene = getCurrentScene();
+  if (!scene || !state.selectedHotspotId) return;
+  scene.hotspots = scene.hotspots.filter(h => h.id !== state.selectedHotspotId);
+  state.selectedHotspotId = null;
+  renderCanvas();
+  renderProperties();
+}
+
+function selectHotspot(id) {
+  state.selectedHotspotId = id;
+  renderCanvas();
+  renderProperties();
+}
+
+// ── RENDERING ──────────────────────────────────────────────────────────────
+
+function renderAll() {
+  renderSceneList();
+  renderCanvas();
+  renderProperties();
+}
+
+function renderSceneList() {
+  const container = document.getElementById('scene-thumbs');
+  container.innerHTML = '';
+  state.scenes.forEach((scene, i) => {
+    const div = document.createElement('div');
+    div.className = 'scene-thumb' + (scene.id === state.currentSceneId ? ' active' : '');
+    div.onclick = () => selectScene(scene.id);
+
+    const imgDiv = document.createElement('div');
+    imgDiv.className = 'scene-thumb-img';
+    if (scene.background) {
+      const img = document.createElement('img');
+      img.src = scene.background;
+      imgDiv.appendChild(img);
+    } else {
+      imgDiv.textContent = 'no image';
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'scene-thumb-meta';
+    meta.innerHTML = `<div class="scene-thumb-num">Scene ${i + 1}</div><div class="scene-thumb-name">${escHtml(scene.name)}</div>`;
+
+    div.appendChild(imgDiv);
+    div.appendChild(meta);
+    container.appendChild(div);
+  });
+}
+
+function renderCanvas() {
+  const canvas = document.getElementById('canvas');
+  const bg = document.getElementById('canvas-bg');
+  const placeholder = document.getElementById('canvas-placeholder');
+  const hotspotLayer = document.getElementById('hotspot-layer');
+
+  // Size canvas 16:9 to fit area
+  const area = document.getElementById('canvas-area');
+  const areaW = area.clientWidth - 40;
+  const areaH = area.clientHeight - 40;
+  let w, h;
+  if (areaW / 16 * 9 <= areaH) {
+    w = areaW; h = areaW / 16 * 9;
+  } else {
+    h = areaH; w = areaH / 9 * 16;
+  }
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+
+  const scene = getCurrentScene();
+
+  if (!scene) {
+    bg.style.display = 'none';
+    placeholder.style.display = 'flex';
+    placeholder.innerHTML = '<span>No scene selected</span><span class="hint">Add a scene to get started</span>';
+    hotspotLayer.innerHTML = '';
+    return;
+  }
+
+  if (scene.background) {
+    bg.src = scene.background;
+    bg.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    bg.style.display = 'none';
+    placeholder.style.display = 'flex';
+    placeholder.innerHTML = '<span>No background image</span><span class="hint">Click "Upload Background" to add one</span>';
+  }
+
+  hotspotLayer.innerHTML = '';
+
+  scene.hotspots.forEach(hotspot => {
+    const el = document.createElement('div');
+    el.className = 'hotspot-el' + (hotspot.id === state.selectedHotspotId ? ' selected' : '');
+    el.style.left   = (hotspot.x * 100) + '%';
+    el.style.top    = (hotspot.y * 100) + '%';
+    el.style.width  = (hotspot.w * 100) + '%';
+    el.style.height = (hotspot.h * 100) + '%';
+    el.textContent  = hotspot.label;
+    el.dataset.id   = hotspot.id;
+
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+
+    el.addEventListener('mousedown', e => {
+      if (e.target === handle) return;
+      e.preventDefault();
+      e.stopPropagation();
+      selectHotspot(hotspot.id);
+      const rect = canvas.getBoundingClientRect();
+      state.drag = {
+        hotspotId: hotspot.id, sceneId: state.currentSceneId,
+        startX: e.clientX, startY: e.clientY,
+        origX: hotspot.x, origY: hotspot.y,
+        canvasW: rect.width, canvasH: rect.height
+      };
+    });
+
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectHotspot(hotspot.id);
+      const rect = canvas.getBoundingClientRect();
+      state.resize = {
+        hotspotId: hotspot.id, sceneId: state.currentSceneId,
+        startX: e.clientX, startY: e.clientY,
+        origW: hotspot.w, origH: hotspot.h,
+        canvasW: rect.width, canvasH: rect.height
+      };
+    });
+
+    el.appendChild(handle);
+    hotspotLayer.appendChild(el);
+  });
+}
+
+function renderProperties() {
+  const container = document.getElementById('props-content');
+  const scene = getCurrentScene();
+
+  if (!scene) {
+    container.innerHTML = '<div class="empty-state">Add a scene to get started.</div>';
+    return;
+  }
+
+  const hotspot = scene.hotspots.find(h => h.id === state.selectedHotspotId);
+
+  if (!hotspot) {
+    // Scene properties
+    container.innerHTML = `
+      <h3>Scene</h3>
+      <div class="prop-group">
+        <div class="prop-label">Name</div>
+        <input class="prop-input" id="prop-scene-name" type="text" value="${escHtml(scene.name)}">
+      </div>
+      <div class="prop-group">
+        <button id="btn-delete-scene" class="danger" style="width:100%">Delete Scene</button>
+      </div>
+      <div class="empty-state" style="margin-top:8px">Click a button on the canvas to edit it, or click "+ Add Button" to place one.</div>
+    `;
+    document.getElementById('prop-scene-name').oninput = e => {
+      scene.name = e.target.value;
+      renderSceneList();
+    };
+    document.getElementById('btn-delete-scene').onclick = deleteCurrentScene;
+    return;
+  }
+
+  // Build scene link options
+  let opts = '<option value="">-- No link --</option>';
+  opts += `<option value="home"${hotspot.linksTo === 'home' ? ' selected' : ''}>Back to Home (Scene 1)</option>`;
+  state.scenes.forEach((s, i) => {
+    opts += `<option value="${s.id}"${hotspot.linksTo === s.id ? ' selected' : ''}>Scene ${i + 1}: ${escHtml(s.name)}</option>`;
+  });
+
+  container.innerHTML = `
+    <h3>Button</h3>
+    <div class="prop-group">
+      <div class="prop-label">Label</div>
+      <input class="prop-input" id="prop-label" type="text" value="${escHtml(hotspot.label)}">
+    </div>
+    <div class="prop-group">
+      <div class="prop-label">Links To</div>
+      <select class="prop-input" id="prop-links-to">${opts}</select>
+    </div>
+    <div class="prop-group">
+      <div class="prop-label">Position &amp; Size (%)</div>
+      <div class="prop-grid">
+        <div><div class="prop-label">X</div><input class="prop-input" id="prop-x" type="number" step="1" min="0" max="95" value="${Math.round(hotspot.x * 100)}"></div>
+        <div><div class="prop-label">Y</div><input class="prop-input" id="prop-y" type="number" step="1" min="0" max="95" value="${Math.round(hotspot.y * 100)}"></div>
+        <div><div class="prop-label">W</div><input class="prop-input" id="prop-w" type="number" step="1" min="5" max="80" value="${Math.round(hotspot.w * 100)}"></div>
+        <div><div class="prop-label">H</div><input class="prop-input" id="prop-h" type="number" step="1" min="3" max="50" value="${Math.round(hotspot.h * 100)}"></div>
+      </div>
+    </div>
+    <div class="prop-group">
+      <button id="btn-delete-hotspot" class="danger" style="width:100%">Delete Button</button>
+    </div>
+  `;
+
+  document.getElementById('prop-label').oninput = e => {
+    hotspot.label = e.target.value;
+    renderCanvas();
+  };
+  document.getElementById('prop-links-to').onchange = e => {
+    hotspot.linksTo = e.target.value || null;
+  };
+  document.getElementById('prop-x').oninput = e => { hotspot.x = parseFloat(e.target.value) / 100; renderCanvas(); };
+  document.getElementById('prop-y').oninput = e => { hotspot.y = parseFloat(e.target.value) / 100; renderCanvas(); };
+  document.getElementById('prop-w').oninput = e => { hotspot.w = parseFloat(e.target.value) / 100; renderCanvas(); };
+  document.getElementById('prop-h').oninput = e => { hotspot.h = parseFloat(e.target.value) / 100; renderCanvas(); };
+  document.getElementById('btn-delete-hotspot').onclick = deleteSelectedHotspot;
+}
+
+// ── DRAG & RESIZE ──────────────────────────────────────────────────────────
+
+document.addEventListener('mousemove', e => {
+  if (state.drag) {
+    const d = state.drag;
+    const hotspot = getHotspot(d.sceneId, d.hotspotId);
+    if (!hotspot) return;
+    const dx = (e.clientX - d.startX) / d.canvasW;
+    const dy = (e.clientY - d.startY) / d.canvasH;
+    hotspot.x = Math.max(0, Math.min(1 - hotspot.w, d.origX + dx));
+    hotspot.y = Math.max(0, Math.min(1 - hotspot.h, d.origY + dy));
+    renderCanvas();
+    renderProperties();
+  }
+  if (state.resize) {
+    const r = state.resize;
+    const hotspot = getHotspot(r.sceneId, r.hotspotId);
+    if (!hotspot) return;
+    const dx = (e.clientX - r.startX) / r.canvasW;
+    const dy = (e.clientY - r.startY) / r.canvasH;
+    hotspot.w = Math.max(0.05, Math.min(1 - hotspot.x, r.origW + dx));
+    hotspot.h = Math.max(0.03, Math.min(1 - hotspot.y, r.origH + dy));
+    renderCanvas();
+    renderProperties();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  state.drag = null;
+  state.resize = null;
+});
+
+// Click canvas background = deselect hotspot
+document.getElementById('canvas').addEventListener('mousedown', e => {
+  const tag = e.target.id;
+  if (tag === 'canvas' || tag === 'canvas-bg' || tag === 'canvas-placeholder' || tag === 'hotspot-layer') {
+    state.selectedHotspotId = null;
+    renderCanvas();
+    renderProperties();
+  }
+});
+
+// ── FILE OPERATIONS ────────────────────────────────────────────────────────
+
+document.getElementById('btn-upload-bg').onclick = () => {
+  if (!state.currentSceneId) { alert('Select a scene first.'); return; }
+  document.getElementById('input-bg').click();
+};
+
+document.getElementById('input-bg').onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const scene = getCurrentScene();
+    if (scene) { scene.background = ev.target.result; renderCanvas(); renderSceneList(); }
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+};
+
+document.getElementById('btn-save').onclick = () => {
+  if (!state.scenes.length) { alert('Nothing to save.'); return; }
+  const blob = new Blob([JSON.stringify({ scenes: state.scenes }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tour-project.json';
+  a.click();
+};
+
+document.getElementById('btn-load').onclick = () => document.getElementById('input-load').click();
+
+document.getElementById('input-load').onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.scenes || !Array.isArray(data.scenes)) throw new Error('Invalid project file');
+      state.scenes = data.scenes;
+      state.currentSceneId = state.scenes[0]?.id || null;
+      state.selectedHotspotId = null;
+      renderAll();
+    } catch (err) { alert('Failed to load: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+
+document.getElementById('btn-preview').onclick = () => {
+  if (!state.scenes.length) { alert('No scenes to preview.'); return; }
+  const blob = new Blob([generateTourHTML()], { type: 'text/html' });
+  window.open(URL.createObjectURL(blob), '_blank');
+};
+
+document.getElementById('btn-export').onclick = () => {
+  if (!state.scenes.length) { alert('No scenes to export.'); return; }
+  const blob = new Blob([generateTourHTML()], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tour.html';
+  a.click();
+};
+
+document.getElementById('add-scene-btn').onclick = addScene;
+
+// ── EXPORT GENERATOR ───────────────────────────────────────────────────────
+
+function generateTourHTML() {
+  const firstId = state.scenes[0].id;
+
+  const sceneDivs = state.scenes.map((scene, i) => {
+    const bg = scene.background
+      ? `<img class="scene-bg" src="${scene.background}" alt="" draggable="false">`
+      : `<div class="scene-bg scene-empty">No image</div>`;
+
+    const hotspots = scene.hotspots.map(h => {
+      let target = '';
+      if (h.linksTo === 'home') target = firstId;
+      else if (h.linksTo) target = h.linksTo;
+      const onclick = target ? `goTo('${target}')` : '';
+      const style = `left:${h.x*100}%;top:${h.y*100}%;width:${h.w*100}%;height:${h.h*100}%;${onclick ? '' : 'opacity:0.4;cursor:default'}`;
+      return `<div class="hs" style="${style}"${onclick ? ` onclick="${onclick}"` : ''}>${escHtml(h.label)}</div>`;
+    }).join('\n      ');
+
+    return `  <div class="scene${i === 0 ? ' active' : ''}" id="${scene.id}">
+    ${bg}
+    ${hotspots}
+  </div>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Interactive Tour</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:system-ui,sans-serif}
+#tour{position:relative;width:100%;max-width:calc(100vh * 16 / 9);aspect-ratio:16/9}
+.scene{position:absolute;inset:0;display:none}
+.scene.active{display:block}
+.scene-bg{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none}
+.scene-empty{background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;font-size:1.5vw}
+.hs{position:absolute;background:rgba(0,0,0,.78);border:2px solid #F5B800;color:#F5B800;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:clamp(10px,1.6vw,22px);font-weight:500;text-align:center;padding:4px 8px;line-height:1.2;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .1s,border-color .1s}
+.hs:active{background:rgba(245,184,0,.2);border-color:#fff}
+#fso{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:#fff;gap:24px;text-align:center;padding:24px}
+#fso p{font-size:clamp(14px,2.5vw,24px);opacity:.85;max-width:480px;line-height:1.5}
+#fsb{background:#000;color:#F5B800;border:2px solid #F5B800;border-radius:10px;padding:14px 44px;font-size:clamp(16px,2.5vw,28px);font-weight:bold;cursor:pointer;letter-spacing:1px;animation:glow 2s ease-in-out infinite;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+@keyframes glow{0%,100%{box-shadow:0 0 10px rgba(245,184,0,.3)}50%{box-shadow:0 0 28px rgba(245,184,0,.7)}}
+</style>
+</head>
+<body>
+<div id="fso">
+  <p>For the best experience, tap below to enter fullscreen.</p>
+  <button id="fsb" onclick="enter()">Enter</button>
+</div>
+<div id="tour">
+${sceneDivs}
+</div>
+<script>
+function enter(){
+  var el=document.documentElement;
+  try{if(el.requestFullscreen)el.requestFullscreen();else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();}catch(e){}
+  document.getElementById('fso').style.display='none';
+}
+function goTo(id){
+  document.querySelectorAll('.scene').forEach(function(s){s.classList.remove('active');});
+  var t=document.getElementById(id);
+  if(t)t.classList.add('active');
+}
+function showOverlay(){document.getElementById('fso').style.display='flex';}
+document.addEventListener('fullscreenchange',function(){if(!document.fullscreenElement)showOverlay();});
+document.addEventListener('webkitfullscreenchange',function(){if(!document.webkitFullscreenElement)showOverlay();});
+window.addEventListener('pageshow',function(e){if(e.persisted)showOverlay();});
+<\/script>
+</body>
+</html>`;
+}
+
+// ── RESIZE ─────────────────────────────────────────────────────────────────
+
+window.addEventListener('resize', renderCanvas);
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+
+addScene();
+
+</script>
+</body>
+</html>
