@@ -19,26 +19,9 @@
     background: var(--bg);
     color: var(--text);
     font-family: Georgia, 'Times New Roman', serif;
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
   }
 
-  header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 10px 18px;
-    background: var(--panel);
-    border-bottom: 1px solid #26262b;
-    font-family: Consolas, monospace;
-    font-size: 13px;
-    color: var(--dim);
-    flex-wrap: wrap;
-  }
-  header .title { color: var(--accent); font-weight: bold; }
-  header .stat b { color: var(--text); font-weight: normal; }
-  header .spacer { flex: 1; }
   button {
     background: #000;
     color: var(--accent);
@@ -46,13 +29,13 @@
     border-radius: 4px;
     font-family: Consolas, monospace;
     font-size: 13px;
-    padding: 4px 12px;
+    padding: 6px 14px;
     cursor: pointer;
   }
   button:hover { background: #1f1a00; }
 
   #stage {
-    flex: 1;
+    height: 100%;
     overflow-y: auto;
     position: relative;
     overflow-anchor: none;
@@ -60,7 +43,7 @@
   #page {
     max-width: 68ch;
     margin: 0 auto;
-    padding: 48px 24px 40vh 24px;
+    padding: 48px 24px 45vh 24px;
     font-size: 1.25rem;
     line-height: 1.75;
     position: relative;
@@ -111,30 +94,80 @@
   }
   #hl.on { opacity: 1; }
 
-  footer {
-    display: flex;
+  /* floating game-style buttons */
+  .fab {
+    position: fixed;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(245, 184, 0, 0.55);
+    color: var(--accent);
+    font-size: 18px;
+    line-height: 1;
+    z-index: 6;
+    display: none;
     align-items: center;
-    gap: 18px;
-    padding: 10px 18px;
+    justify-content: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .fab:hover { background: rgba(31, 26, 0, 0.7); }
+  #fabPause { right: 18px; bottom: 22px; }
+  #fabPlay  { right: 18px; bottom: 22px; }
+  #fabMenu  { right: 18px; bottom: 86px; }
+  body.playing #fabPause { display: flex; }
+  body.browsing #fabPlay { display: flex; }
+  body.browsing #fabMenu { display: flex; }
+
+  /* pause menu overlay */
+  #menu {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 8, 9, 0.88);
+    z-index: 10;
+    align-items: center;
+    justify-content: center;
+  }
+  body.menu #menu { display: flex; }
+  #menu .card {
+    width: min(460px, 92vw);
+    max-height: 92vh;
+    overflow-y: auto;
     background: var(--panel);
-    border-top: 1px solid #26262b;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 26px;
     font-family: Consolas, monospace;
     font-size: 13px;
     color: var(--dim);
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
-  footer label { display: flex; align-items: center; gap: 8px; }
-  input[type=range] { accent-color: var(--accent); }
-  footer .val { color: var(--accent); min-width: 4ch; display: inline-block; }
-  footer .hint { margin-left: auto; }
+  #menu .mtitle { color: var(--accent); font-size: 15px; font-weight: bold; }
+  #menu .mstats { display: flex; gap: 18px; flex-wrap: wrap; }
+  #menu .mstats b { color: var(--text); font-weight: normal; }
+  #menu .primary {
+    font-size: 16px;
+    padding: 12px;
+    width: 100%;
+  }
+  #menu label { display: flex; align-items: center; gap: 10px; }
+  #menu label .lbl { min-width: 6ch; }
+  #menu input[type=range] { flex: 1; accent-color: var(--accent); }
+  #menu .val { color: var(--accent); min-width: 4ch; text-align: right; }
+  #menu .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  #menu .hint { font-size: 12px; line-height: 1.5; }
 
   /* custom text overlay */
   #importBox {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.75);
-    z-index: 10;
+    background: rgba(0,0,0,0.85);
+    z-index: 20;
     align-items: center;
     justify-content: center;
   }
@@ -143,7 +176,7 @@
     border: 1px solid var(--accent);
     border-radius: 8px;
     padding: 24px;
-    width: min(640px, 90vw);
+    width: min(640px, 92vw);
     font-family: Consolas, monospace;
     font-size: 13px;
   }
@@ -162,32 +195,38 @@
   #importBox .row { display: flex; gap: 12px; align-items: center; }
 </style>
 </head>
-<body>
-
-<header>
-  <span class="title" id="bookTitle">Speed Reader</span>
-  <span class="stat">wpm <b id="statWpm">-</b></span>
-  <span class="stat">today <b id="statToday">0</b> words</span>
-  <span class="stat">book <b id="statPct">0%</b></span>
-  <span class="spacer"></span>
-  <button id="btnToc">contents</button>
-  <button id="btnBook">library</button>
-  <button id="btnImport">your text</button>
-</header>
+<body class="menu">
 
 <div id="stage">
   <div id="page"><div id="hl"></div></div>
 </div>
 
-<footer>
-  <button id="btnPlay">start</button>
-  <button id="btnHere">resume here</button>
-  <label>speed <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
-  <label>chunk <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
-  <label><input type="checkbox" id="ratchet"> ratchet</label>
-  <label>target <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
-  <span class="hint">space play/pause &middot; scroll freely &middot; click a word to jump</span>
-</footer>
+<button class="fab" id="fabPause" title="pause">&#10074;&#10074;</button>
+<button class="fab" id="fabPlay" title="read">&#9654;</button>
+<button class="fab" id="fabMenu" title="menu">&#9776;</button>
+
+<div id="menu">
+  <div class="card">
+    <div class="mtitle" id="bookTitle">Speed Reader</div>
+    <div class="mstats">
+      <span>wpm <b id="statWpm">-</b></span>
+      <span>today <b id="statToday">0</b> words</span>
+      <span>book <b id="statPct">0%</b></span>
+    </div>
+    <button id="btnPlay" class="primary">start</button>
+    <label><span class="lbl">speed</span> <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
+    <label><span class="lbl">chunk</span> <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
+    <label><span class="lbl">target</span> <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
+    <label><input type="checkbox" id="ratchet"> ratchet (+5 wpm/min up to target, then hold)</label>
+    <div class="row">
+      <button id="btnHere">resume here</button>
+      <button id="btnToc">contents</button>
+      <button id="btnBook">library</button>
+      <button id="btnImport">your text</button>
+    </div>
+    <div class="hint">space play/pause &middot; browse: scroll freely, tap a word to move the cursor &middot; &#9654; reads, &#9776; reopens this menu</div>
+  </div>
+</div>
 
 <div id="importBox">
   <div class="card">
@@ -250,6 +289,18 @@
 
   var stage = document.getElementById("stage");
   var page = document.getElementById("page");
+
+  // ---------- chrome (game-style states: menu / playing / browsing) ----------
+  function setChrome(state) {
+    document.body.classList.remove("menu", "playing", "browsing");
+    document.body.classList.add(state);
+  }
+
+  function openMenu() {
+    document.getElementById("btnPlay").textContent = cursor > 0 ? "resume" : "start";
+    updateHud();
+    setChrome("menu");
+  }
 
   // ---------- book loading ----------
   function stripGutenberg(text) {
@@ -418,7 +469,6 @@
       renderWindow(wordIdx);
       return;
     }
-    // pacer approaching the bottom edge of the window: extend ahead of it
     if (end - wordIdx < 200) extendDown();
   }
 
@@ -497,7 +547,7 @@
 
   function tick() {
     if (!playing) return;
-    if (cursor >= totalWords) { pause(); return; }
+    if (cursor >= totalWords) { pause(true); return; }
     ensureRendered(cursor);
     var end = chunkEnd();
     placeHighlight(cursor, end);
@@ -527,16 +577,17 @@
   function play() {
     if (playing) return;
     playing = true;
-    document.getElementById("btnPlay").textContent = "pause";
+    ratchetMs = 0;
+    setChrome("playing");
     tick();
   }
 
-  function pause() {
+  function pause(showMenu) {
     playing = false;
     clearTimeout(timer);
-    document.getElementById("btnPlay").textContent = "start";
     var hl = document.getElementById("hl");
     if (hl) hl.classList.remove("on");
+    if (showMenu) openMenu(); else setChrome("browsing");
   }
 
   // ---------- hud + controls ----------
@@ -550,12 +601,10 @@
     document.getElementById("capVal").textContent = S.cap;
   }
 
-  document.getElementById("btnPlay").onclick = function () { this.blur(); playing ? pause() : play(); };
-  document.getElementById("btnHere").onclick = function () {
-    this.blur();
-    ensureRendered(cursor);
-    scrollCursorIntoView(true);
-  };
+  document.getElementById("btnPlay").onclick = function () { this.blur(); play(); };
+  document.getElementById("fabPause").onclick = function () { this.blur(); pause(true); };
+  document.getElementById("fabPlay").onclick = function () { this.blur(); play(); };
+  document.getElementById("fabMenu").onclick = function () { this.blur(); openMenu(); };
 
   var wpmSlider = document.getElementById("wpm");
   var chunkSlider = document.getElementById("chunk");
@@ -566,7 +615,7 @@
 
   var ratchetBox = document.getElementById("ratchet");
   ratchetBox.checked = S.ratchet;
-  ratchetBox.onchange = function () { S.ratchet = this.checked; ratchetMs = 0; this.blur(); };
+  ratchetBox.onchange = function () { S.ratchet = this.checked; ratchetMs = 0; };
 
   var capSlider = document.getElementById("cap");
   capSlider.value = S.cap;
@@ -574,23 +623,25 @@
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
-    if (e.code === "Space") { e.preventDefault(); playing ? pause() : play(); }
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (playing) pause(true); else play();
+    }
+    else if (e.code === "Escape" && !playing) { openMenu(); }
     else if (e.code === "ArrowUp") { e.preventDefault(); S.wpm = Math.min(800, S.wpm + 10); wpmSlider.value = S.wpm; updateHud(); }
     else if (e.code === "ArrowDown") { e.preventDefault(); S.wpm = Math.max(150, S.wpm - 10); wpmSlider.value = S.wpm; updateHud(); }
   });
 
-  document.getElementById("btnToc").onclick = function () {
-    this.blur();
-    pause();
-    renderWindow(0);
-    stage.scrollTop = 0;
-  };
+  // clicking the dark backdrop (not the card) closes the menu into browse mode
+  document.getElementById("menu").addEventListener("click", function (e) {
+    if (e.target === this) setChrome("browsing");
+  });
 
   page.addEventListener("click", function (e) {
     var link = e.target.closest("a.toc-link");
     if (link) {
       e.preventDefault();
-      pause();
+      pause(false);
       cursor = paraStart[+link.dataset.p];
       S.pos(book.id, cursor);
       renderWindow(cursor);
@@ -600,7 +651,7 @@
     }
     var sp = e.target.closest("span.w");
     if (!sp) return;
-    pause();
+    pause(false);
     cursor = +sp.dataset.i;
     S.pos(book.id, cursor);
     var spans = page.querySelectorAll("span.w");
@@ -611,11 +662,25 @@
     updateHud();
   });
 
-  // ---------- library + import ----------
+  // ---------- menu actions ----------
+  document.getElementById("btnHere").onclick = function () {
+    this.blur();
+    setChrome("browsing");
+    ensureRendered(cursor);
+    scrollCursorIntoView(true);
+  };
+
+  document.getElementById("btnToc").onclick = function () {
+    this.blur();
+    setChrome("browsing");
+    renderWindow(0);
+    stage.scrollTop = 0;
+  };
+
   document.getElementById("btnBook").onclick = function () {
     this.blur();
-    pause();
     loadBook(LIBRARY[0]);
+    openMenu();
   };
 
   var box = document.getElementById("importBox");
@@ -634,11 +699,11 @@
     var paras = textToParagraphs(stripGutenberg(text));
     if (!paras.length) return;
     box.style.display = "none";
-    pause();
     if (text.length < 1500000) {
       try { localStorage.sr_custom = JSON.stringify(paras); } catch (err) { /* too big for storage; session-only */ }
     }
     loadBook({ id: "custom", title: "Your Text", author: "", paragraphs: paras });
+    openMenu();
   };
 
   // ---------- boot ----------
@@ -652,6 +717,7 @@
     startBook = LIBRARY[0];
   }
   loadBook(startBook);
+  openMenu();
 })();
 </script>
 </body>
