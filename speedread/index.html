@@ -219,7 +219,6 @@
     <label><input type="checkbox" id="ratchet"> ratchet (+5 wpm/min up to target, then hold)</label>
     <label id="capRow" style="display:none"><span class="lbl">target</span> <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
     <div class="row">
-      <button id="btnHere">resume here</button>
       <button id="btnToc">contents</button>
       <button id="btnBook">library</button>
       <button id="btnImport">your text</button>
@@ -669,13 +668,6 @@
   });
 
   // ---------- menu actions ----------
-  document.getElementById("btnHere").onclick = function () {
-    this.blur();
-    setChrome("browsing");
-    ensureRendered(cursor);
-    scrollCursorIntoView(true);
-  };
-
   document.getElementById("btnToc").onclick = function () {
     this.blur();
     setChrome("browsing");
