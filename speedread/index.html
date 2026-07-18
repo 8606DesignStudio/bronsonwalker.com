@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed Reader v0.1</title>
+<style>
+  :root {
+    --bg: #0f0f10;
+    --panel: #17171a;
+    --text: #d8d4c8;
+    --dim: #8a877e;
+    --accent: #F5B800;
+    --hl: rgba(245, 184, 0, 0.26);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, 'Times New Roman', serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid #26262b;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+    color: var(--dim);
+    flex-wrap: wrap;
+  }
+  header .title { color: var(--accent); font-weight: bold; }
+  header .stat b { color: var(--text); font-weight: normal; }
+  header .spacer { flex: 1; }
+  button {
+    background: #000;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+    padding: 4px 12px;
+    cursor: pointer;
+  }
+  button:hover { background: #1f1a00; }
+
+  #stage {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    scroll-behavior: smooth;
+  }
+  #page {
+    max-width: 68ch;
+    margin: 0 auto;
+    padding: 48px 24px 40vh 24px;
+    font-size: 1.25rem;
+    line-height: 1.75;
+    position: relative;
+  }
+  #page p { margin-bottom: 1.1em; }
+  #page span.w { border-radius: 3px; }
+  #page span.read { color: var(--dim); }
+
+  #hl {
+    position: absolute;
+    background: var(--hl);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: left 140ms ease-out, top 140ms ease-out, width 140ms ease-out, height 140ms ease-out;
+  }
+  #hl.on { opacity: 1; }
+
+  footer {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 10px 18px;
+    background: var(--panel);
+    border-top: 1px solid #26262b;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+    color: var(--dim);
+    flex-wrap: wrap;
+  }
+  footer label { display: flex; align-items: center; gap: 8px; }
+  input[type=range] { accent-color: var(--accent); }
+  footer .val { color: var(--accent); min-width: 4ch; display: inline-block; }
+  footer .hint { margin-left: auto; }
+
+  /* custom text overlay */
+  #importBox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 10;
+    align-items: center;
+    justify-content: center;
+  }
+  #importBox .card {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 24px;
+    width: min(640px, 90vw);
+    font-family: Consolas, monospace;
+    font-size: 13px;
+  }
+  #importBox textarea {
+    width: 100%;
+    height: 200px;
+    margin: 12px 0;
+    background: #000;
+    color: var(--text);
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 10px;
+    font-family: Georgia, serif;
+    font-size: 14px;
+  }
+  #importBox .row { display: flex; gap: 12px; align-items: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="title" id="bookTitle">Speed Reader</span>
+  <span class="stat">wpm <b id="statWpm">-</b></span>
+  <span class="stat">today <b id="statToday">0</b> words</span>
+  <span class="stat">book <b id="statPct">0%</b></span>
+  <span class="spacer"></span>
+  <button id="btnBook">library</button>
+  <button id="btnImport">your text</button>
+</header>
+
+<div id="stage">
+  <div id="page"><div id="hl"></div></div>
+</div>
+
+<footer>
+  <button id="btnPlay">start</button>
+  <label>speed <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
+  <label>chunk <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
+  <span class="hint">space play/pause &middot; up/down speed &middot; click a word to jump</span>
+</footer>
+
+<div id="importBox">
+  <div class="card">
+    <div>Paste text, or load a .txt file. Gutenberg headers are stripped automatically.</div>
+    <textarea id="importText" placeholder="Paste anything here..."></textarea>
+    <div class="row">
+      <input type="file" id="importFile" accept=".txt">
+      <span style="flex:1"></span>
+      <button id="importGo">read it</button>
+      <button id="importCancel">cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="library.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------- state ----------
+  var PAGE_WORDS = 260;           // target words per page
+  var book = null;                // {id,title,author,paragraphs}
+  var pages = [];                 // [{start, paras:[[w,...],...]}]
+  var pageIdx = 0;
+  var cursor = 0;                 // global word index
+  var totalWords = 0;
+  var playing = false;
+  var timer = null;
+  var wordsThisSession = 0;
+
+  var S = {
+    get wpm()   { return +(localStorage.sr_wpm || 250); },
+    set wpm(v)  { localStorage.sr_wpm = v; },
+    get chunk() { return +(localStorage.sr_chunk || 2); },
+    set chunk(v){ localStorage.sr_chunk = v; },
+    pos: function (id, v) {
+      if (v === undefined) return +(localStorage["sr_pos_" + id] || 0);
+      localStorage["sr_pos_" + id] = v;
+    },
+    get bookId()  { return localStorage.sr_book || "monte-cristo"; },
+    set bookId(v) { localStorage.sr_book = v; },
+    addToday: function (n) {
+      var key = "sr_day_" + new Date().toISOString().slice(0, 10);
+      localStorage[key] = (+(localStorage[key] || 0)) + n;
+      return +localStorage[key];
+    },
+    today: function () {
+      return +(localStorage["sr_day_" + new Date().toISOString().slice(0, 10)] || 0);
+    }
+  };
+
+  // ---------- book loading ----------
+  function stripGutenberg(text) {
+    var s = text.search(/\*\*\* ?START OF (THE|THIS) PROJECT GUTENBERG EBOOK[^\n]*\*\*\*/);
+    if (s >= 0) text = text.slice(text.indexOf("***", s + 3) + 3);
+    var e = text.search(/\*\*\* ?END OF (THE|THIS) PROJECT GUTENBERG EBOOK/);
+    if (e >= 0) text = text.slice(0, e);
+    return text.trim();
+  }
+
+  function textToParagraphs(text) {
+    return text.replace(/\r/g, "").split(/\n\s*\n/)
+      .map(function (p) { return p.replace(/\s+/g, " ").trim(); })
+      .filter(function (p) { return p.length > 0; });
+  }
+
+  function paginate(paragraphs) {
+    pages = [];
+    totalWords = 0;
+    var cur = { start: 0, paras: [] };
+    var count = 0;
+    paragraphs.forEach(function (p) {
+      var words = p.split(" ");
+      // split huge paragraphs so pages stay bounded
+      var i = 0;
+      while (i < words.length) {
+        var room = PAGE_WORDS - count;
+        if (room <= 0) {
+          pages.push(cur);
+          cur = { start: totalWords, paras: [] };
+          count = 0;
+          room = PAGE_WORDS;
+        }
+        var take = words.slice(i, i + Math.max(room, 40));
+        cur.paras.push(take);
+        count += take.length;
+        totalWords += take.length;
+        i += take.length;
+      }
+    });
+    if (cur.paras.length) pages.push(cur);
+  }
+
+  function loadBook(b) {
+    book = b;
+    paginate(b.paragraphs);
+    cursor = Math.min(S.pos(b.id), totalWords - 1);
+    S.bookId = b.id;
+    document.getElementById("bookTitle").textContent = b.title;
+    renderPageFor(cursor);
+    updateHud();
+  }
+
+  // ---------- rendering ----------
+  function pageOf(wordIdx) {
+    for (var i = pages.length - 1; i >= 0; i--) {
+      if (pages[i].start <= wordIdx) return i;
+    }
+    return 0;
+  }
+
+  function renderPageFor(wordIdx) {
+    pageIdx = pageOf(wordIdx);
+    var pg = pages[pageIdx];
+    var html = [];
+    var i = pg.start;
+    pg.paras.forEach(function (words) {
+      var parts = words.map(function (w) {
+        return '<span class="w" data-i="' + (i++) + '">' + escapeHtml(w) + "</span>";
+      });
+      html.push("<p>" + parts.join(" ") + "</p>");
+    });
+    var page = document.getElementById("page");
+    page.innerHTML = '<div id="hl"></div>' + html.join("");
+    markRead();
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function markRead() {
+    var spans = document.querySelectorAll("#page span.w");
+    spans.forEach(function (sp) {
+      sp.classList.toggle("read", +sp.dataset.i < cursor);
+    });
+  }
+
+  function spansFor(start, end) {
+    var out = [];
+    for (var i = start; i <= end; i++) {
+      var sp = document.querySelector('#page span[data-i="' + i + '"]');
+      if (sp) out.push(sp);
+    }
+    return out;
+  }
+
+  // ---------- pacer ----------
+  function chunkEnd() {
+    // chunk: up to S.chunk words, same page, same visual line
+    var first = document.querySelector('#page span[data-i="' + cursor + '"]');
+    if (!first) return cursor;
+    var top = first.offsetTop;
+    var end = cursor;
+    for (var i = 1; i < S.chunk; i++) {
+      var sp = document.querySelector('#page span[data-i="' + (cursor + i) + '"]');
+      if (!sp || sp.offsetTop !== top) break;
+      end = cursor + i;
+    }
+    return end;
+  }
+
+  function placeHighlight(start, end) {
+    var hl = document.getElementById("hl");
+    var spans = spansFor(start, end);
+    if (!spans.length) return;
+    var firstR = spans[0], lastR = spans[spans.length - 1];
+    var left = firstR.offsetLeft - 4;
+    var top = firstR.offsetTop - 2;
+    var width = (lastR.offsetLeft + lastR.offsetWidth) - firstR.offsetLeft + 8;
+    var height = firstR.offsetHeight + 4;
+    hl.style.left = left + "px";
+    hl.style.top = top + "px";
+    hl.style.width = width + "px";
+    hl.style.height = height + "px";
+    hl.classList.add("on");
+    // keep chunk in comfortable view
+    var stage = document.getElementById("stage");
+    var target = top - stage.clientHeight * 0.35;
+    if (Math.abs(stage.scrollTop - target) > stage.clientHeight * 0.25) {
+      stage.scrollTop = target;
+    }
+  }
+
+  function tick() {
+    if (!playing) return;
+    if (cursor >= totalWords) { pause(); return; }
+    if (cursor >= pages[pageIdx].start + pageWordCount(pageIdx)) {
+      renderPageFor(cursor);
+    }
+    var end = chunkEnd();
+    placeHighlight(cursor, end);
+    var n = end - cursor + 1;
+    var delay = n * (60000 / S.wpm);
+    var advanceTo = end + 1;
+    timer = setTimeout(function () {
+      wordsThisSession += n;
+      cursor = advanceTo;
+      S.pos(book.id, cursor);
+      S.addToday(n);
+      markRead();
+      updateHud();
+      tick();
+    }, delay);
+  }
+
+  function pageWordCount(idx) {
+    return pages[idx].paras.reduce(function (a, w) { return a + w.length; }, 0);
+  }
+
+  function play() {
+    if (playing) return;
+    playing = true;
+    document.getElementById("btnPlay").textContent = "pause";
+    tick();
+  }
+
+  function pause() {
+    playing = false;
+    clearTimeout(timer);
+    document.getElementById("btnPlay").textContent = "start";
+    document.getElementById("hl").classList.remove("on");
+  }
+
+  // ---------- hud + controls ----------
+  function updateHud() {
+    document.getElementById("statWpm").textContent = S.wpm;
+    document.getElementById("statToday").textContent = S.today();
+    document.getElementById("statPct").textContent =
+      totalWords ? (100 * cursor / totalWords).toFixed(1) + "%" : "0%";
+    document.getElementById("wpmVal").textContent = S.wpm;
+    document.getElementById("chunkVal").textContent = S.chunk;
+  }
+
+  document.getElementById("btnPlay").onclick = function () { this.blur(); playing ? pause() : play(); };
+
+  var wpmSlider = document.getElementById("wpm");
+  var chunkSlider = document.getElementById("chunk");
+  wpmSlider.value = S.wpm;
+  chunkSlider.value = S.chunk;
+  wpmSlider.oninput = function () { S.wpm = +this.value; updateHud(); };
+  chunkSlider.oninput = function () { S.chunk = +this.value; updateHud(); };
+
+  document.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
+    if (e.code === "Space") { e.preventDefault(); playing ? pause() : play(); }
+    else if (e.code === "ArrowUp") { e.preventDefault(); S.wpm = Math.min(800, S.wpm + 10); wpmSlider.value = S.wpm; updateHud(); }
+    else if (e.code === "ArrowDown") { e.preventDefault(); S.wpm = Math.max(150, S.wpm - 10); wpmSlider.value = S.wpm; updateHud(); }
+    else if (e.code === "ArrowRight") { jumpPage(1); }
+    else if (e.code === "ArrowLeft") { jumpPage(-1); }
+  });
+
+  function jumpPage(dir) {
+    pause();
+    var target = Math.max(0, Math.min(pages.length - 1, pageIdx + dir));
+    cursor = pages[target].start;
+    S.pos(book.id, cursor);
+    renderPageFor(cursor);
+    document.getElementById("stage").scrollTop = 0;
+    updateHud();
+  }
+
+  document.getElementById("page").addEventListener("click", function (e) {
+    var sp = e.target.closest("span.w");
+    if (!sp) return;
+    pause();
+    cursor = +sp.dataset.i;
+    S.pos(book.id, cursor);
+    markRead();
+    placeHighlight(cursor, cursor);
+    updateHud();
+  });
+
+  // ---------- library + import ----------
+  document.getElementById("btnBook").onclick = function () {
+    loadBook(LIBRARY[0]);
+  };
+
+  var box = document.getElementById("importBox");
+  document.getElementById("btnImport").onclick = function () { box.style.display = "flex"; };
+  document.getElementById("importCancel").onclick = function () { box.style.display = "none"; };
+  document.getElementById("importFile").onchange = function () {
+    var f = this.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () { document.getElementById("importText").value = r.result; };
+    r.readAsText(f);
+  };
+  document.getElementById("importGo").onclick = function () {
+    var text = document.getElementById("importText").value.trim();
+    if (!text) return;
+    var paras = textToParagraphs(stripGutenberg(text));
+    if (!paras.length) return;
+    box.style.display = "none";
+    if (text.length < 1500000) {
+      try { localStorage.sr_custom = JSON.stringify(paras); } catch (err) { /* too big for storage; session-only */ }
+    }
+    loadBook({ id: "custom", title: "Your Text", author: "", paragraphs: paras });
+  };
+
+  // ---------- boot ----------
+  var startBook = null;
+  if (S.bookId === "custom" && localStorage.sr_custom) {
+    try {
+      startBook = { id: "custom", title: "Your Text", author: "", paragraphs: JSON.parse(localStorage.sr_custom) };
+    } catch (err) { startBook = null; }
+  }
+  if (!startBook) {
+    startBook = LIBRARY[0];
+  }
+  loadBook(startBook);
+})();
+</script>
+</body>
+</html>
