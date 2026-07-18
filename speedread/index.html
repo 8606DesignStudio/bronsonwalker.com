@@ -148,10 +148,12 @@
 </div>
 
 <footer>
+  <button id="btnPrev">&lt;</button>
   <button id="btnPlay">start</button>
+  <button id="btnNext">&gt;</button>
   <label>speed <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
   <label>chunk <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
-  <span class="hint">space play/pause &middot; up/down speed &middot; click a word to jump</span>
+  <span class="hint">space play/pause &middot; &lt; &gt; pages &middot; click a word to jump</span>
 </footer>
 
 <div id="importBox">
@@ -388,6 +390,8 @@
   }
 
   document.getElementById("btnPlay").onclick = function () { this.blur(); playing ? pause() : play(); };
+  document.getElementById("btnPrev").onclick = function () { this.blur(); jumpPage(-1); };
+  document.getElementById("btnNext").onclick = function () { this.blur(); jumpPage(1); };
 
   var wpmSlider = document.getElementById("wpm");
   var chunkSlider = document.getElementById("chunk");
