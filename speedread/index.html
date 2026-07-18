@@ -184,6 +184,7 @@
   <button id="btnHere">resume here</button>
   <label>speed <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
   <label>chunk <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
+  <label><input type="checkbox" id="ratchet"> ratchet</label>
   <span class="hint">space play/pause &middot; scroll freely &middot; click a word to jump</span>
 </footer>
 
@@ -220,12 +221,15 @@
   var cursor = 0;
   var playing = false;
   var timer = null;
+  var ratchetMs = 0;
 
   var S = {
     get wpm()   { return +(localStorage.sr_wpm || 250); },
     set wpm(v)  { localStorage.sr_wpm = v; },
     get chunk() { return +(localStorage.sr_chunk || 2); },
     set chunk(v){ localStorage.sr_chunk = v; },
+    get ratchet()  { return localStorage.sr_ratchet === "1"; },
+    set ratchet(v) { localStorage.sr_ratchet = v ? "1" : "0"; },
     pos: function (id, v) {
       if (v === undefined) return +(localStorage["sr_pos_" + id] || 0);
       localStorage["sr_pos_" + id] = v;
@@ -427,17 +431,46 @@
   }
 
   // ---------- pacer ----------
+  var CLAUSE_END = /[,;:.!?—]["'”’)\]]*$/;
+  var SENT_END = /[.!?]["'”’)\]]*$/;
+
   function chunkEnd() {
     var first = spanAt(cursor);
     if (!first) return cursor;
     var top = first.offsetTop;
     var end = cursor;
     for (var i = 1; i < S.chunk; i++) {
+      var prev = spanAt(cursor + i - 1);
+      if (prev && CLAUSE_END.test(prev.textContent)) break; // land on punctuation, breathe
       var sp = spanAt(cursor + i);
       if (!sp || sp.offsetTop !== top) break;
       end = cursor + i;
     }
     return end;
+  }
+
+  function chunkDelay(start, end) {
+    // time by characters (the eye's real workload), not word count
+    var chars = 0;
+    for (var i = start; i <= end; i++) {
+      var sp = spanAt(i);
+      chars += (sp ? sp.textContent.length : 5) + 1;
+    }
+    var msPerChar = 60000 / (S.wpm * 6); // avg word = 5 chars + space
+    var delay = chars * msPerChar;
+    // breaths at clause and sentence boundaries
+    var lastSp = spanAt(end);
+    var wordBeat = 60000 / S.wpm;
+    if (lastSp) {
+      var w = lastSp.textContent;
+      if (SENT_END.test(w)) delay += wordBeat * 0.9;
+      else if (CLAUSE_END.test(w)) delay += wordBeat * 0.4;
+    }
+    // paragraph boundary gets a longer breath
+    if (end + 1 < totalWords && paraOf(end + 1) !== paraOf(end)) {
+      delay += wordBeat * 1.2;
+    }
+    return delay;
   }
 
   function placeHighlight(start, end) {
@@ -466,7 +499,7 @@
     var end = chunkEnd();
     placeHighlight(cursor, end);
     var n = end - cursor + 1;
-    var delay = n * (60000 / S.wpm);
+    var delay = chunkDelay(cursor, end);
     timer = setTimeout(function () {
       for (var i = cursor; i <= end; i++) {
         var sp = spanAt(i);
@@ -475,6 +508,14 @@
       cursor = end + 1;
       S.pos(book.id, cursor);
       S.addToday(n);
+      if (S.ratchet) {
+        ratchetMs += delay;
+        if (ratchetMs >= 60000) {
+          ratchetMs = 0;
+          S.wpm = Math.min(800, S.wpm + 5);
+          wpmSlider.value = S.wpm;
+        }
+      }
       updateHud();
       tick();
     }, delay);
@@ -518,6 +559,10 @@
   chunkSlider.value = S.chunk;
   wpmSlider.oninput = function () { S.wpm = +this.value; updateHud(); };
   chunkSlider.oninput = function () { S.chunk = +this.value; updateHud(); };
+
+  var ratchetBox = document.getElementById("ratchet");
+  ratchetBox.checked = S.ratchet;
+  ratchetBox.onchange = function () { S.ratchet = this.checked; ratchetMs = 0; this.blur(); };
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
