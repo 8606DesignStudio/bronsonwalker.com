@@ -596,7 +596,7 @@
     document.getElementById("statPct").textContent =
       totalWords ? (100 * cursor / totalWords).toFixed(1) + "%" : "0%";
     document.getElementById("wpmVal").textContent = S.wpm + " wpm";
-    document.getElementById("chunkVal").textContent = S.chunk + (S.chunk === 1 ? " word" : " words");
+    document.getElementById("chunkVal").textContent = S.chunk;
     document.getElementById("capVal").textContent = S.cap + " wpm";
   }
 
