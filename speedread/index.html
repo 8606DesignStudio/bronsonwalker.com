@@ -216,8 +216,8 @@
     <button id="btnPlay" class="primary">start</button>
     <label><span class="lbl">speed</span> <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
     <label><span class="lbl">chunk</span> <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
-    <label><span class="lbl">target</span> <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
     <label><input type="checkbox" id="ratchet"> ratchet (+5 wpm/min up to target, then hold)</label>
+    <label id="capRow" style="display:none"><span class="lbl">target</span> <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
     <div class="row">
       <button id="btnHere">resume here</button>
       <button id="btnToc">contents</button>
@@ -614,8 +614,14 @@
   chunkSlider.oninput = function () { S.chunk = +this.value; updateHud(); };
 
   var ratchetBox = document.getElementById("ratchet");
+  var capRow = document.getElementById("capRow");
   ratchetBox.checked = S.ratchet;
-  ratchetBox.onchange = function () { S.ratchet = this.checked; ratchetMs = 0; };
+  capRow.style.display = S.ratchet ? "flex" : "none";
+  ratchetBox.onchange = function () {
+    S.ratchet = this.checked;
+    ratchetMs = 0;
+    capRow.style.display = this.checked ? "flex" : "none";
+  };
 
   var capSlider = document.getElementById("cap");
   capSlider.value = S.cap;
