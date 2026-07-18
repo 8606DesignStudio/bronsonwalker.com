@@ -116,9 +116,13 @@
   #fabPause { right: 18px; bottom: 22px; }
   #fabPlay  { right: 18px; bottom: 22px; }
   #fabMenu  { right: 18px; bottom: 86px; }
+  #fabZoomOut { left: 18px; bottom: 22px; font-size: 14px; }
+  #fabZoomIn  { left: 18px; bottom: 86px; font-size: 20px; }
   body.playing #fabPause { display: flex; }
   body.browsing #fabPlay { display: flex; }
   body.browsing #fabMenu { display: flex; }
+  body.browsing #fabZoomOut { display: flex; }
+  body.browsing #fabZoomIn { display: flex; }
 
   /* pause menu overlay */
   #menu {
@@ -204,6 +208,8 @@
 <button class="fab" id="fabPause" title="pause">&#10074;&#10074;</button>
 <button class="fab" id="fabPlay" title="read">&#9654;</button>
 <button class="fab" id="fabMenu" title="menu">&#9776;</button>
+<button class="fab" id="fabZoomIn" title="bigger text">A+</button>
+<button class="fab" id="fabZoomOut" title="smaller text">A&minus;</button>
 
 <div id="menu">
   <div class="card">
@@ -271,6 +277,8 @@
     set ratchet(v) { localStorage.sr_ratchet = v ? "1" : "0"; },
     get cap()  { return +(localStorage.sr_cap || 500); },
     set cap(v) { localStorage.sr_cap = v; },
+    get font()  { return +(localStorage.sr_font || 1.25); },
+    set font(v) { localStorage.sr_font = v; },
     pos: function (id, v) {
       if (v === undefined) return +(localStorage["sr_pos_" + id] || 0);
       localStorage["sr_pos_" + id] = v;
@@ -605,6 +613,28 @@
   document.getElementById("fabPlay").onclick = function () { this.blur(); play(); };
   document.getElementById("fabMenu").onclick = function () { this.blur(); openMenu(); };
 
+  function applyFont() {
+    page.style.fontSize = S.font + "rem";
+  }
+
+  function zoom(delta) {
+    // anchor the view on what's currently in the upper-middle of the screen
+    var anchor = null;
+    var els = document.elementsFromPoint(window.innerWidth / 2, window.innerHeight * 0.3);
+    for (var i = 0; i < els.length; i++) {
+      if (els[i].closest) {
+        anchor = els[i].closest("p[data-p]");
+        if (anchor) break;
+      }
+    }
+    S.font = Math.round(Math.min(1.8, Math.max(0.9, S.font + delta)) * 100) / 100;
+    applyFont();
+    if (anchor) stage.scrollTop = Math.max(0, anchor.offsetTop - stage.clientHeight * 0.3);
+  }
+
+  document.getElementById("fabZoomIn").onclick = function () { this.blur(); zoom(0.1); };
+  document.getElementById("fabZoomOut").onclick = function () { this.blur(); zoom(-0.1); };
+
   var wpmSlider = document.getElementById("wpm");
   var chunkSlider = document.getElementById("chunk");
   wpmSlider.value = S.wpm;
@@ -714,6 +744,7 @@
   if (!startBook) {
     startBook = LIBRARY[0];
   }
+  page.style.fontSize = S.font + "rem";
   loadBook(startBook);
   openMenu();
 })();
