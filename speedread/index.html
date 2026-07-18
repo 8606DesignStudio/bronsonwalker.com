@@ -185,6 +185,7 @@
   <label>speed <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
   <label>chunk <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
   <label><input type="checkbox" id="ratchet"> ratchet</label>
+  <label>target <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
   <span class="hint">space play/pause &middot; scroll freely &middot; click a word to jump</span>
 </footer>
 
@@ -230,6 +231,8 @@
     set chunk(v){ localStorage.sr_chunk = v; },
     get ratchet()  { return localStorage.sr_ratchet === "1"; },
     set ratchet(v) { localStorage.sr_ratchet = v ? "1" : "0"; },
+    get cap()  { return +(localStorage.sr_cap || 500); },
+    set cap(v) { localStorage.sr_cap = v; },
     pos: function (id, v) {
       if (v === undefined) return +(localStorage["sr_pos_" + id] || 0);
       localStorage["sr_pos_" + id] = v;
@@ -508,11 +511,11 @@
       cursor = end + 1;
       S.pos(book.id, cursor);
       S.addToday(n);
-      if (S.ratchet) {
+      if (S.ratchet && S.wpm < S.cap) {
         ratchetMs += delay;
         if (ratchetMs >= 60000) {
           ratchetMs = 0;
-          S.wpm = Math.min(800, S.wpm + 5);
+          S.wpm = Math.min(S.cap, S.wpm + 5);
           wpmSlider.value = S.wpm;
         }
       }
@@ -544,6 +547,7 @@
       totalWords ? (100 * cursor / totalWords).toFixed(1) + "%" : "0%";
     document.getElementById("wpmVal").textContent = S.wpm;
     document.getElementById("chunkVal").textContent = S.chunk;
+    document.getElementById("capVal").textContent = S.cap;
   }
 
   document.getElementById("btnPlay").onclick = function () { this.blur(); playing ? pause() : play(); };
@@ -563,6 +567,10 @@
   var ratchetBox = document.getElementById("ratchet");
   ratchetBox.checked = S.ratchet;
   ratchetBox.onchange = function () { S.ratchet = this.checked; ratchetMs = 0; this.blur(); };
+
+  var capSlider = document.getElementById("cap");
+  capSlider.value = S.cap;
+  capSlider.oninput = function () { S.cap = +this.value; updateHud(); };
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
