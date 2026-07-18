@@ -55,7 +55,7 @@
     flex: 1;
     overflow-y: auto;
     position: relative;
-    scroll-behavior: smooth;
+    overflow-anchor: none;
   }
   #page {
     max-width: 68ch;
@@ -66,8 +66,39 @@
     position: relative;
   }
   #page p { margin-bottom: 1.1em; }
+  #page p.chp { color: var(--accent); margin-top: 2.2em; font-variant: small-caps; letter-spacing: 0.04em; }
+  #page p.chp span.read { color: var(--accent); opacity: 0.55; }
   #page span.w { border-radius: 3px; }
   #page span.read { color: var(--dim); }
+
+  #toc { margin-bottom: 3em; }
+  #toc h1 {
+    color: var(--accent);
+    font-size: 1.6rem;
+    font-weight: normal;
+    margin-bottom: 0.2em;
+  }
+  #toc .author { color: var(--dim); margin-bottom: 1.6em; font-style: italic; }
+  #toc h2 {
+    color: var(--text);
+    font-size: 1.05rem;
+    font-weight: normal;
+    font-variant: small-caps;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.8em;
+    border-bottom: 1px solid #26262b;
+    padding-bottom: 0.4em;
+  }
+  #toc a {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    padding: 0.18em 0.3em;
+    border-radius: 4px;
+    font-size: 1.02rem;
+  }
+  #toc a:hover { background: var(--hl); color: var(--accent); }
+  #toc a .num { color: var(--accent); display: inline-block; min-width: 3.2ch; }
 
   #hl {
     position: absolute;
@@ -139,6 +170,7 @@
   <span class="stat">today <b id="statToday">0</b> words</span>
   <span class="stat">book <b id="statPct">0%</b></span>
   <span class="spacer"></span>
+  <button id="btnToc">contents</button>
   <button id="btnBook">library</button>
   <button id="btnImport">your text</button>
 </header>
@@ -148,12 +180,11 @@
 </div>
 
 <footer>
-  <button id="btnPrev">&lt;</button>
   <button id="btnPlay">start</button>
-  <button id="btnNext">&gt;</button>
+  <button id="btnHere">resume here</button>
   <label>speed <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
   <label>chunk <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
-  <span class="hint">space play/pause &middot; &lt; &gt; pages &middot; click a word to jump</span>
+  <span class="hint">space play/pause &middot; scroll freely &middot; click a word to jump</span>
 </footer>
 
 <div id="importBox">
@@ -175,15 +206,20 @@
   "use strict";
 
   // ---------- state ----------
-  var PAGE_WORDS = 260;           // target words per page
-  var book = null;                // {id,title,author,paragraphs}
-  var pages = [];                 // [{start, paras:[[w,...],...]}]
-  var pageIdx = 0;
-  var cursor = 0;                 // global word index
+  var WINDOW_WORDS = 2600;   // words rendered around the point of interest
+  var EXTEND_WORDS = 1400;   // words added per scroll extension
+  var MAX_WORDS = 7000;      // trim threshold for the rendered window
+
+  var book = null;
+  var paraWords = [];        // [[word,...], ...]
+  var paraStart = [];        // global word index of each paragraph's first word
+  var chapters = [];         // [{t: title, p: paragraph index}]
+  var chapterSet = {};       // paragraph index -> true
   var totalWords = 0;
+  var pFirst = 0, pLast = -1; // rendered paragraph range (inclusive)
+  var cursor = 0;
   var playing = false;
   var timer = null;
-  var wordsThisSession = 0;
 
   var S = {
     get wpm()   { return +(localStorage.sr_wpm || 250); },
@@ -199,12 +235,14 @@
     addToday: function (n) {
       var key = "sr_day_" + new Date().toISOString().slice(0, 10);
       localStorage[key] = (+(localStorage[key] || 0)) + n;
-      return +localStorage[key];
     },
     today: function () {
       return +(localStorage["sr_day_" + new Date().toISOString().slice(0, 10)] || 0);
     }
   };
+
+  var stage = document.getElementById("stage");
+  var page = document.getElementById("page");
 
   // ---------- book loading ----------
   function stripGutenberg(text) {
@@ -221,96 +259,181 @@
       .filter(function (p) { return p.length > 0; });
   }
 
-  function paginate(paragraphs) {
-    pages = [];
-    totalWords = 0;
-    var cur = { start: 0, paras: [] };
-    var count = 0;
-    paragraphs.forEach(function (p) {
-      var words = p.split(" ");
-      // split huge paragraphs so pages stay bounded
-      var i = 0;
-      while (i < words.length) {
-        var room = PAGE_WORDS - count;
-        if (room <= 0) {
-          pages.push(cur);
-          cur = { start: totalWords, paras: [] };
-          count = 0;
-          room = PAGE_WORDS;
-        }
-        var take = words.slice(i, i + Math.max(room, 40));
-        cur.paras.push(take);
-        count += take.length;
-        totalWords += take.length;
-        i += take.length;
-      }
+  function detectChapters(paras) {
+    var found = {};
+    paras.forEach(function (p, i) {
+      if (p.split("Chapter ").length > 3) return; // TOC blob
+      var m = p.match(/^Chapter\s+(\d+)\.\s*/);
+      if (m && p.length < 120) found[+m[1]] = i;
     });
-    if (cur.paras.length) pages.push(cur);
+    return Object.keys(found).sort(function (a, b) { return a - b; })
+      .map(function (n) { return { t: paras[found[n]], p: found[n] }; });
   }
 
   function loadBook(b) {
     book = b;
-    paginate(b.paragraphs);
+    paraWords = [];
+    paraStart = [];
+    totalWords = 0;
+    b.paragraphs.forEach(function (p) {
+      var words = p.split(" ");
+      paraStart.push(totalWords);
+      paraWords.push(words);
+      totalWords += words.length;
+    });
+    chapters = b.chapters || detectChapters(b.paragraphs);
+    chapterSet = {};
+    chapters.forEach(function (c) { chapterSet[c.p] = true; });
     cursor = Math.min(S.pos(b.id), totalWords - 1);
     S.bookId = b.id;
     document.getElementById("bookTitle").textContent = b.title;
-    renderPageFor(cursor);
+    renderWindow(cursor);
+    scrollCursorIntoView(false);
     updateHud();
   }
 
-  // ---------- rendering ----------
-  function pageOf(wordIdx) {
-    for (var i = pages.length - 1; i >= 0; i--) {
-      if (pages[i].start <= wordIdx) return i;
+  // ---------- windowed rendering ----------
+  function paraOf(wordIdx) {
+    var lo = 0, hi = paraStart.length - 1;
+    while (lo < hi) {
+      var mid = (lo + hi + 1) >> 1;
+      if (paraStart[mid] <= wordIdx) lo = mid; else hi = mid - 1;
     }
-    return 0;
+    return lo;
   }
 
-  function renderPageFor(wordIdx) {
-    pageIdx = pageOf(wordIdx);
-    var pg = pages[pageIdx];
+  function paraHtml(p) {
+    var words = paraWords[p];
+    var base = paraStart[p];
+    var parts = new Array(words.length);
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      var cls = (base + i) < cursor ? "w read" : "w";
+      parts[i] = '<span class="' + cls + '" data-i="' + (base + i) + '">' + w + "</span>";
+    }
+    var pcls = chapterSet[p] ? ' class="chp"' : "";
+    return '<p data-p="' + p + '"' + pcls + ">" + parts.join(" ") + "</p>";
+  }
+
+  function tocHtml() {
+    if (!chapters.length) return "";
+    var esc = function (s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+    var links = chapters.map(function (c) {
+      var m = c.t.match(/^Chapter\s+(\d+)\.\s*(.*)$/);
+      var num = m ? m[1] : "";
+      var title = m ? m[2] : c.t;
+      return '<a href="#" class="toc-link" data-p="' + c.p + '"><span class="num">' + num + '</span> ' + esc(title) + "</a>";
+    });
+    return '<div id="toc"><h1>' + esc(book.title) + "</h1>" +
+      (book.author ? '<div class="author">' + esc(book.author) + "</div>" : "") +
+      "<h2>Contents</h2>" + links.join("") + "</div>";
+  }
+
+  function rangeHtml(pa, pb) {
     var html = [];
-    var i = pg.start;
-    pg.paras.forEach(function (words) {
-      var parts = words.map(function (w) {
-        return '<span class="w" data-i="' + (i++) + '">' + escapeHtml(w) + "</span>";
-      });
-      html.push("<p>" + parts.join(" ") + "</p>");
-    });
-    var page = document.getElementById("page");
-    page.innerHTML = '<div id="hl"></div>' + html.join("");
-    markRead();
+    for (var p = pa; p <= pb; p++) html.push(paraHtml(p));
+    return html.join("");
   }
 
-  function escapeHtml(s) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  function renderedWords() {
+    if (pLast < pFirst) return 0;
+    return paraStart[pLast] + paraWords[pLast].length - paraStart[pFirst];
   }
 
-  function markRead() {
-    var spans = document.querySelectorAll("#page span.w");
-    spans.forEach(function (sp) {
-      sp.classList.toggle("read", +sp.dataset.i < cursor);
-    });
+  function renderWindow(centerWord) {
+    var lo = Math.max(0, centerWord - WINDOW_WORDS / 2);
+    var hi = Math.min(totalWords - 1, centerWord + WINDOW_WORDS / 2);
+    pFirst = paraOf(lo);
+    pLast = paraOf(hi);
+    page.innerHTML = '<div id="hl"></div>' + (pFirst === 0 ? tocHtml() : "") + rangeHtml(pFirst, pLast);
   }
 
-  function spansFor(start, end) {
-    var out = [];
-    for (var i = start; i <= end; i++) {
-      var sp = document.querySelector('#page span[data-i="' + i + '"]');
-      if (sp) out.push(sp);
+  function extendDown() {
+    if (pLast >= paraWords.length - 1) return;
+    var target = paraStart[pLast] + paraWords[pLast].length + EXTEND_WORDS;
+    var newLast = Math.min(paraWords.length - 1, paraOf(Math.min(target, totalWords - 1)));
+    if (newLast <= pLast) newLast = pLast + 1;
+    page.insertAdjacentHTML("beforeend", rangeHtml(pLast + 1, newLast));
+    pLast = newLast;
+    trimTop();
+  }
+
+  function extendUp() {
+    if (pFirst <= 0) return;
+    var target = paraStart[pFirst] - EXTEND_WORDS;
+    var newFirst = Math.max(0, paraOf(Math.max(0, target)));
+    if (newFirst >= pFirst) newFirst = pFirst - 1;
+    var before = stage.scrollHeight;
+    var html = rangeHtml(newFirst, pFirst - 1);
+    if (newFirst === 0 && !document.getElementById("toc")) html = tocHtml() + html;
+    document.getElementById("hl").insertAdjacentHTML("afterend", html);
+    pFirst = newFirst;
+    stage.scrollTop += stage.scrollHeight - before;
+    trimBottom();
+  }
+
+  function trimTop() {
+    while (renderedWords() > MAX_WORDS && pFirst < pLast) {
+      if (pFirst === paraOf(cursor)) break;
+      var el = page.querySelector('p[data-p="' + pFirst + '"]');
+      if (!el) break;
+      var before = stage.scrollHeight;
+      el.remove();
+      stage.scrollTop -= before - stage.scrollHeight;
+      pFirst++;
     }
-    return out;
+  }
+
+  function trimBottom() {
+    while (renderedWords() > MAX_WORDS && pLast > pFirst) {
+      if (pLast === paraOf(cursor)) break;
+      var el = page.querySelector('p[data-p="' + pLast + '"]');
+      if (!el) break;
+      el.remove();
+      pLast--;
+    }
+  }
+
+  var scrollPending = false;
+  stage.addEventListener("scroll", function () {
+    if (scrollPending) return;
+    scrollPending = true;
+    requestAnimationFrame(function () {
+      scrollPending = false;
+      if (stage.scrollTop < 600) extendUp();
+      if (stage.scrollHeight - stage.scrollTop - stage.clientHeight < 600) extendDown();
+    });
+  });
+
+  function ensureRendered(wordIdx) {
+    var end = paraStart[pLast] + paraWords[pLast].length;
+    if (wordIdx < paraStart[pFirst] || wordIdx >= end) {
+      renderWindow(wordIdx);
+      return;
+    }
+    // pacer approaching the bottom edge of the window: extend ahead of it
+    if (end - wordIdx < 200) extendDown();
+  }
+
+  function spanAt(i) {
+    return page.querySelector('span[data-i="' + i + '"]');
+  }
+
+  function scrollCursorIntoView(smooth) {
+    var sp = spanAt(cursor);
+    if (!sp) return;
+    var target = sp.offsetTop - stage.clientHeight * 0.35;
+    stage.scrollTo({ top: Math.max(0, target), behavior: smooth ? "smooth" : "auto" });
   }
 
   // ---------- pacer ----------
   function chunkEnd() {
-    // chunk: up to S.chunk words, same page, same visual line
-    var first = document.querySelector('#page span[data-i="' + cursor + '"]');
+    var first = spanAt(cursor);
     if (!first) return cursor;
     var top = first.offsetTop;
     var end = cursor;
     for (var i = 1; i < S.chunk; i++) {
-      var sp = document.querySelector('#page span[data-i="' + (cursor + i) + '"]');
+      var sp = spanAt(cursor + i);
       if (!sp || sp.offsetTop !== top) break;
       end = cursor + i;
     }
@@ -319,50 +442,42 @@
 
   function placeHighlight(start, end) {
     var hl = document.getElementById("hl");
-    var spans = spansFor(start, end);
-    if (!spans.length) return;
-    var firstR = spans[0], lastR = spans[spans.length - 1];
-    var left = firstR.offsetLeft - 4;
-    var top = firstR.offsetTop - 2;
-    var width = (lastR.offsetLeft + lastR.offsetWidth) - firstR.offsetLeft + 8;
-    var height = firstR.offsetHeight + 4;
+    var a = spanAt(start), b = spanAt(end);
+    if (!a || !b) return;
+    var left = a.offsetLeft - 4;
+    var top = a.offsetTop - 2;
+    var width = (b.offsetLeft + b.offsetWidth) - a.offsetLeft + 8;
+    var height = a.offsetHeight + 4;
     hl.style.left = left + "px";
     hl.style.top = top + "px";
     hl.style.width = width + "px";
     hl.style.height = height + "px";
     hl.classList.add("on");
-    // keep chunk in comfortable view
-    var stage = document.getElementById("stage");
     var target = top - stage.clientHeight * 0.35;
     if (Math.abs(stage.scrollTop - target) > stage.clientHeight * 0.25) {
-      stage.scrollTop = target;
+      stage.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
     }
   }
 
   function tick() {
     if (!playing) return;
     if (cursor >= totalWords) { pause(); return; }
-    if (cursor >= pages[pageIdx].start + pageWordCount(pageIdx)) {
-      renderPageFor(cursor);
-    }
+    ensureRendered(cursor);
     var end = chunkEnd();
     placeHighlight(cursor, end);
     var n = end - cursor + 1;
     var delay = n * (60000 / S.wpm);
-    var advanceTo = end + 1;
     timer = setTimeout(function () {
-      wordsThisSession += n;
-      cursor = advanceTo;
+      for (var i = cursor; i <= end; i++) {
+        var sp = spanAt(i);
+        if (sp) sp.classList.add("read");
+      }
+      cursor = end + 1;
       S.pos(book.id, cursor);
       S.addToday(n);
-      markRead();
       updateHud();
       tick();
     }, delay);
-  }
-
-  function pageWordCount(idx) {
-    return pages[idx].paras.reduce(function (a, w) { return a + w.length; }, 0);
   }
 
   function play() {
@@ -376,7 +491,8 @@
     playing = false;
     clearTimeout(timer);
     document.getElementById("btnPlay").textContent = "start";
-    document.getElementById("hl").classList.remove("on");
+    var hl = document.getElementById("hl");
+    if (hl) hl.classList.remove("on");
   }
 
   // ---------- hud + controls ----------
@@ -390,8 +506,11 @@
   }
 
   document.getElementById("btnPlay").onclick = function () { this.blur(); playing ? pause() : play(); };
-  document.getElementById("btnPrev").onclick = function () { this.blur(); jumpPage(-1); };
-  document.getElementById("btnNext").onclick = function () { this.blur(); jumpPage(1); };
+  document.getElementById("btnHere").onclick = function () {
+    this.blur();
+    ensureRendered(cursor);
+    scrollCursorIntoView(true);
+  };
 
   var wpmSlider = document.getElementById("wpm");
   var chunkSlider = document.getElementById("chunk");
@@ -405,38 +524,49 @@
     if (e.code === "Space") { e.preventDefault(); playing ? pause() : play(); }
     else if (e.code === "ArrowUp") { e.preventDefault(); S.wpm = Math.min(800, S.wpm + 10); wpmSlider.value = S.wpm; updateHud(); }
     else if (e.code === "ArrowDown") { e.preventDefault(); S.wpm = Math.max(150, S.wpm - 10); wpmSlider.value = S.wpm; updateHud(); }
-    else if (e.code === "ArrowRight") { jumpPage(1); }
-    else if (e.code === "ArrowLeft") { jumpPage(-1); }
   });
 
-  function jumpPage(dir) {
+  document.getElementById("btnToc").onclick = function () {
+    this.blur();
     pause();
-    var target = Math.max(0, Math.min(pages.length - 1, pageIdx + dir));
-    cursor = pages[target].start;
-    S.pos(book.id, cursor);
-    renderPageFor(cursor);
-    document.getElementById("stage").scrollTop = 0;
-    updateHud();
-  }
+    renderWindow(0);
+    stage.scrollTop = 0;
+  };
 
-  document.getElementById("page").addEventListener("click", function (e) {
+  page.addEventListener("click", function (e) {
+    var link = e.target.closest("a.toc-link");
+    if (link) {
+      e.preventDefault();
+      pause();
+      cursor = paraStart[+link.dataset.p];
+      S.pos(book.id, cursor);
+      renderWindow(cursor);
+      scrollCursorIntoView(false);
+      updateHud();
+      return;
+    }
     var sp = e.target.closest("span.w");
     if (!sp) return;
     pause();
     cursor = +sp.dataset.i;
     S.pos(book.id, cursor);
-    markRead();
+    var spans = page.querySelectorAll("span.w");
+    for (var i = 0; i < spans.length; i++) {
+      spans[i].classList.toggle("read", +spans[i].dataset.i < cursor);
+    }
     placeHighlight(cursor, cursor);
     updateHud();
   });
 
   // ---------- library + import ----------
   document.getElementById("btnBook").onclick = function () {
+    this.blur();
+    pause();
     loadBook(LIBRARY[0]);
   };
 
   var box = document.getElementById("importBox");
-  document.getElementById("btnImport").onclick = function () { box.style.display = "flex"; };
+  document.getElementById("btnImport").onclick = function () { this.blur(); box.style.display = "flex"; };
   document.getElementById("importCancel").onclick = function () { box.style.display = "none"; };
   document.getElementById("importFile").onchange = function () {
     var f = this.files[0];
@@ -451,6 +581,7 @@
     var paras = textToParagraphs(stripGutenberg(text));
     if (!paras.length) return;
     box.style.display = "none";
+    pause();
     if (text.length < 1500000) {
       try { localStorage.sr_custom = JSON.stringify(paras); } catch (err) { /* too big for storage; session-only */ }
     }
