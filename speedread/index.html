@@ -116,20 +116,16 @@
   #fabPause { right: 18px; bottom: 22px; }
   #fabPlay  { right: 18px; bottom: 22px; }
   #fabMenu  { right: 18px; bottom: 86px; }
-  #fabZoomOut { left: 18px; bottom: 22px; font-size: 14px; }
-  #fabZoomIn  { left: 18px; bottom: 86px; font-size: 20px; }
   body.playing #fabPause { display: flex; }
   body.browsing #fabPlay { display: flex; }
   body.browsing #fabMenu { display: flex; }
-  body.browsing #fabZoomOut { display: flex; }
-  body.browsing #fabZoomIn { display: flex; }
 
   /* pause menu overlay */
   #menu {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(8, 8, 9, 0.88);
+    background: rgba(8, 8, 9, 0.7);
     z-index: 10;
     align-items: center;
     justify-content: center;
@@ -208,8 +204,6 @@
 <button class="fab" id="fabPause" title="pause">&#10074;&#10074;</button>
 <button class="fab" id="fabPlay" title="read">&#9654;</button>
 <button class="fab" id="fabMenu" title="menu">&#9776;</button>
-<button class="fab" id="fabZoomIn" title="bigger text">A+</button>
-<button class="fab" id="fabZoomOut" title="smaller text">A&minus;</button>
 
 <div id="menu">
   <div class="card">
@@ -224,6 +218,7 @@
     <label><span class="lbl">chunk</span> <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
     <label><input type="checkbox" id="ratchet"> ratchet (+5 wpm/min up to target, then hold)</label>
     <label id="capRow" style="visibility:hidden"><span class="lbl">target</span> <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
+    <label><span class="lbl">text</span> <input type="range" id="font" min="70" max="145" step="5"> <span class="val" id="fontVal"></span></label>
     <div class="row">
       <button id="btnToc">contents</button>
       <button id="btnBook">library</button>
@@ -606,6 +601,7 @@
     document.getElementById("wpmVal").textContent = S.wpm + " wpm";
     document.getElementById("chunkVal").textContent = S.chunk;
     document.getElementById("capVal").textContent = S.cap + " wpm";
+    document.getElementById("fontVal").textContent = Math.round(S.font / 1.25 * 100) + "%";
   }
 
   document.getElementById("btnPlay").onclick = function () { this.blur(); play(); };
@@ -616,24 +612,6 @@
   function applyFont() {
     page.style.fontSize = S.font + "rem";
   }
-
-  function zoom(delta) {
-    // anchor the view on what's currently in the upper-middle of the screen
-    var anchor = null;
-    var els = document.elementsFromPoint(window.innerWidth / 2, window.innerHeight * 0.3);
-    for (var i = 0; i < els.length; i++) {
-      if (els[i].closest) {
-        anchor = els[i].closest("p[data-p]");
-        if (anchor) break;
-      }
-    }
-    S.font = Math.round(Math.min(1.8, Math.max(0.9, S.font + delta)) * 100) / 100;
-    applyFont();
-    if (anchor) stage.scrollTop = Math.max(0, anchor.offsetTop - stage.clientHeight * 0.3);
-  }
-
-  document.getElementById("fabZoomIn").onclick = function () { this.blur(); zoom(0.1); };
-  document.getElementById("fabZoomOut").onclick = function () { this.blur(); zoom(-0.1); };
 
   var wpmSlider = document.getElementById("wpm");
   var chunkSlider = document.getElementById("chunk");
@@ -655,6 +633,14 @@
   var capSlider = document.getElementById("cap");
   capSlider.value = S.cap;
   capSlider.oninput = function () { S.cap = +this.value; updateHud(); };
+
+  var fontSlider = document.getElementById("font");
+  fontSlider.value = Math.round(S.font / 1.25 * 100);
+  fontSlider.oninput = function () {
+    S.font = Math.round(1.25 * (+this.value) / 100 * 100) / 100;
+    applyFont();
+    updateHud();
+  };
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
