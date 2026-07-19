@@ -488,14 +488,34 @@
   var CLAUSE_END = /[,;:.!?—]["'”’)\]]*$/;
   var SENT_END = /[.!?]["'”’)\]]*$/;
 
+  function wordAt(i) {
+    var p = paraOf(i);
+    return paraWords[p][i - paraStart[p]];
+  }
+
+  function plannedChunkSize() {
+    // look ahead to the clause boundary and divide the clause evenly,
+    // so a comma never strands a one-word crumb (8 words -> 3+3+2, not 3+3+2+orphan)
+    var maxLook = S.chunk * 3;
+    var balanced = function (d) { return Math.ceil(d / Math.ceil(d / S.chunk)); };
+    for (var d = 1; d <= maxLook; d++) {
+      var idx = cursor + d - 1;
+      if (idx >= totalWords - 1) return balanced(d);          // book end
+      if (CLAUSE_END.test(wordAt(idx))) return balanced(d);   // punctuation
+      if (paraOf(idx + 1) !== paraOf(idx)) return balanced(d); // paragraph end
+    }
+    return S.chunk; // no boundary in sight -- normal chunk
+  }
+
   function chunkEnd() {
     var first = spanAt(cursor);
     if (!first) return cursor;
     var top = first.offsetTop;
+    var size = plannedChunkSize();
     var end = cursor;
-    for (var i = 1; i < S.chunk; i++) {
+    for (var i = 1; i < size; i++) {
       var prev = spanAt(cursor + i - 1);
-      if (prev && CLAUSE_END.test(prev.textContent)) break; // land on punctuation, breathe
+      if (prev && CLAUSE_END.test(prev.textContent)) break; // safety: still land on punctuation
       var sp = spanAt(cursor + i);
       if (!sp || sp.offsetTop !== top) break;
       end = cursor + i;
