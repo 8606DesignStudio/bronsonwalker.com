@@ -629,7 +629,7 @@
   }
 
   document.getElementById("btnPlay").onclick = function () { this.blur(); play(); };
-  document.getElementById("fabPause").onclick = function () { this.blur(); pause(true); };
+  document.getElementById("fabPause").onclick = function () { this.blur(); pause(false); };
   document.getElementById("fabPlay").onclick = function () { this.blur(); play(); };
   document.getElementById("fabMenu").onclick = function () { this.blur(); openMenu(); };
 
@@ -670,7 +670,7 @@
     if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
     if (e.code === "Space") {
       e.preventDefault();
-      if (playing) pause(true); else play();
+      if (playing) pause(false); else play();
     }
     else if (e.code === "Escape" && !playing) { openMenu(); }
     else if (e.code === "ArrowUp") { e.preventDefault(); S.wpm = Math.min(800, S.wpm + 10); wpmSlider.value = S.wpm; updateHud(); }
