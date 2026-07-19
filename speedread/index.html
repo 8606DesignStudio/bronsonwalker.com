@@ -429,6 +429,7 @@
     pFirst = newFirst;
     stage.scrollTop += stage.scrollHeight - before;
     trimBottom();
+    refreshHl();
   }
 
   function trimTop() {
@@ -441,6 +442,7 @@
       stage.scrollTop -= before - stage.scrollHeight;
       pFirst++;
     }
+    refreshHl();
   }
 
   function trimBottom() {
@@ -553,19 +555,30 @@
     return delay;
   }
 
-  function placeHighlight(start, end) {
+  var lastHl = null;
+
+  function positionHl(start, end) {
     var hl = document.getElementById("hl");
     var a = spanAt(start), b = spanAt(end);
-    if (!a || !b) return;
-    var left = a.offsetLeft - 4;
+    if (!hl || !a || !b) { if (hl) hl.classList.remove("on"); return null; }
     var top = a.offsetTop - 2;
-    var width = (b.offsetLeft + b.offsetWidth) - a.offsetLeft + 8;
-    var height = a.offsetHeight + 4;
-    hl.style.left = left + "px";
+    hl.style.left = (a.offsetLeft - 4) + "px";
     hl.style.top = top + "px";
-    hl.style.width = width + "px";
-    hl.style.height = height + "px";
+    hl.style.width = ((b.offsetLeft + b.offsetWidth) - a.offsetLeft + 8) + "px";
+    hl.style.height = (a.offsetHeight + 4) + "px";
     hl.classList.add("on");
+    lastHl = { s: start, e: end };
+    return top;
+  }
+
+  function refreshHl() {
+    // window content changed above the highlight -- re-anchor it to its words
+    if (!playing && lastHl) positionHl(lastHl.s, lastHl.e);
+  }
+
+  function placeHighlight(start, end) {
+    var top = positionHl(start, end);
+    if (top === null) return;
     var target = top - stage.clientHeight * 0.35;
     if (Math.abs(stage.scrollTop - target) > stage.clientHeight * 0.25) {
       stage.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
@@ -612,8 +625,6 @@
   function pause(showMenu) {
     playing = false;
     clearTimeout(timer);
-    var hl = document.getElementById("hl");
-    if (hl) hl.classList.remove("on");
     if (showMenu) openMenu(); else setChrome("browsing");
   }
 
