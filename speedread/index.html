@@ -500,8 +500,10 @@
     var balanced = function (d) { return Math.ceil(d / Math.ceil(d / S.chunk)); };
     for (var d = 1; d <= maxLook; d++) {
       var idx = cursor + d - 1;
-      if (idx >= totalWords - 1) return balanced(d);          // book end
-      if (CLAUSE_END.test(wordAt(idx))) return balanced(d);   // punctuation
+      var w = wordAt(idx);
+      if (idx >= totalWords - 1) return balanced(d);           // book end
+      if (SENT_END.test(w)) return balanced(d);                // sentence end: always a boundary
+      if (CLAUSE_END.test(w) && d >= 2) return balanced(d);    // comma: only after 2+ words (tiny fragments merge)
       if (paraOf(idx + 1) !== paraOf(idx)) return balanced(d); // paragraph end
     }
     return S.chunk; // no boundary in sight -- normal chunk
@@ -515,7 +517,11 @@
     var end = cursor;
     for (var i = 1; i < size; i++) {
       var prev = spanAt(cursor + i - 1);
-      if (prev && CLAUSE_END.test(prev.textContent)) break; // safety: still land on punctuation
+      if (prev) {
+        var pw = prev.textContent;
+        if (SENT_END.test(pw)) break;                       // sentence end: hard stop
+        if (CLAUSE_END.test(pw) && i >= 2) break;           // comma stops only after 2+ words
+      }
       var sp = spanAt(cursor + i);
       if (!sp || sp.offsetTop !== top) break;
       end = cursor + i;
