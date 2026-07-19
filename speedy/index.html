@@ -51,7 +51,7 @@
   #page p { margin-bottom: 1.1em; }
   #page p.chp { color: var(--accent); margin-top: 2.2em; font-variant: small-caps; letter-spacing: 0.04em; }
   #page p.chp span.read { color: var(--accent); opacity: 0.55; }
-  #page span.w { border-radius: 3px; }
+  #page span.w { border-radius: 3px; padding: 0.4em 0.14em; margin: 0 -0.14em; }
   #page span.read { color: var(--dim); }
 
   #toc { margin-bottom: 3em; }
@@ -706,7 +706,22 @@
       return;
     }
     var sp = e.target.closest("span.w");
-    if (!sp) return;
+    if (!sp) {
+      // tap landed in dead space -- snap to the nearest word within reach
+      var pEl = e.target.closest("p[data-p]") || e.target.closest("#page");
+      if (!pEl) return;
+      var best = null, bd = Infinity;
+      var cand = pEl.querySelectorAll("span.w");
+      for (var c = 0; c < cand.length; c++) {
+        var r = cand[c].getBoundingClientRect();
+        var dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
+        var dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
+        var dist = dx * dx + dy * dy;
+        if (dist < bd) { bd = dist; best = cand[c]; }
+      }
+      if (!best || bd > 1600) return; // nothing within ~40px
+      sp = best;
+    }
     pause(false);
     cursor = +sp.dataset.i;
     S.pos(book.id, cursor);
