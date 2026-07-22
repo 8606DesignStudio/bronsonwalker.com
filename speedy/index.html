@@ -751,8 +751,8 @@
       function setVol(v) {
         localStorage["sr_amb_" + a.id] = v;
         slider.value = v;
+        var ctx = ambCtx(); // always resume -- context gets suspended again between gestures on some browsers
         if (!gainNode) {
-          var ctx = ambCtx();
           gainNode = ctx.createGain();
           ctx.createMediaElementSource(audio).connect(gainNode).connect(ctx.destination);
         }
