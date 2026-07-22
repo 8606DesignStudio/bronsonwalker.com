@@ -131,11 +131,10 @@
     justify-content: center;
   }
   body.menu #menu { display: flex; }
-  /* fixed-size shell: settings/library/ambiance are three screens inside
-     the same box so switching between them never resizes the card. */
   #menu .card {
     width: min(460px, 92vw);
-    height: min(560px, 84vh);
+    max-height: 92vh;
+    overflow-y: auto;
     background: var(--panel);
     border: 1px solid var(--accent);
     border-radius: 10px;
@@ -144,13 +143,7 @@
     font-size: 13px;
     color: var(--dim);
   }
-  #menu .screen {
-    display: none;
-    flex-direction: column;
-    gap: 16px;
-    height: 100%;
-    overflow-y: auto;
-  }
+  #menu .screen { display: none; flex-direction: column; gap: 16px; }
   #menu .screen.active { display: flex; }
   #menu .mtitle { color: var(--accent); font-size: 15px; font-weight: bold; }
   #menu .mstats { display: flex; gap: 18px; flex-wrap: wrap; }
@@ -164,13 +157,14 @@
   #menu label .lbl { min-width: 6ch; }
   #menu input[type=range] { flex: 1; accent-color: var(--accent); }
   #menu .val { color: var(--accent); min-width: 8ch; text-align: right; white-space: nowrap; }
-  #menu .row { display: flex; gap: 10px; margin-top: auto; }
+  #menu .row { display: flex; gap: 10px; }
   #menu .row button { flex: 1; padding-left: 4px; padding-right: 4px; white-space: nowrap; }
   #menu .hint { font-size: 12px; line-height: 1.5; }
   #menu .back { align-self: flex-start; }
-  #menu .scroll-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  #menu .scroll-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
   #menu .scroll-item { text-align: left; width: 100%; text-transform: lowercase; }
   #menu .scroll-item.stub { opacity: 0.35; cursor: default; }
+  #ambWrap { display: flex; flex-direction: column; gap: 16px; }
   #menu .amb-row { display: flex; align-items: center; gap: 10px; }
   #menu .amb-toggle { min-width: 64px; text-transform: lowercase; }
   #menu .amb-toggle.on { background: #1f1a00; }
