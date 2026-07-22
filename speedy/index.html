@@ -184,7 +184,6 @@
     border-radius: 4px;
   }
   #menu .scroll-item.plain:hover { background: var(--hl); }
-  #menu .scroll-item.stub { opacity: 0.35; cursor: default; text-transform: lowercase; }
   #menu .mtitle.underline { text-decoration: underline; }
   #ambWrap { display: flex; flex-direction: column; gap: 16px; }
   #menu .amb-row { display: flex; align-items: center; gap: 10px; }
@@ -824,15 +823,6 @@
       item.onclick = function () { this.blur(); loadBook(b); openMenu(); };
       wrap.appendChild(item);
     });
-
-    // stub rows, no text/link behind them -- just for exercising the scroll
-    for (var i = 1; i <= 10; i++) {
-      var stub = document.createElement("button");
-      stub.className = "scroll-item stub";
-      stub.textContent = "test " + i;
-      stub.disabled = true;
-      wrap.appendChild(stub);
-    }
   }
 
   document.getElementById("btnLibrary").onclick = function () {
