@@ -690,14 +690,14 @@
   // ---------- ambiance ----------
   // Add a stock loop or one of your own recordings by adding a row here --
   // no other code changes needed. file is relative to this page.
-  // cap = actual gain when the slider is maxed (100). Keeps full slider
-  // travel mapped to the range that's actually usable at phone/headphone
-  // proximity, so steps land with finer detail instead of wasting range
-  // up in "too loud" territory. cafe (voices, most present up close) gets
-  // cut harder than rain/city (texture, less intrusive at the same gain).
+  // cap = actual gain when the slider is maxed (100), as a fraction of the
+  // source file's original volume. Keeps full slider travel mapped to the
+  // range that's actually usable at phone/headphone proximity, so steps
+  // land with finer detail instead of wasting range up in "too loud"
+  // territory. Tune per-sound as the actual clips change.
   var AMBIANCE = [
     { id: "rain", label: "rain", file: "sounds/rain.mp3", cap: 0.7 },
-    { id: "cafe", label: "cafe", file: "sounds/cafe.mp3", cap: 0.2 },
+    { id: "cafe", label: "cafe", file: "sounds/cafe.mp3", cap: 0.8 },
     { id: "city", label: "city", file: "sounds/city.mp3", cap: 0.7 }
   ];
 
