@@ -120,6 +120,7 @@
   body.playing #fabPause { display: flex; }
   body.browsing #fabPlay { display: flex; }
   body.browsing #fabMenu { display: flex; }
+  body.playing #fabMenu { display: flex; }
   body.amb-on.playing #fabAmbMute,
   body.amb-on.browsing #fabAmbMute { display: flex; }
   #fabAmbMute.muted { opacity: 0.4; }
@@ -653,7 +654,7 @@
   document.getElementById("btnPlay").onclick = function () { this.blur(); play(); };
   document.getElementById("fabPause").onclick = function () { this.blur(); pause(false); };
   document.getElementById("fabPlay").onclick = function () { this.blur(); play(); };
-  document.getElementById("fabMenu").onclick = function () { this.blur(); openMenu(); };
+  document.getElementById("fabMenu").onclick = function () { this.blur(); pause(true); };
 
   function applyFont() {
     page.style.fontSize = S.font + "rem";
