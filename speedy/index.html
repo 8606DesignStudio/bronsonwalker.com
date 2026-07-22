@@ -163,45 +163,21 @@
   #menu .back { align-self: flex-start; }
   #menu .scroll-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
   #menu .scroll-item { text-align: left; width: 100%; text-transform: lowercase; }
+  #menu .scroll-item.plain {
+    background: none;
+    border: none;
+    color: var(--dim);
+    font-size: 14px;
+    padding: 6px 4px;
+    border-radius: 4px;
+  }
+  #menu .scroll-item.plain:hover { background: var(--hl); color: var(--accent); }
   #menu .scroll-item.stub { opacity: 0.35; cursor: default; }
   #ambWrap { display: flex; flex-direction: column; gap: 16px; }
   #menu .amb-row { display: flex; align-items: center; gap: 10px; }
   #menu .amb-toggle { min-width: 64px; text-transform: lowercase; }
   #menu .amb-toggle.on { background: #1f1a00; }
   #menu input[type=range].amb-vol { flex: 1; accent-color: var(--accent); }
-
-  /* custom text overlay */
-  #importBox {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    z-index: 20;
-    align-items: center;
-    justify-content: center;
-  }
-  #importBox .card {
-    background: var(--panel);
-    border: 1px solid var(--accent);
-    border-radius: 8px;
-    padding: 24px;
-    width: min(640px, 92vw);
-    font-family: Consolas, monospace;
-    font-size: 13px;
-  }
-  #importBox textarea {
-    width: 100%;
-    height: 200px;
-    margin: 12px 0;
-    background: #000;
-    color: var(--text);
-    border: 1px solid #333;
-    border-radius: 4px;
-    padding: 10px;
-    font-family: Georgia, serif;
-    font-size: 14px;
-  }
-  #importBox .row { display: flex; gap: 12px; align-items: center; }
 </style>
 </head>
 <body class="menu">
@@ -236,28 +212,15 @@
     </div>
 
     <div class="screen" id="scrLibrary">
-      <button class="back" id="btnLibBack">&laquo; back</button>
       <div class="mtitle">library</div>
       <div class="scroll-list" id="libList"></div>
+      <button class="back" id="btnLibBack">&laquo; back</button>
     </div>
 
     <div class="screen" id="scrAmbiance">
-      <button class="back" id="btnAmbBack">&laquo; back</button>
       <div class="mtitle">ambiance</div>
       <div id="ambWrap"></div>
-    </div>
-  </div>
-</div>
-
-<div id="importBox">
-  <div class="card">
-    <div>Paste text, or load a .txt file. Gutenberg headers are stripped automatically.</div>
-    <textarea id="importText" placeholder="Paste anything here..."></textarea>
-    <div class="row">
-      <input type="file" id="importFile" accept=".txt">
-      <span style="flex:1"></span>
-      <button id="importGo">read it</button>
-      <button id="importCancel">cancel</button>
+      <button class="back" id="btnAmbBack">&laquo; back</button>
     </div>
   </div>
 </div>
@@ -333,20 +296,6 @@
   }
 
   // ---------- book loading ----------
-  function stripGutenberg(text) {
-    var s = text.search(/\*\*\* ?START OF (THE|THIS) PROJECT GUTENBERG EBOOK[^\n]*\*\*\*/);
-    if (s >= 0) text = text.slice(text.indexOf("***", s + 3) + 3);
-    var e = text.search(/\*\*\* ?END OF (THE|THIS) PROJECT GUTENBERG EBOOK/);
-    if (e >= 0) text = text.slice(0, e);
-    return text.trim();
-  }
-
-  function textToParagraphs(text) {
-    return text.replace(/\r/g, "").split(/\n\s*\n/)
-      .map(function (p) { return p.replace(/\s+/g, " ").trim(); })
-      .filter(function (p) { return p.length > 0; });
-  }
-
   function detectChapters(paras) {
     var found = {};
     paras.forEach(function (p, i) {
@@ -841,38 +790,15 @@
   };
 
   // ---------- library screen ----------
-  function getCustomTexts() {
-    try { return JSON.parse(localStorage.sr_custom_list || "[]"); } catch (err) { return []; }
-  }
-  function addCustomText(entry) {
-    var list = getCustomTexts();
-    list.push(entry);
-    try { localStorage.sr_custom_list = JSON.stringify(list); } catch (err) { /* too big; session-only */ }
-  }
-
   function renderLibraryList() {
     var wrap = document.getElementById("libList");
     wrap.innerHTML = "";
 
-    var addBtn = document.createElement("button");
-    addBtn.className = "scroll-item";
-    addBtn.textContent = "+ add your own text";
-    addBtn.onclick = function () { this.blur(); box.style.display = "flex"; };
-    wrap.appendChild(addBtn);
-
     LIBRARY.forEach(function (b) {
       var item = document.createElement("button");
-      item.className = "scroll-item";
+      item.className = "scroll-item plain";
       item.textContent = b.title;
       item.onclick = function () { this.blur(); loadBook(b); openMenu(); };
-      wrap.appendChild(item);
-    });
-
-    getCustomTexts().forEach(function (c) {
-      var item = document.createElement("button");
-      item.className = "scroll-item";
-      item.textContent = c.title;
-      item.onclick = function () { this.blur(); loadBook(c); openMenu(); };
       wrap.appendChild(item);
     });
 
@@ -896,42 +822,9 @@
   document.getElementById("btnAmbiance").onclick = function () { this.blur(); showScreen("ambiance"); };
   document.getElementById("btnAmbBack").onclick = function () { this.blur(); showScreen("settings"); };
 
-  var box = document.getElementById("importBox");
-  document.getElementById("importCancel").onclick = function () { box.style.display = "none"; };
-  document.getElementById("importFile").onchange = function () {
-    var f = this.files[0];
-    if (!f) return;
-    var r = new FileReader();
-    r.onload = function () { document.getElementById("importText").value = r.result; };
-    r.readAsText(f);
-  };
-  document.getElementById("importGo").onclick = function () {
-    var text = document.getElementById("importText").value.trim();
-    if (!text) return;
-    var paras = textToParagraphs(stripGutenberg(text));
-    if (!paras.length) return;
-    box.style.display = "none";
-    var entry = { id: "custom-" + Date.now(), title: "your text " + (getCustomTexts().length + 1), author: "", paragraphs: paras };
-    if (text.length < 1500000) {
-      try { localStorage.sr_custom = JSON.stringify(paras); } catch (err) { /* too big for storage; session-only */ }
-      addCustomText(entry);
-    }
-    loadBook(entry);
-    openMenu();
-  };
-
   // ---------- boot ----------
-  var startBook = null;
-  if (S.bookId === "custom" && localStorage.sr_custom) {
-    try {
-      startBook = { id: "custom", title: "Your Text", author: "", paragraphs: JSON.parse(localStorage.sr_custom) };
-    } catch (err) { startBook = null; }
-  }
-  if (!startBook) {
-    startBook = LIBRARY[0];
-  }
   page.style.fontSize = S.font + "rem";
-  loadBook(startBook);
+  loadBook(LIBRARY[0]);
   openMenu();
 })();
 </script>
