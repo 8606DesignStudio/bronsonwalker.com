@@ -161,18 +161,31 @@
   #menu .row button { flex: 1; padding-left: 4px; padding-right: 4px; white-space: nowrap; }
   #menu .hint { font-size: 12px; line-height: 1.5; }
   #menu .back { align-self: flex-start; }
-  #menu .scroll-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-  #menu .scroll-item { text-align: left; width: 100%; text-transform: lowercase; }
+  #menu .scroll-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) transparent;
+  }
+  #menu .scroll-list::-webkit-scrollbar { width: 6px; }
+  #menu .scroll-list::-webkit-scrollbar-track { background: transparent; }
+  #menu .scroll-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+  #menu .scroll-item { text-align: left; width: 100%; }
   #menu .scroll-item.plain {
     background: none;
     border: none;
-    color: var(--dim);
-    font-size: 14px;
+    color: var(--accent);
+    font-size: 15px;
+    font-weight: bold;
     padding: 6px 4px;
     border-radius: 4px;
   }
-  #menu .scroll-item.plain:hover { background: var(--hl); color: var(--accent); }
-  #menu .scroll-item.stub { opacity: 0.35; cursor: default; }
+  #menu .scroll-item.plain:hover { background: var(--hl); }
+  #menu .scroll-item.stub { opacity: 0.35; cursor: default; text-transform: lowercase; }
+  #menu .mtitle.underline { text-decoration: underline; }
   #ambWrap { display: flex; flex-direction: column; gap: 16px; }
   #menu .amb-row { display: flex; align-items: center; gap: 10px; }
   #menu .amb-toggle { min-width: 64px; text-transform: lowercase; }
@@ -212,7 +225,7 @@
     </div>
 
     <div class="screen" id="scrLibrary">
-      <div class="mtitle">library</div>
+      <div class="mtitle underline">library</div>
       <div class="scroll-list" id="libList"></div>
       <button class="back" id="btnLibBack">&laquo; back</button>
     </div>
@@ -790,6 +803,16 @@
   };
 
   // ---------- library screen ----------
+  var TITLECASE_MINOR = { a: 1, an: 1, and: 1, as: 1, at: 1, but: 1, by: 1, for: 1, in: 1, nor: 1, of: 1, on: 1, or: 1, so: 1, the: 1, to: 1, up: 1, yet: 1 };
+  function titleCase(str) {
+    var words = str.split(" ");
+    return words.map(function (w, i) {
+      var lower = w.toLowerCase();
+      if (i !== 0 && i !== words.length - 1 && TITLECASE_MINOR[lower]) return lower;
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    }).join(" ");
+  }
+
   function renderLibraryList() {
     var wrap = document.getElementById("libList");
     wrap.innerHTML = "";
@@ -797,7 +820,7 @@
     LIBRARY.forEach(function (b) {
       var item = document.createElement("button");
       item.className = "scroll-item plain";
-      item.textContent = b.title;
+      item.textContent = titleCase(b.title);
       item.onclick = function () { this.blur(); loadBook(b); openMenu(); };
       wrap.appendChild(item);
     });
