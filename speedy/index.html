@@ -123,6 +123,11 @@
   body.amb-on.playing #fabAmbMute,
   body.amb-on.browsing #fabAmbMute { display: flex; }
   #fabAmbMute.muted { opacity: 0.4; }
+  /* drawn icons instead of font glyphs -- Unicode symbols render at wildly
+     inconsistent visual weight/size across fonts (the note glyph was tiny,
+     the double-bar pause glyph was oversized) -- shapes are predictable. */
+  .fab .bars { display: flex; gap: 5px; }
+  .fab .bars span { width: 5px; height: 18px; background: var(--accent); border-radius: 1px; }
 
   /* pause menu overlay */
   #menu {
@@ -213,10 +218,10 @@
   <div id="page"><div id="hl"></div></div>
 </div>
 
-<button class="fab" id="fabPause" title="pause">&#10074;&#10074;</button>
+<button class="fab" id="fabPause" title="pause"><span class="bars"><span></span><span></span></span></button>
 <button class="fab" id="fabPlay" title="read">&#9654;</button>
 <button class="fab" id="fabMenu" title="menu">&#9776;</button>
-<button class="fab" id="fabAmbMute" title="mute ambiance">&#9834;</button>
+<button class="fab" id="fabAmbMute" title="mute ambiance"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg></button>
 
 <div id="menu">
   <div class="card">
