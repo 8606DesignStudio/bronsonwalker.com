@@ -187,8 +187,19 @@
   #menu .mtitle.underline { text-decoration: underline; }
   #ambWrap { display: flex; flex-direction: column; gap: 16px; }
   #menu .amb-row { display: flex; align-items: center; gap: 10px; }
-  #menu .amb-toggle { min-width: 64px; text-transform: lowercase; }
-  #menu .amb-toggle.on { background: #1f1a00; }
+  #menu .amb-toggle {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 15px;
+    font-weight: bold;
+    text-transform: lowercase;
+    min-width: 64px;
+    padding: 6px 4px;
+    border-radius: 4px;
+  }
+  #menu .amb-toggle:hover { background: var(--hl); }
+  #menu .amb-toggle.on { text-decoration: underline; }
   #menu input[type=range].amb-vol { flex: 1; accent-color: var(--accent); }
 </style>
 </head>
