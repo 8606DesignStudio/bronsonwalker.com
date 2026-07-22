@@ -113,12 +113,16 @@
     -webkit-tap-highlight-color: transparent;
   }
   .fab:hover { background: rgba(31, 26, 0, 0.7); }
-  #fabPause { right: 18px; bottom: 22px; }
-  #fabPlay  { right: 18px; bottom: 22px; }
-  #fabMenu  { right: 18px; bottom: 86px; }
+  #fabPause    { right: 18px; bottom: 22px; }
+  #fabPlay     { right: 18px; bottom: 22px; }
+  #fabMenu     { right: 18px; bottom: 86px; }
+  #fabAmbMute  { right: 18px; bottom: 150px; }
   body.playing #fabPause { display: flex; }
   body.browsing #fabPlay { display: flex; }
   body.browsing #fabMenu { display: flex; }
+  body.amb-on.playing #fabAmbMute,
+  body.amb-on.browsing #fabAmbMute { display: flex; }
+  #fabAmbMute.muted { opacity: 0.4; }
 
   /* pause menu overlay */
   #menu {
@@ -212,6 +216,7 @@
 <button class="fab" id="fabPause" title="pause">&#10074;&#10074;</button>
 <button class="fab" id="fabPlay" title="read">&#9654;</button>
 <button class="fab" id="fabMenu" title="menu">&#9776;</button>
+<button class="fab" id="fabAmbMute" title="mute ambiance">&#9834;</button>
 
 <div id="menu">
   <div class="card">
@@ -701,6 +706,32 @@
     return audioCtx;
   }
 
+  // one shared gain node all sounds route through, for the mute fab --
+  // muting this way preserves each sound's own slider level underneath.
+  var masterGain = null;
+  var ambMuted = false;
+  function ambMaster(ctx) {
+    if (!masterGain) {
+      masterGain = ctx.createGain();
+      masterGain.gain.value = ambMuted ? 0 : 1;
+      masterGain.connect(ctx.destination);
+    }
+    return masterGain;
+  }
+
+  var ambVols = {};
+  var fabAmbMute = document.getElementById("fabAmbMute");
+  function updateAmbFab() {
+    var any = Object.keys(ambVols).some(function (id) { return ambVols[id] > 0; });
+    document.body.classList.toggle("amb-on", any);
+  }
+  fabAmbMute.onclick = function () {
+    this.blur();
+    ambMuted = !ambMuted;
+    if (masterGain) masterGain.gain.value = ambMuted ? 0 : 1;
+    fabAmbMute.classList.toggle("muted", ambMuted);
+  };
+
   (function ambSetup() {
     var wrap = document.getElementById("ambWrap");
     AMBIANCE.forEach(function (a) {
@@ -726,7 +757,7 @@
         var ctx = ambCtx(); // always resume -- context gets suspended again between gestures on some browsers
         if (!gainNode) {
           gainNode = ctx.createGain();
-          ctx.createMediaElementSource(audio).connect(gainNode).connect(ctx.destination);
+          ctx.createMediaElementSource(audio).connect(gainNode).connect(ambMaster(ctx));
         }
         gainNode.gain.value = (v / 100) * a.cap;
         btn.classList.toggle("on", v > 0);
@@ -736,6 +767,8 @@
         } else {
           audio.pause();
         }
+        ambVols[a.id] = v;
+        updateAmbFab();
       }
 
       slider.oninput = function () { setVol(+this.value); };
