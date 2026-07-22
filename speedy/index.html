@@ -131,10 +131,11 @@
     justify-content: center;
   }
   body.menu #menu { display: flex; }
+  /* fixed-size shell: settings/library/ambiance are three screens inside
+     the same box so switching between them never resizes the card. */
   #menu .card {
     width: min(460px, 92vw);
-    max-height: 92vh;
-    overflow-y: auto;
+    height: min(560px, 84vh);
     background: var(--panel);
     border: 1px solid var(--accent);
     border-radius: 10px;
@@ -142,10 +143,15 @@
     font-family: Consolas, monospace;
     font-size: 13px;
     color: var(--dim);
-    display: flex;
+  }
+  #menu .screen {
+    display: none;
     flex-direction: column;
     gap: 16px;
+    height: 100%;
+    overflow-y: auto;
   }
+  #menu .screen.active { display: flex; }
   #menu .mtitle { color: var(--accent); font-size: 15px; font-weight: bold; }
   #menu .mstats { display: flex; gap: 18px; flex-wrap: wrap; }
   #menu .mstats b { color: var(--text); font-weight: normal; }
@@ -158,11 +164,13 @@
   #menu label .lbl { min-width: 6ch; }
   #menu input[type=range] { flex: 1; accent-color: var(--accent); }
   #menu .val { color: var(--accent); min-width: 8ch; text-align: right; white-space: nowrap; }
-  #menu .row { display: flex; gap: 10px; }
+  #menu .row { display: flex; gap: 10px; margin-top: auto; }
   #menu .row button { flex: 1; padding-left: 4px; padding-right: 4px; white-space: nowrap; }
   #menu .hint { font-size: 12px; line-height: 1.5; }
-  #menu .amb { display: flex; flex-direction: column; gap: 8px; }
-  #menu .amb-title { font-size: 12px; text-transform: lowercase; letter-spacing: 0.06em; }
+  #menu .back { align-self: flex-start; }
+  #menu .scroll-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  #menu .scroll-item { text-align: left; width: 100%; text-transform: lowercase; }
+  #menu .scroll-item.stub { opacity: 0.35; cursor: default; }
   #menu .amb-row { display: flex; align-items: center; gap: 10px; }
   #menu .amb-toggle { min-width: 64px; text-transform: lowercase; }
   #menu .amb-toggle.on { background: #1f1a00; }
@@ -214,26 +222,36 @@
 
 <div id="menu">
   <div class="card">
-    <div class="mtitle" id="bookTitle">Speed Reader</div>
-    <div class="mstats">
-      <span>today <b id="statToday">0</b> words</span>
-      <span>book <b id="statPct">0%</b></span>
+    <div class="screen active" id="scrSettings">
+      <div class="mtitle" id="bookTitle">Speed Reader</div>
+      <div class="mstats">
+        <span>today <b id="statToday">0</b> words</span>
+        <span>book <b id="statPct">0%</b></span>
+      </div>
+      <label><span class="lbl">zoom</span> <input type="range" id="font" min="70" max="145" step="5"> <span class="val" id="fontVal"></span></label>
+      <label><span class="lbl">speed</span> <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
+      <label><span class="lbl">chunk</span> <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
+      <label><input type="checkbox" id="ratchet"> ratchet &mdash; increase wpm +5 every minute</label>
+      <label id="capRow" style="visibility:hidden"><span class="lbl">target</span> <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
+      <div class="row">
+        <button id="btnToc">contents</button>
+        <button id="btnLibrary">library</button>
+        <button id="btnAmbiance">ambiance</button>
+      </div>
+      <button id="btnPlay" class="primary">start</button>
     </div>
-    <label><span class="lbl">zoom</span> <input type="range" id="font" min="70" max="145" step="5"> <span class="val" id="fontVal"></span></label>
-    <label><span class="lbl">speed</span> <input type="range" id="wpm" min="150" max="800" step="10"> <span class="val" id="wpmVal"></span></label>
-    <label><span class="lbl">chunk</span> <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
-    <label><input type="checkbox" id="ratchet"> ratchet &mdash; increase wpm +5 every minute</label>
-    <label id="capRow" style="visibility:hidden"><span class="lbl">target</span> <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
-    <div class="amb">
-      <div class="amb-title">ambiance</div>
+
+    <div class="screen" id="scrLibrary">
+      <button class="back" id="btnLibBack">&laquo; back</button>
+      <div class="mtitle">library</div>
+      <div class="scroll-list" id="libList"></div>
+    </div>
+
+    <div class="screen" id="scrAmbiance">
+      <button class="back" id="btnAmbBack">&laquo; back</button>
+      <div class="mtitle">ambiance</div>
       <div id="ambWrap"></div>
     </div>
-    <div class="row">
-      <button id="btnToc">contents</button>
-      <button id="btnBook">library</button>
-      <button id="btnImport">your text</button>
-    </div>
-    <button id="btnPlay" class="primary">start</button>
   </div>
 </div>
 
@@ -307,9 +325,16 @@
     document.body.classList.add(state);
   }
 
+  function showScreen(name) {
+    document.getElementById("scrSettings").classList.toggle("active", name === "settings");
+    document.getElementById("scrLibrary").classList.toggle("active", name === "library");
+    document.getElementById("scrAmbiance").classList.toggle("active", name === "ambiance");
+  }
+
   function openMenu() {
     document.getElementById("btnPlay").textContent = cursor > 0 ? "resume" : "start";
     updateHud();
+    showScreen("settings");
     setChrome("menu");
   }
 
@@ -821,14 +846,63 @@
     stage.scrollTop = 0;
   };
 
-  document.getElementById("btnBook").onclick = function () {
+  // ---------- library screen ----------
+  function getCustomTexts() {
+    try { return JSON.parse(localStorage.sr_custom_list || "[]"); } catch (err) { return []; }
+  }
+  function addCustomText(entry) {
+    var list = getCustomTexts();
+    list.push(entry);
+    try { localStorage.sr_custom_list = JSON.stringify(list); } catch (err) { /* too big; session-only */ }
+  }
+
+  function renderLibraryList() {
+    var wrap = document.getElementById("libList");
+    wrap.innerHTML = "";
+
+    var addBtn = document.createElement("button");
+    addBtn.className = "scroll-item";
+    addBtn.textContent = "+ add your own text";
+    addBtn.onclick = function () { this.blur(); box.style.display = "flex"; };
+    wrap.appendChild(addBtn);
+
+    LIBRARY.forEach(function (b) {
+      var item = document.createElement("button");
+      item.className = "scroll-item";
+      item.textContent = b.title;
+      item.onclick = function () { this.blur(); loadBook(b); openMenu(); };
+      wrap.appendChild(item);
+    });
+
+    getCustomTexts().forEach(function (c) {
+      var item = document.createElement("button");
+      item.className = "scroll-item";
+      item.textContent = c.title;
+      item.onclick = function () { this.blur(); loadBook(c); openMenu(); };
+      wrap.appendChild(item);
+    });
+
+    // stub rows, no text/link behind them -- just for exercising the scroll
+    for (var i = 1; i <= 10; i++) {
+      var stub = document.createElement("button");
+      stub.className = "scroll-item stub";
+      stub.textContent = "test " + i;
+      stub.disabled = true;
+      wrap.appendChild(stub);
+    }
+  }
+
+  document.getElementById("btnLibrary").onclick = function () {
     this.blur();
-    loadBook(LIBRARY[0]);
-    openMenu();
+    renderLibraryList();
+    showScreen("library");
   };
+  document.getElementById("btnLibBack").onclick = function () { this.blur(); showScreen("settings"); };
+
+  document.getElementById("btnAmbiance").onclick = function () { this.blur(); showScreen("ambiance"); };
+  document.getElementById("btnAmbBack").onclick = function () { this.blur(); showScreen("settings"); };
 
   var box = document.getElementById("importBox");
-  document.getElementById("btnImport").onclick = function () { this.blur(); box.style.display = "flex"; };
   document.getElementById("importCancel").onclick = function () { box.style.display = "none"; };
   document.getElementById("importFile").onchange = function () {
     var f = this.files[0];
@@ -843,10 +917,12 @@
     var paras = textToParagraphs(stripGutenberg(text));
     if (!paras.length) return;
     box.style.display = "none";
+    var entry = { id: "custom-" + Date.now(), title: "your text " + (getCustomTexts().length + 1), author: "", paragraphs: paras };
     if (text.length < 1500000) {
       try { localStorage.sr_custom = JSON.stringify(paras); } catch (err) { /* too big for storage; session-only */ }
+      addCustomText(entry);
     }
-    loadBook({ id: "custom", title: "Your Text", author: "", paragraphs: paras });
+    loadBook(entry);
     openMenu();
   };
 
