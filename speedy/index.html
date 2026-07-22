@@ -161,6 +161,12 @@
   #menu .row { display: flex; gap: 10px; }
   #menu .row button { flex: 1; padding-left: 4px; padding-right: 4px; white-space: nowrap; }
   #menu .hint { font-size: 12px; line-height: 1.5; }
+  #menu .amb { display: flex; flex-direction: column; gap: 8px; }
+  #menu .amb-title { font-size: 12px; text-transform: lowercase; letter-spacing: 0.06em; }
+  #menu .amb-row { display: flex; align-items: center; gap: 10px; }
+  #menu .amb-toggle { min-width: 64px; text-transform: lowercase; }
+  #menu .amb-toggle.on { background: #1f1a00; }
+  #menu input[type=range].amb-vol { flex: 1; accent-color: var(--accent); }
 
   /* custom text overlay */
   #importBox {
@@ -218,6 +224,10 @@
     <label><span class="lbl">chunk</span> <input type="range" id="chunk" min="1" max="5" step="1"> <span class="val" id="chunkVal"></span></label>
     <label><input type="checkbox" id="ratchet"> ratchet &mdash; increase wpm +5 every minute</label>
     <label id="capRow" style="visibility:hidden"><span class="lbl">target</span> <input type="range" id="cap" min="150" max="800" step="10"> <span class="val" id="capVal"></span></label>
+    <div class="amb">
+      <div class="amb-title">ambiance</div>
+      <div id="ambWrap"></div>
+    </div>
     <div class="row">
       <button id="btnToc">contents</button>
       <button id="btnBook">library</button>
@@ -676,6 +686,56 @@
     applyFont();
     updateHud();
   };
+
+  // ---------- ambiance ----------
+  // Add a stock loop or one of your own recordings by adding a row here --
+  // no other code changes needed. file is relative to this page.
+  var AMBIANCE = [
+    { id: "rain", label: "rain", file: "sounds/rain.mp3" },
+    { id: "cafe", label: "cafe", file: "sounds/cafe.mp3" },
+    { id: "city", label: "city", file: "sounds/city.mp3" }
+  ];
+
+  (function ambSetup() {
+    var wrap = document.getElementById("ambWrap");
+    AMBIANCE.forEach(function (a) {
+      var audio = new Audio(a.file);
+      audio.loop = true;
+      audio.preload = "none";
+
+      var row = document.createElement("div");
+      row.className = "amb-row";
+      row.innerHTML =
+        '<button class="amb-toggle">' + a.label + '</button>' +
+        '<input type="range" class="amb-vol" min="0" max="100" step="5">';
+      wrap.appendChild(row);
+
+      var btn = row.querySelector(".amb-toggle");
+      var slider = row.querySelector(".amb-vol");
+      var lastVol = +(localStorage["sr_amb_" + a.id] || 40) || 40;
+
+      function setVol(v) {
+        localStorage["sr_amb_" + a.id] = v;
+        slider.value = v;
+        audio.volume = v / 100;
+        btn.classList.toggle("on", v > 0);
+        if (v > 0) {
+          lastVol = v;
+          audio.play().catch(function () { /* file not present yet, or blocked until user gesture */ });
+        } else {
+          audio.pause();
+        }
+      }
+
+      slider.oninput = function () { setVol(+this.value); };
+      btn.onclick = function () {
+        this.blur();
+        setVol((+slider.value) > 0 ? 0 : lastVol);
+      };
+
+      setVol(+(localStorage["sr_amb_" + a.id] || 0));
+    });
+  })();
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
