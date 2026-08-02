@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>P1S &middot; Bronson Walker</title>
+<style>
+  :root {
+    --yellow: #F5B800;
+    --bg: #0a0a0a;
+    --panel: #141414;
+    --line: #2a2a2a;
+    --dim: #6d6d6d;
+    --green: #4ade80;
+    --red: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--yellow);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    padding: 24px 16px 48px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 22px;
+  }
+  h1 { font-size: 1.05rem; letter-spacing: 0.18em; margin: 0; font-weight: 600; }
+  .sub { color: var(--dim); font-size: 0.72rem; letter-spacing: 0.1em; }
+
+  /* Status banner */
+  .banner {
+    border: 1px solid var(--line); background: var(--panel);
+    padding: 20px; margin-bottom: 18px; border-radius: 3px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--dim); flex: none; }
+  .dot.live { background: var(--green); animation: pulse 1.8s ease-in-out infinite; }
+  .dot.warn { background: var(--red); }
+  .dot.done { background: var(--yellow); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
+
+  .state { font-size: 1.5rem; letter-spacing: 0.1em; font-weight: 600; }
+  .job { color: #fff; font-size: 0.85rem; word-break: break-all; }
+
+  /* Progress */
+  .bar-outer {
+    height: 8px; background: #000; border: 1px solid var(--line);
+    border-radius: 2px; overflow: hidden; margin: 16px 0 8px;
+  }
+  .bar-inner {
+    height: 100%; width: 0%; background: var(--yellow);
+    transition: width 0.6s ease;
+  }
+  .bar-meta {
+    display: flex; justify-content: space-between; gap: 10px;
+    font-size: 0.78rem; color: var(--dim); flex-wrap: wrap;
+  }
+  .bar-meta strong { color: var(--yellow); font-weight: 600; }
+
+  /* Tiles */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px; margin-bottom: 18px;
+  }
+  .tile {
+    border: 1px solid var(--line); background: var(--panel);
+    padding: 14px; border-radius: 3px;
+  }
+  .tile .label {
+    font-size: 0.62rem; letter-spacing: 0.16em; color: var(--dim);
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .tile .value { font-size: 1.4rem; font-weight: 600; line-height: 1.1; }
+  .tile .value .unit { font-size: 0.8rem; color: var(--dim); font-weight: 400; }
+  .tile .target { font-size: 0.7rem; color: var(--dim); margin-top: 5px; }
+
+  /* Footer strip */
+  .strip {
+    border-top: 1px solid var(--line); padding-top: 14px;
+    display: flex; gap: 22px; flex-wrap: wrap;
+    font-size: 0.72rem; color: var(--dim);
+  }
+  .strip span b { color: var(--yellow); font-weight: 600; }
+
+  .notice {
+    border: 1px solid var(--red); color: var(--red);
+    background: rgba(239,68,68,0.07);
+    padding: 12px 14px; border-radius: 3px; margin-bottom: 18px;
+    font-size: 0.78rem; line-height: 1.5;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>BAMBU LAB P1S</h1>
+    <div class="sub" id="freshness">connecting&hellip;</div>
+  </header>
+
+  <div class="notice hidden" id="notice"></div>
+
+  <div class="banner">
+    <div class="dot" id="dot"></div>
+    <div>
+      <div class="state" id="state">&mdash;</div>
+      <div class="job" id="job"></div>
+    </div>
+  </div>
+
+  <div id="progress-block" class="hidden">
+    <div class="bar-outer"><div class="bar-inner" id="bar"></div></div>
+    <div class="bar-meta">
+      <span><strong id="pct">&mdash;</strong> complete</span>
+      <span>layer <strong id="layer">&mdash;</strong></span>
+      <span><strong id="eta">&mdash;</strong> remaining</span>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:18px">
+    <div class="tile">
+      <div class="label">Nozzle</div>
+      <div class="value"><span id="nozzle">&mdash;</span><span class="unit">&deg;C</span></div>
+      <div class="target" id="nozzle-t">&nbsp;</div>
+    </div>
+    <div class="tile">
+      <div class="label">Bed</div>
+      <div class="value"><span id="bed">&mdash;</span><span class="unit">&deg;C</span></div>
+      <div class="target" id="bed-t">&nbsp;</div>
+    </div>
+    <div class="tile">
+      <div class="label">Speed</div>
+      <div class="value" id="speed" style="font-size:1.15rem">&mdash;</div>
+      <div class="target" id="speed-t">&nbsp;</div>
+    </div>
+  </div>
+
+  <div class="strip">
+    <span>part fan <b id="fan-part">&mdash;</b></span>
+    <span>aux fan <b id="fan-aux">&mdash;</b></span>
+    <span>wifi <b id="wifi">&mdash;</b></span>
+    <span>light <b id="light">&mdash;</b></span>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var ENDPOINT = 'https://webhooks.srv901146.hstgr.cloud/p1s';
+  var REFRESH_MS = 10000;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function txt(id, v) { $(id).textContent = (v === null || v === undefined || v === '') ? '—' : v; }
+
+  function show(el, on) { el.classList.toggle('hidden', !on); }
+
+  function ago(sec) {
+    if (sec === null || sec === undefined) return 'unknown';
+    if (sec < 60) return sec + 's ago';
+    var m = Math.floor(sec / 60);
+    if (m < 60) return m + 'm ago';
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+
+  function render(d) {
+    var notice = $('notice');
+
+    // Honesty first: never let old numbers read as current.
+    if (d.publisher === 'never') {
+      $('freshness').textContent = 'no data yet';
+      notice.textContent = 'The publisher has never reported. Status is unavailable until '
+        + 'p1s_publisher.py runs on the machine that shares a network with the printer.';
+      show(notice, true);
+      txt('state', 'NO DATA');
+      $('dot').className = 'dot warn';
+      show($('progress-block'), false);
+      return;
+    }
+
+    $('freshness').textContent = 'updated ' + ago(d.age_sec);
+
+    if (d.stale) {
+      notice.textContent = 'This snapshot is ' + ago(d.age_sec) + ' and is no longer live. '
+        + 'The publisher has stopped reporting — the printer may be fine; the bridge is not.';
+      show(notice, true);
+    } else if (!d.online) {
+      notice.textContent = 'The publisher is running but could not reach the printer.';
+      show(notice, true);
+    } else {
+      show(notice, false);
+    }
+
+    var state = d.stale ? 'STALE' : (d.online ? (d.state || 'UNKNOWN') : 'OFFLINE');
+    txt('state', state);
+    txt('job', d.job_name || '');
+
+    var dot = $('dot');
+    if (d.stale || !d.online) dot.className = 'dot warn';
+    else if (d.state === 'RUNNING') dot.className = 'dot live';
+    else if (d.state === 'FINISH') dot.className = 'dot done';
+    else dot.className = 'dot';
+
+    // Progress only means something during or just after a job.
+    var hasJob = d.progress_pct !== null && d.progress_pct !== undefined
+                 && (d.state === 'RUNNING' || d.state === 'PAUSE' || d.state === 'FINISH');
+    show($('progress-block'), hasJob && !d.stale);
+    if (hasJob) {
+      $('bar').style.width = d.progress_pct + '%';
+      txt('pct', d.progress_pct + '%');
+      txt('layer', (d.layer !== null && d.total_layers) ? d.layer + '/' + d.total_layers : null);
+      txt('eta', (d.remaining_min === null || d.remaining_min === undefined)
+                 ? null : d.remaining_min + ' min');
+    }
+
+    function temp(id, val, target) {
+      txt(id, val === null || val === undefined ? null : Math.round(val));
+      var t = $(id + '-t');
+      if (target === null || target === undefined) t.innerHTML = '&nbsp;';
+      else t.textContent = target > 0 ? 'target ' + Math.round(target) + '°' : 'heater off';
+    }
+    temp('nozzle', d.nozzle_temp, d.nozzle_target);
+    temp('bed', d.bed_temp, d.bed_target);
+
+    txt('speed', d.speed_label);
+    $('speed-t').textContent = (d.speed_pct === null || d.speed_pct === undefined)
+                               ? ' ' : d.speed_pct + '% of profile';
+
+    txt('fan-part', d.fan_part);
+    txt('fan-aux', d.fan_aux);
+    txt('wifi', d.wifi);
+    txt('light', d.light);
+  }
+
+  function poll() {
+    fetch(ENDPOINT, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(render)
+      .catch(function () {
+        $('freshness').textContent = 'relay unreachable';
+        $('dot').className = 'dot warn';
+        txt('state', 'NO LINK');
+        var n = $('notice');
+        n.textContent = 'Could not reach the status relay on the VPS.';
+        show(n, true);
+      });
+  }
+
+  poll();
+  setInterval(poll, REFRESH_MS);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) poll();
+  });
+})();
+</script>
+</body>
+</html>
