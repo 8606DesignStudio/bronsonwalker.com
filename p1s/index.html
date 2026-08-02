@@ -90,6 +90,39 @@
   }
   .strip span b { color: var(--yellow); font-weight: 600; }
 
+  /* AMS */
+  .ams { margin-top: 26px; }
+  .ams-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; flex-wrap: wrap;
+    font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 10px;
+  }
+  .slot {
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--line); background: var(--panel);
+    padding: 11px 13px; border-radius: 3px; margin-bottom: 7px;
+  }
+  .slot.active { border-color: var(--yellow); }
+  .chip {
+    width: 26px; height: 26px; border-radius: 3px; flex: none;
+    border: 1px solid #3a3a3a;
+    background-image:
+      linear-gradient(45deg, #222 25%, transparent 25%, transparent 75%, #222 75%),
+      linear-gradient(45deg, #222 25%, transparent 25%, transparent 75%, #222 75%);
+    background-size: 8px 8px; background-position: 0 0, 4px 4px;
+  }
+  .slot-n { color: var(--dim); font-size: 0.7rem; width: 1.1em; flex: none; }
+  .slot-name { color: #fff; font-size: 0.8rem; flex: 1; min-width: 0; }
+  .slot-name .empty { color: var(--dim); font-style: italic; }
+  .slot-remain { font-size: 0.75rem; text-align: right; flex: none; min-width: 96px; }
+  .remain-bar {
+    height: 3px; background: #000; border-radius: 2px; overflow: hidden;
+    margin-top: 5px;
+  }
+  .remain-fill { height: 100%; background: var(--yellow); }
+  .slot-remain .unknown { color: var(--dim); }
+
   .notice {
     border: 1px solid var(--red); color: var(--red);
     background: rgba(239,68,68,0.07);
@@ -149,6 +182,14 @@
     <span>aux fan <b id="fan-aux">&mdash;</b></span>
     <span>wifi <b id="wifi">&mdash;</b></span>
     <span>light <b id="light">&mdash;</b></span>
+  </div>
+
+  <div class="ams hidden" id="ams-block">
+    <div class="ams-head">
+      <span>AMS</span>
+      <span id="ams-env"></span>
+    </div>
+    <div id="ams-slots"></div>
   </div>
 
 </div>
@@ -241,6 +282,70 @@
     txt('fan-aux', d.fan_aux);
     txt('wifi', d.wifi);
     txt('light', d.light);
+
+    renderAms(d.ams, d.ams_active_slot);
+  }
+
+  function renderAms(units, active) {
+    var block = $('ams-block');
+    if (!units || !units.length) { show(block, false); return; }
+    show(block, true);
+
+    var unit = units[0];
+    var env = [];
+    if (unit.humidity_raw !== null && unit.humidity_raw !== undefined) {
+      env.push(unit.humidity_raw + '% RH');
+    }
+    if (unit.humidity_level !== null && unit.humidity_level !== undefined) {
+      env.push('level ' + unit.humidity_level);
+    }
+    if (unit.temp !== null && unit.temp !== undefined) {
+      env.push(Math.round(unit.temp) + '°C');
+    }
+    $('ams-env').textContent = env.join('  ·  ');
+
+    var host = $('ams-slots');
+    host.textContent = '';
+    (unit.slots || []).forEach(function (s) {
+      var n = (s.slot || 0) + 1;
+      var row = document.createElement('div');
+      row.className = 'slot' + (active === n ? ' active' : '');
+
+      var chip = document.createElement('div');
+      chip.className = 'chip';
+      // Empty slots keep the checkerboard; loaded ones get the filament colour.
+      if (!s.empty && s.color) chip.style.background = '#' + s.color;
+
+      var num = document.createElement('div');
+      num.className = 'slot-n';
+      num.textContent = n;
+
+      var name = document.createElement('div');
+      name.className = 'slot-name';
+      if (s.empty) {
+        name.innerHTML = '<span class="empty">empty</span>';
+      } else {
+        name.textContent = s.brand || s.type || 'unknown';
+      }
+
+      var remain = document.createElement('div');
+      remain.className = 'slot-remain';
+      if (s.empty) {
+        remain.innerHTML = '&nbsp;';
+      } else if (s.remain_pct === null || s.remain_pct === undefined) {
+        // -1 from the printer means "not reported", which is not the same as 0.
+        remain.innerHTML = '<span class="unknown">not reported</span>';
+      } else {
+        remain.innerHTML = s.remain_pct + '%<div class="remain-bar">'
+          + '<div class="remain-fill" style="width:' + s.remain_pct + '%"></div></div>';
+      }
+
+      row.appendChild(chip);
+      row.appendChild(num);
+      row.appendChild(name);
+      row.appendChild(remain);
+      host.appendChild(row);
+    });
   }
 
   function poll() {
