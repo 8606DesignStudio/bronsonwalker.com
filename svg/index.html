@@ -43,9 +43,161 @@
             font-size: clamp(0.8rem, 1.6vw, 1.1rem);
             cursor: pointer;
         }
+
+        /* ===== landing gate: the click that buys us fullscreen ===== */
+        #gate {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: #05070a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        #gate.gone { display: none; }
+        #gate svg { width: 100%; height: 100%; display: block; }
+        #gate .enter-hit { cursor: pointer; }
+        #gate .enter-label {
+            font-family: "Nunito", system-ui, sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.34em;
+            fill: #F5B800;
+        }
+        #gate .sub {
+            font-family: "Nunito", system-ui, sans-serif;
+            font-weight: 400;
+            letter-spacing: 0.16em;
+            fill: #6f6653;
+        }
+        /* The ring breathes so the button reads as live. Opacity only --
+           animating transform makes Chrome rasterise the blur to the element's
+           untransformed box, which shows up as a faint square. */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.30; }
+            50%      { opacity: 0.85; }
+        }
+        #gate .ring-pulse { animation: pulse 3.4s ease-in-out infinite; }
+        @keyframes flicker {
+            0%, 96%, 100% { opacity: 1; }
+            97%           { opacity: 0.55; }
+            98%           { opacity: 0.95; }
+        }
+        #gate .flick { animation: flicker 6s linear infinite; }
+        @media (prefers-reduced-motion: reduce) {
+            #gate .ring-pulse, #gate .flick { animation: none; }
+        }
+        /* in fullscreen the stage fills the screen and loses its margin */
+        .cockpit-bg:fullscreen, .cockpit-bg:-webkit-full-screen { margin: 0; }
+        body.fs { padding-bottom: 0; }
+        body.fs .cockpit-bg { margin: 0; box-shadow: none; }
     </style>
 </head>
 <body>
+
+<!-- ============================ LANDING GATE ============================ -->
+<div id="gate">
+<svg viewBox="0 0 1536 864" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="gBack" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0" stop-color="#16202c"/>
+      <stop offset="0.55" stop-color="#0a0f16"/>
+      <stop offset="1" stop-color="#04060a"/>
+    </radialGradient>
+    <linearGradient id="gRing" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd98f"/>
+      <stop offset="0.5" stop-color="#F5B800"/>
+      <stop offset="1" stop-color="#a06a12"/>
+    </linearGradient>
+    <filter id="gGlow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="gSoft" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="34"/>
+    </filter>
+    <filter id="gGrain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0"/>
+    </filter>
+    <filter id="gScuff" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="23" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="gDirt" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.014" numOctaves="5" seed="3" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.075
+                0 0 0 0 0.062
+                0 0 0 0 0.040
+                1.15 0.45 0 0 -0.45"/>
+    </filter>
+    <radialGradient id="gVign" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0.35" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.88"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1536" height="864" fill="url(#gBack)"/>
+  <!-- hull plating behind the button -->
+  <g stroke="#141c26" stroke-width="2" opacity="0.8">
+    <line x1="0" y1="216" x2="1536" y2="216"/>
+    <line x1="0" y1="648" x2="1536" y2="648"/>
+    <line x1="512" y1="0" x2="512" y2="864"/>
+    <line x1="1024" y1="0" x2="1024" y2="864"/>
+  </g>
+  <rect width="1536" height="864" filter="url(#gDirt)" opacity="0.18"/>
+  <g fill="#2a3340" opacity="0.55">
+    <circle cx="512" cy="216" r="4"/><circle cx="1024" cy="216" r="4"/>
+    <circle cx="512" cy="648" r="4"/><circle cx="1024" cy="648" r="4"/>
+  </g>
+
+  <!-- the button: a hatch release, worn from use -->
+  <ellipse cx="768" cy="432" rx="290" ry="290" fill="#F5B800" opacity="0.06" filter="url(#gSoft)"/>
+  <!-- unfiltered: a blurred stroke here leaves a visible filter-region square -->
+  <g class="ring-pulse">
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="1.5" opacity="0.28"/>
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="6" opacity="0.07"/>
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="14" opacity="0.03"/>
+  </g>
+  <circle cx="768" cy="432" r="158" fill="#0b1017" stroke="#1d2733" stroke-width="10"/>
+  <circle cx="768" cy="432" r="158" fill="none" stroke="url(#gRing)" stroke-width="3" opacity="0.85" filter="url(#gScuff)"/>
+  <circle cx="768" cy="432" r="140" fill="none" stroke="#F5B800" stroke-width="1.2" opacity="0.30" filter="url(#gScuff)"/>
+  <!-- scuffed inner face -->
+  <circle cx="768" cy="432" r="150" fill="#0d131b"/>
+  <circle cx="768" cy="432" r="150" filter="url(#gDirt)" opacity="0.30"/>
+  <!-- wear where thumbs land, low on the face -->
+  <ellipse cx="768" cy="512" rx="86" ry="34" fill="#F5B800" opacity="0.05"/>
+
+  <!-- letter-spacing adds a trailing gap, so nudge left of centre to compensate -->
+  <g class="flick">
+    <text class="enter-label" x="757" y="418" font-size="62" text-anchor="middle">ENTER</text>
+    <text class="enter-label" x="757" y="418" font-size="62" text-anchor="middle"
+          opacity="0.5" filter="url(#gGlow)">ENTER</text>
+  </g>
+  <text class="sub" x="761" y="470" font-size="17" text-anchor="middle">FULL SCREEN</text>
+
+  <!-- tick marks around the dial, a few worn away -->
+  <g stroke="#F5B800" stroke-width="3" opacity="0.35">
+    <line x1="768" y1="252" x2="768" y2="268"/>
+    <line x1="948" y1="432" x2="932" y2="432"/>
+    <line x1="768" y1="612" x2="768" y2="596"/>
+    <line x1="588" y1="432" x2="604" y2="432"/>
+  </g>
+  <g stroke="#F5B800" stroke-width="2" opacity="0.16">
+    <line x1="895" y1="305" x2="884" y2="316"/>
+    <line x1="895" y1="559" x2="884" y2="548"/>
+    <line x1="641" y1="559" x2="652" y2="548"/>
+    <line x1="641" y1="305" x2="652" y2="316"/>
+  </g>
+
+  <text class="sub" x="768" y="742" font-size="15" text-anchor="middle" opacity="0.55">DORIS &#183; VECTOR BUILD</text>
+
+  <rect width="1536" height="864" fill="url(#gVign)"/>
+  <rect width="1536" height="864" filter="url(#gGrain)" opacity="0.16" style="mix-blend-mode:overlay"/>
+  <!-- whole panel is the target, so a stray tap still gets you in -->
+  <rect class="enter-hit" width="1536" height="864" fill="transparent"/>
+</svg>
+</div>
 
 <!-- ============================ FOYER ============================ -->
 <div class="cockpit-bg active" data-scene="svg-door">
@@ -62,9 +214,9 @@
       <stop offset="1" stop-color="#241d10"/>
     </linearGradient>
     <radialGradient id="fDoor" cx="0.5" cy="0.42" r="0.75">
-      <stop offset="0" stop-color="#4c4736"/>
-      <stop offset="0.55" stop-color="#39352a"/>
-      <stop offset="1" stop-color="#242118"/>
+      <stop offset="0" stop-color="#3e3a2c"/>
+      <stop offset="0.55" stop-color="#2c2921"/>
+      <stop offset="1" stop-color="#1a1811"/>
     </radialGradient>
     <linearGradient id="fSky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0d1828"/>
@@ -80,13 +232,100 @@
       <stop offset="0.5" stop-color="#ffb547"/>
       <stop offset="1" stop-color="#e07d18"/>
     </linearGradient>
-    <radialGradient id="fVign" cx="0.5" cy="0.45" r="0.75">
-      <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
-      <stop offset="1" stop-color="#000" stop-opacity="0.62"/>
+    <radialGradient id="fVign" cx="0.5" cy="0.45" r="0.78">
+      <stop offset="0.40" stop-color="#000" stop-opacity="0"/>
+      <stop offset="0.78" stop-color="#000" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.86"/>
     </radialGradient>
     <filter id="fGlow" x="-80%" y="-80%" width="260%" height="260%">
       <feGaussianBlur stdDeviation="10"/>
     </filter>
+
+    <!-- ===== texture / wear filters ===== -->
+    <!-- fine film grain, unifies every flat fill -->
+    <filter id="fGrain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0"/>
+    </filter>
+    <!-- coarse dark grime blotches; alpha row thresholds the noise into patches -->
+    <filter id="fGrime" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.014" numOctaves="5" seed="3" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.075
+                0 0 0 0 0.062
+                0 0 0 0 0.040
+                1.15 0.45 0 0 -0.45"/>
+    </filter>
+    <filter id="fGrimeB" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.005" numOctaves="4" seed="21" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.10
+                0 0 0 0 0.085
+                0 0 0 0 0.055
+                1.0 0.5 0 0 -0.48"/>
+    </filter>
+    <!-- rust: low y-frequency stretches the noise into vertical drips -->
+    <filter id="fRust" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.03 0.004" numOctaves="4" seed="9" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.40
+                0 0 0 0 0.19
+                0 0 0 0 0.06
+                1.25 0.35 0 0 -0.62"/>
+    </filter>
+    <!-- dusty haze for light shafts -->
+    <filter id="fSoft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+    <!-- breaks perfect vector edges -->
+    <filter id="fRough" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="5" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- ragged leaf edges -->
+    <filter id="fLeaf" x="-15%" y="-15%" width="130%" height="130%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.11" numOctaves="3" seed="31" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- chipped paint mask for the stencil -->
+    <filter id="fChip" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="4" seed="13" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <linearGradient id="fShaft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb04a" stop-opacity="0.30"/>
+      <stop offset="0.55" stop-color="#ff9d2e" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#ff9d2e" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fColdShaft" x1="0" y1="0" x2="1" y2="0.3">
+      <stop offset="0" stop-color="#6f9ecb" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#6f9ecb" stop-opacity="0"/>
+    </linearGradient>
+    <!-- cool shadow / warm highlight grade -->
+    <linearGradient id="fGrade" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#2d5878" stop-opacity="0.30"/>
+      <stop offset="0.5" stop-color="#101c26" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#5a3608" stop-opacity="0.28"/>
+    </linearGradient>
+    <radialGradient id="fDoorVign" cx="0.5" cy="0.44" r="0.72">
+      <stop offset="0.35" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.55"/>
+    </radialGradient>
+    <clipPath id="fDoorClip">
+      <path d="M604,800 L604,320 Q604,219 722,219 L898,219 Q1016,219 1016,320 L1016,800 Z"/>
+    </clipPath>
+    <clipPath id="fWallLClip">
+      <polygon points="0,0 400,60 400,864 0,864"/>
+    </clipPath>
+    <clipPath id="fWallRClip">
+      <polygon points="1130,60 1536,0 1536,864 1130,864"/>
+    </clipPath>
+    <clipPath id="fFloorClip">
+      <rect x="0" y="780" width="1536" height="84"/>
+    </clipPath>
+    <clipPath id="fBackClip">
+      <rect x="390" y="90" width="750" height="710"/>
+    </clipPath>
     <clipPath id="fOctClip">
       <polygon points="0,150 225,105 315,190 315,465 225,555 0,515"/>
     </clipPath>
@@ -106,9 +345,28 @@
 
   <!-- back wall -->
   <rect x="390" y="90" width="750" height="710" fill="url(#fWall)"/>
+  <g clip-path="url(#fBackClip)">
+    <g stroke="#1a1409" stroke-width="2.5" opacity="0.65">
+      <line x1="390" y1="176" x2="1140" y2="176"/>
+      <line x1="390" y1="640" x2="1140" y2="640"/>
+    </g>
+    <line x1="390" y1="179" x2="1140" y2="179" stroke="#5a4c2c" stroke-width="1.2" opacity="0.35"/>
+    <rect x="390" y="90" width="750" height="710" filter="url(#fGrimeB)" opacity="0.5"/>
+  </g>
 
   <!-- ===== left wall + octagonal window ===== -->
   <polygon points="0,0 400,60 400,864 0,864" fill="#2a2212"/>
+  <!-- wall panel seams + grime -->
+  <g clip-path="url(#fWallLClip)">
+    <g stroke="#1c160b" stroke-width="2.5" opacity="0.7">
+      <line x1="0" y1="30" x2="400" y2="88"/>
+      <line x1="0" y1="600" x2="400" y2="648"/>
+      <line x1="200" y1="0" x2="200" y2="864"/>
+    </g>
+    <line x1="0" y1="33" x2="400" y2="91" stroke="#584a2a" stroke-width="1.2" opacity="0.4"/>
+    <rect x="0" y="0" width="400" height="864" filter="url(#fGrime)" opacity="0.55"/>
+    <rect x="0" y="0" width="400" height="864" filter="url(#fRust)" opacity="0.16"/>
+  </g>
   <!-- window sky -->
   <g clip-path="url(#fOctClip)">
     <rect x="0" y="90" width="330" height="480" fill="url(#fSky)"/>
@@ -221,20 +479,91 @@
     <path d="M620,600 L1000,600"/>
     <path d="M620,620 L1000,620"/>
   </g>
+
+  <!-- ===== door wear ===== -->
+  <g clip-path="url(#fDoorClip)">
+    <!-- grime settling low and in the corners -->
+    <rect x="604" y="219" width="412" height="581" filter="url(#fGrime)" opacity="0.34"/>
+    <rect x="604" y="219" width="412" height="581" filter="url(#fGrimeB)" opacity="0.20"/>
+    <!-- rust confined to the top seam, where water would actually sit -->
+    <rect x="604" y="219" width="412" height="150" filter="url(#fRust)" opacity="0.20"/>
+    <!-- keep the slab reading as its own panel: darken its edges back in -->
+    <rect x="604" y="219" width="412" height="581" fill="url(#fDoorVign)"/>
+    <!-- corroded seam the drips run from -->
+    <path d="M604,232 Q810,222 1016,232" fill="none" stroke="#4a2a10" stroke-width="7" opacity="0.5"/>
+    <path d="M604,229 Q810,219 1016,229" fill="none" stroke="#7a4c1e" stroke-width="2.5" opacity="0.35"/>
+    <!-- individual drips off the top edge -->
+    <g fill="none" stroke="#7a4418" stroke-linecap="round" opacity="0.42">
+      <path d="M646,232 q4,60 1,132" stroke-width="4"/>
+      <path d="M690,224 q-3,40 0,86" stroke-width="2.5"/>
+      <path d="M872,222 q5,74 2,150" stroke-width="3.5"/>
+      <path d="M948,236 q-4,52 -1,104" stroke-width="2.5"/>
+    </g>
+    <g fill="none" stroke="#3a1f0b" stroke-linecap="round" opacity="0.35">
+      <path d="M646,236 q4,58 1,128" stroke-width="1.6"/>
+      <path d="M872,226 q5,72 2,146" stroke-width="1.4"/>
+    </g>
+    <!-- boot scuffs and grime pooled at the bottom -->
+    <rect x="604" y="700" width="412" height="100" fill="#0d0a06" opacity="0.4"/>
+    <rect x="604" y="742" width="412" height="58" fill="#0a0805" opacity="0.45"/>
+    <g stroke="#5f5741" stroke-width="2" opacity="0.30" fill="none">
+      <path d="M660,758 q40,-10 78,4"/>
+      <path d="M840,772 q52,-12 96,2"/>
+      <path d="M700,786 q60,-8 110,6"/>
+    </g>
+    <!-- polished patch where hands push the door, right of centre -->
+    <ellipse cx="978" cy="560" rx="42" ry="76" fill="#7d745a" opacity="0.10"/>
+    <ellipse cx="978" cy="560" rx="26" ry="52" fill="#8d836a" opacity="0.09"/>
+    <!-- dents: soft dark spots with a lit upper lip -->
+    <g opacity="0.5">
+      <ellipse cx="712" cy="676" rx="19" ry="9" fill="#191510"/>
+      <path d="M694,674 q18,-9 36,0" stroke="#6f664c" stroke-width="1.6" fill="none"/>
+      <ellipse cx="906" cy="392" rx="13" ry="7" fill="#191510"/>
+      <path d="M894,390 q12,-6 25,0" stroke="#6f664c" stroke-width="1.4" fill="none"/>
+    </g>
+  </g>
+
   <!-- stencil text, mirrored like the photo -->
   <g transform="translate(810,0) scale(-1,1) translate(-810,0)"
-     font-family="Arial, sans-serif" font-weight="900" fill="#c9c2ae" text-anchor="middle" opacity="0.8">
+     font-family="Arial, sans-serif" font-weight="900" fill="#c9c2ae" text-anchor="middle"
+     opacity="0.62" filter="url(#fChip)">
     <text x="810" y="455" font-size="66" letter-spacing="6">RESTRICTED</text>
     <text x="810" y="525" font-size="58" letter-spacing="8">AREA</text>
   </g>
+  <!-- flaked-off paint eating into the stencil -->
+  <g clip-path="url(#fDoorClip)" opacity="0.55">
+    <rect x="600" y="410" width="420" height="130" filter="url(#fGrimeB)" opacity="0.6"/>
+  </g>
+
   <!-- highlight along door bottom -->
   <path d="M604,780 L1016,780" stroke="#6b6248" stroke-width="3" opacity="0.45"/>
 
   <!-- ===== right wall ===== -->
   <polygon points="1130,60 1536,0 1536,864 1130,864" fill="url(#fWallR)"/>
+  <g clip-path="url(#fWallRClip)">
+    <g stroke="#1a1409" stroke-width="2.5" opacity="0.6">
+      <line x1="1130" y1="220" x2="1536" y2="164"/>
+      <line x1="1360" y1="0" x2="1360" y2="864"/>
+    </g>
+    <line x1="1130" y1="223" x2="1536" y2="167" stroke="#5a4c2c" stroke-width="1.2" opacity="0.35"/>
+    <rect x="1130" y="0" width="406" height="864" filter="url(#fGrimeB)" opacity="0.55"/>
+    <rect x="1130" y="0" width="406" height="864" filter="url(#fRust)" opacity="0.22"/>
+  </g>
   <!-- pipes -->
   <rect x="1142" y="120" width="9" height="560" rx="4" fill="#241d10" stroke="#0f0c06" stroke-width="1.5"/>
   <rect x="1158" y="140" width="9" height="540" rx="4" fill="#2c2312" stroke="#0f0c06" stroke-width="1.5"/>
+  <!-- pipe specular + corrosion at the joints -->
+  <rect x="1144" y="120" width="2.5" height="560" fill="#8a7752" opacity="0.30"/>
+  <rect x="1160" y="140" width="2.5" height="540" fill="#8a7752" opacity="0.26"/>
+  <g fill="#5c3411" opacity="0.55">
+    <rect x="1140" y="300" width="13" height="16" rx="3"/>
+    <rect x="1156" y="452" width="13" height="14" rx="3"/>
+    <rect x="1140" y="588" width="13" height="12" rx="3"/>
+  </g>
+  <g fill="none" stroke="#6b3c14" stroke-width="2" opacity="0.34" stroke-linecap="round">
+    <path d="M1146,316 q2,44 0,86"/>
+    <path d="M1162,466 q2,38 -1,74"/>
+  </g>
   <!-- wall sconce -->
   <ellipse cx="1218" cy="268" rx="95" ry="120" fill="#ff9d2e" opacity="0.22" filter="url(#fGlow)"/>
   <rect x="1184" y="192" width="72" height="140" rx="20" fill="#20180c" stroke="#4a3f26" stroke-width="4"/>
@@ -269,17 +598,33 @@
     <path d="M1350,342 C1372,326 1394,318 1416,316" stroke-width="4"/>
     <path d="M1332,470 C1358,455 1385,448 1408,448" stroke-width="4"/>
   </g>
-  <!-- foliage -->
-  <g>
-    <ellipse cx="1258" cy="384" rx="36" ry="16" fill="#5c7340" opacity="0.9"/>
-    <ellipse cx="1252" cy="374" rx="30" ry="13" fill="#7f9757" opacity="0.9"/>
-    <ellipse cx="1424" cy="340" rx="40" ry="17" fill="#5c7340" opacity="0.9"/>
-    <ellipse cx="1418" cy="329" rx="33" ry="14" fill="#7f9757" opacity="0.9"/>
-    <ellipse cx="1310" cy="282" rx="34" ry="15" fill="#5c7340" opacity="0.9"/>
-    <ellipse cx="1305" cy="272" rx="27" ry="12" fill="#8fae6a" opacity="0.9"/>
-    <ellipse cx="1420" cy="310" rx="28" ry="12" fill="#7f9757" opacity="0.85"/>
-    <ellipse cx="1412" cy="444" rx="30" ry="12" fill="#5c7340" opacity="0.85"/>
-    <ellipse cx="1352" cy="330" rx="26" ry="12" fill="#8fae6a" opacity="0.85"/>
+  <!-- foliage: ragged pads, lit warm from the sconce, dark undersides -->
+  <g filter="url(#fLeaf)">
+    <!-- pad: lower left -->
+    <path d="M1222,390 q10,-16 34,-18 q26,-3 42,8 q16,10 4,20 q-16,12 -44,12 q-30,0 -36,-8 Z" fill="#33421f"/>
+    <path d="M1226,382 q12,-15 34,-17 q24,-2 38,7 q13,8 2,15 q-16,10 -42,9 q-26,-1 -32,-8 Z" fill="#546a34"/>
+    <path d="M1236,374 q12,-11 30,-12 q18,-1 26,5 q7,5 -2,9 q-14,7 -34,6 q-18,-1 -20,-5 Z" fill="#7c9450"/>
+    <!-- pad: upper right -->
+    <path d="M1382,348 q12,-19 40,-21 q30,-2 48,10 q18,11 4,22 q-18,13 -50,13 q-34,0 -42,-9 Z" fill="#33421f"/>
+    <path d="M1388,339 q13,-17 39,-18 q27,-2 43,8 q15,9 2,17 q-18,11 -47,10 q-30,-1 -37,-9 Z" fill="#546a34"/>
+    <path d="M1398,330 q13,-12 34,-13 q21,-1 30,6 q8,5 -2,10 q-16,8 -39,7 q-20,-1 -23,-6 Z" fill="#7c9450"/>
+    <!-- pad: crown -->
+    <path d="M1274,290 q10,-18 36,-20 q28,-2 44,10 q16,11 3,20 q-17,12 -46,12 q-31,0 -37,-9 Z" fill="#33421f"/>
+    <path d="M1280,281 q11,-16 35,-17 q25,-2 39,8 q14,8 1,15 q-16,10 -43,9 q-27,-1 -32,-8 Z" fill="#546a34"/>
+    <path d="M1290,272 q11,-11 31,-12 q19,-1 27,6 q7,5 -2,9 q-15,7 -35,6 q-19,-1 -21,-5 Z" fill="#8aa661"/>
+    <!-- small side sprigs -->
+    <path d="M1396,318 q8,-11 26,-12 q19,-1 27,6 q7,5 -3,10 q-14,7 -32,6 q-17,-1 -18,-5 Z" fill="#44562a"/>
+    <path d="M1400,312 q9,-8 23,-9 q15,-1 21,5 q5,4 -3,7 q-12,5 -26,4 q-14,-1 -15,-4 Z" fill="#6c8443"/>
+    <path d="M1388,452 q9,-13 28,-14 q20,-1 29,7 q8,5 -3,11 q-15,8 -34,7 q-18,-1 -20,-6 Z" fill="#3c4d25"/>
+    <path d="M1392,445 q10,-9 25,-10 q16,-1 23,5 q6,4 -3,8 q-13,6 -28,5 q-15,-1 -17,-5 Z" fill="#63793d"/>
+    <path d="M1332,336 q8,-12 25,-13 q18,-1 26,6 q7,5 -3,10 q-13,7 -31,6 q-16,-1 -17,-5 Z" fill="#44562a"/>
+    <path d="M1336,330 q9,-8 22,-9 q14,-1 20,5 q5,4 -3,7 q-11,5 -25,4 q-13,-1 -14,-4 Z" fill="#7c9450"/>
+  </g>
+  <!-- a few loose leaves that have dropped to the shelf -->
+  <g fill="#4a5c2c" opacity="0.75">
+    <ellipse cx="1272" cy="612" rx="7" ry="3" transform="rotate(-18 1272 612)"/>
+    <ellipse cx="1398" cy="600" rx="6" ry="2.6" transform="rotate(24 1398 600)"/>
+    <ellipse cx="1466" cy="592" rx="5" ry="2.2" transform="rotate(-8 1466 592)"/>
   </g>
 
   <!-- ===== floor ===== -->
@@ -307,8 +652,54 @@
   <!-- warm pool of light on floor under sconce -->
   <ellipse cx="1250" cy="820" rx="180" ry="40" fill="#ff9d2e" opacity="0.07" filter="url(#fGlow)"/>
 
+  <!-- ===== floor wear: traffic path, grime, spilled light ===== -->
+  <g clip-path="url(#fFloorClip)">
+    <rect x="0" y="780" width="1536" height="84" filter="url(#fGrime)" opacity="0.5"/>
+    <!-- walked-bare centre of the walkway -->
+    <polygon points="640,790 980,790 1080,864 540,864" fill="#3a3220" opacity="0.16"/>
+    <polygon points="690,790 930,790 1000,864 620,864" fill="#4a4029" opacity="0.10"/>
+    <!-- scuff arcs where boots pivot -->
+    <g stroke="#5c5236" stroke-width="2" fill="none" opacity="0.22">
+      <path d="M700,812 q60,-12 120,2"/>
+      <path d="M660,838 q80,-14 150,4"/>
+      <path d="M880,824 q56,-10 104,4"/>
+    </g>
+    <!-- dark grease pooled at the walkway edges -->
+    <rect x="0" y="780" width="1536" height="84" filter="url(#fGrimeB)" opacity="0.42"/>
+  </g>
+
+  <!-- ===== atmosphere: what the lights actually do ===== -->
+  <g>
+    <!-- shaft from the wall sconce, down and left across the shelf -->
+    <polygon points="1200,200 1250,200 1352,790 1120,790" fill="url(#fShaft)" filter="url(#fSoft)" opacity="0.22"/>
+    <!-- shaft from the ceiling lamps, top right -->
+    <polygon points="1268,36 1386,36 1470,330 1236,300" fill="url(#fShaft)" filter="url(#fSoft)" opacity="0.20"/>
+    <!-- cold spill from the octagonal window across the console -->
+    <polygon points="20,170 300,196 340,600 20,556" fill="url(#fColdShaft)" filter="url(#fSoft)" opacity="0.30"/>
+    <!-- cool rim on the window frame's lit edge -->
+    <polyline points="0,150 225,105 315,190" fill="none" stroke="#7fa8d0" stroke-width="3" opacity="0.26"/>
+    <!-- warm rim where the sconce catches the door frame -->
+    <path d="M1080,300 L1080,790" stroke="#c9873a" stroke-width="3" opacity="0.20"/>
+    <!-- dust motes drifting in the sconce light -->
+    <g fill="#ffd9a0">
+      <circle cx="1214" cy="352" r="1.6" opacity="0.40"/><circle cx="1268" cy="430" r="1.2" opacity="0.30"/>
+      <circle cx="1180" cy="486" r="1.9" opacity="0.26"/><circle cx="1310" cy="392" r="1.3" opacity="0.34"/>
+      <circle cx="1244" cy="560" r="1.5" opacity="0.22"/><circle cx="1340" cy="500" r="1.1" opacity="0.28"/>
+      <circle cx="1156" cy="628" r="1.7" opacity="0.20"/><circle cx="1288" cy="672" r="1.3" opacity="0.24"/>
+      <circle cx="1370" cy="606" r="1.0" opacity="0.30"/><circle cx="1206" cy="742" r="1.4" opacity="0.18"/>
+    </g>
+    <g fill="#bcd6ef">
+      <circle cx="128" cy="330" r="1.4" opacity="0.30"/><circle cx="212" cy="418" r="1.1" opacity="0.26"/>
+      <circle cx="84" cy="470" r="1.6" opacity="0.22"/><circle cx="266" cy="356" r="1.2" opacity="0.28"/>
+    </g>
+  </g>
+
   <!-- vignette -->
   <rect width="1536" height="864" fill="url(#fVign)"/>
+  <!-- cool-shadow / warm-highlight grade -->
+  <rect width="1536" height="864" fill="url(#fGrade)" style="mix-blend-mode:soft-light"/>
+  <!-- film grain, ties every flat fill together -->
+  <rect width="1536" height="864" filter="url(#fGrain)" opacity="0.16" style="mix-blend-mode:overlay"/>
 </svg>
 <button class="turn-around-btn" data-go="svg-cockpit">TURN AROUND</button>
 </div>
@@ -339,22 +730,102 @@
       <stop offset="1" stop-color="#1c1508"/>
     </linearGradient>
     <linearGradient id="cLeather" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7a5c33"/>
-      <stop offset="0.6" stop-color="#5c4322"/>
-      <stop offset="1" stop-color="#3a2a13"/>
+      <stop offset="0" stop-color="#49341c"/>
+      <stop offset="0.55" stop-color="#332312"/>
+      <stop offset="1" stop-color="#1a1208"/>
     </linearGradient>
+    <!-- backlit buttons bleed into the panel around them -->
+    <filter id="cLit" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
     <linearGradient id="cLamp" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffe6a8"/>
       <stop offset="0.5" stop-color="#ffb547"/>
       <stop offset="1" stop-color="#e07d18"/>
     </linearGradient>
-    <radialGradient id="cVign" cx="0.5" cy="0.45" r="0.75">
-      <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
-      <stop offset="1" stop-color="#000" stop-opacity="0.6"/>
+    <radialGradient id="cVign" cx="0.5" cy="0.45" r="0.78">
+      <stop offset="0.40" stop-color="#000" stop-opacity="0"/>
+      <stop offset="0.78" stop-color="#000" stop-opacity="0.40"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.84"/>
     </radialGradient>
     <filter id="cGlow" x="-80%" y="-80%" width="260%" height="260%">
       <feGaussianBlur stdDeviation="10"/>
     </filter>
+
+    <!-- ===== texture / wear ===== -->
+    <filter id="cGrain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0"/>
+    </filter>
+    <filter id="cGrime" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.007 0.015" numOctaves="5" seed="7" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.070
+                0 0 0 0 0.058
+                0 0 0 0 0.038
+                1.15 0.45 0 0 -0.45"/>
+    </filter>
+    <filter id="cGrimeB" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.013 0.006" numOctaves="4" seed="29" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.095
+                0 0 0 0 0.080
+                0 0 0 0 0.050
+                1.0 0.5 0 0 -0.48"/>
+    </filter>
+    <filter id="cRust" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.03 0.004" numOctaves="4" seed="15" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.38
+                0 0 0 0 0.18
+                0 0 0 0 0.06
+                1.25 0.35 0 0 -0.62"/>
+    </filter>
+    <filter id="cSoft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+    <!-- leather grain: fine bumpy displacement -->
+    <filter id="cHide" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="4" seed="41" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- cold planet-light falling on the dash -->
+    <linearGradient id="cRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b9d6e8" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#b9d6e8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="cShaft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb04a" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#ff9d2e" stop-opacity="0"/>
+    </linearGradient>
+    <!-- canopy glass sheen -->
+    <linearGradient id="cGlass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#cfe6f5" stop-opacity="0.10"/>
+      <stop offset="0.45" stop-color="#cfe6f5" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#cfe6f5" stop-opacity="0.07"/>
+    </linearGradient>
+    <linearGradient id="cGrade" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#2d5878" stop-opacity="0.30"/>
+      <stop offset="0.5" stop-color="#101c26" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#5a3608" stop-opacity="0.26"/>
+    </linearGradient>
+    <clipPath id="cDashClip">
+      <path d="M0,620 L360,438 L1180,438 L1536,620 L1536,760 L0,760 Z"/>
+    </clipPath>
+    <clipPath id="cPedClip">
+      <path d="M690,538 L890,538 L912,864 L668,864 Z"/>
+    </clipPath>
+    <clipPath id="cSeatL">
+      <rect x="296" y="580" width="290" height="320" rx="30"/>
+    </clipPath>
+    <clipPath id="cSeatR">
+      <rect x="958" y="580" width="290" height="320" rx="30"/>
+    </clipPath>
   </defs>
 
   <!-- sky across the whole canopy area -->
@@ -468,7 +939,22 @@
   </g>
   <!-- top frame bar -->
   <rect x="0" y="-14" width="1536" height="40" rx="10" fill="#3a2f18"/>
-  <!-- rivets along struts -->
+  <!-- strut grime + cold rim from the window side -->
+  <g>
+    <line x1="405" y1="-20" x2="368" y2="425" stroke="#0f0c05" stroke-width="26" opacity="0.28"/>
+    <line x1="1140" y1="-20" x2="1170" y2="425" stroke="#0f0c05" stroke-width="26" opacity="0.28"/>
+    <!-- planet is up and right, so its light catches the right edge of each strut -->
+    <line x1="418" y1="-20" x2="381" y2="425" stroke="#a8c9dd" stroke-width="2.5" opacity="0.32"/>
+    <line x1="1153" y1="-20" x2="1183" y2="425" stroke="#a8c9dd" stroke-width="2.5" opacity="0.42"/>
+    <line x1="366" y1="-10" x2="313" y2="640" stroke="#a8c9dd" stroke-width="2" opacity="0.24"/>
+    <line x1="1196" y1="-10" x2="1246" y2="640" stroke="#a8c9dd" stroke-width="2" opacity="0.34"/>
+  </g>
+  <!-- rivets along struts, each with a rust tear beneath it -->
+  <g fill="none" stroke="#6b3c14" stroke-width="2.2" opacity="0.34" stroke-linecap="round">
+    <path d="M392,142 q2,26 0,54"/><path d="M380,302 q2,30 -1,60"/>
+    <path d="M1152,142 q2,26 1,54"/><path d="M1164,302 q2,30 2,60"/>
+    <path d="M339,202 q-1,28 -3,56"/><path d="M1201,202 q1,28 3,56"/>
+  </g>
   <g fill="#6b5a38" opacity="0.85">
     <circle cx="398" cy="60" r="2.6"/><circle cx="392" cy="140" r="2.6"/><circle cx="386" cy="220" r="2.6"/><circle cx="380" cy="300" r="2.6"/><circle cx="374" cy="380" r="2.6"/>
     <circle cx="1146" cy="60" r="2.6"/><circle cx="1152" cy="140" r="2.6"/><circle cx="1158" cy="220" r="2.6"/><circle cx="1164" cy="300" r="2.6"/><circle cx="1169" cy="380" r="2.6"/>
@@ -488,83 +974,215 @@
 
   <!-- ===== dashboard ===== -->
   <path d="M0,620 L360,438 L1180,438 L1536,620 L1536,760 L0,760 Z" fill="url(#cDash)"/>
-  <path d="M0,620 L360,438 L1180,438 L1536,620" fill="none" stroke="#6b5a38" stroke-width="4"/>
+  <!-- grime and use-wear across the dash face -->
+  <g clip-path="url(#cDashClip)">
+    <rect x="0" y="438" width="1536" height="322" filter="url(#cGrime)" opacity="0.42"/>
+    <rect x="0" y="438" width="1536" height="322" filter="url(#cGrimeB)" opacity="0.26"/>
+    <!-- panel seams -->
+    <g stroke="#161105" stroke-width="2.5" opacity="0.55">
+      <line x1="360" y1="438" x2="196" y2="760"/>
+      <line x1="1180" y1="438" x2="1344" y2="760"/>
+      <line x1="0" y1="694" x2="1536" y2="694"/>
+    </g>
+    <g stroke="#7a6740" stroke-width="1.2" opacity="0.22">
+      <line x1="363" y1="438" x2="199" y2="760"/>
+      <line x1="0" y1="697" x2="1536" y2="697"/>
+    </g>
+    <!-- rubbed-shiny arcs where forearms rest -->
+    <ellipse cx="300" cy="640" rx="130" ry="34" fill="#8a7346" opacity="0.09" transform="rotate(-9 300 640)"/>
+    <ellipse cx="1240" cy="640" rx="130" ry="34" fill="#8a7346" opacity="0.09" transform="rotate(9 1240 640)"/>
+    <!-- coffee-ring and stains near the left panel -->
+    <ellipse cx="742" cy="716" rx="26" ry="9" fill="none" stroke="#2b1d0a" stroke-width="3" opacity="0.4"/>
+    <ellipse cx="742" cy="716" rx="26" ry="9" fill="#2b1d0a" opacity="0.13"/>
+  </g>
+  <!-- cold planet-light landing along the top lip of the dash -->
+  <path d="M0,620 L360,438 L1180,438 L1536,620" fill="none" stroke="#9dc4dc" stroke-width="3.5" opacity="0.5"/>
+  <path d="M0,620 L360,438 L1180,438 L1536,620" fill="none" stroke="#6b5a38" stroke-width="4" opacity="0.55"/>
+  <path d="M360,442 L1180,442 L1536,624 L1536,646 L1180,462 L360,462 L0,646 L0,624 Z"
+        fill="url(#cRim)" opacity="0.55"/>
 
   <!-- left panel cluster -->
   <rect x="430" y="458" width="230" height="120" rx="8" fill="#241c0d" stroke="#0f0b05" stroke-width="2" transform="skewY(-2)"/>
   <ellipse cx="540" cy="530" rx="130" ry="55" fill="#ffb547" opacity="0.10" filter="url(#cGlow)"/>
   <g transform="skewY(-2)">
-    <rect x="444" y="470" width="26" height="16" rx="2" fill="#ffb547"/>
-    <rect x="476" y="470" width="26" height="16" rx="2" fill="#57503f"/>
-    <rect x="508" y="470" width="26" height="16" rx="2" fill="#ff8c2e"/>
-    <rect x="540" y="470" width="26" height="16" rx="2" fill="#57503f"/>
-    <rect x="572" y="470" width="26" height="16" rx="2" fill="#6ed8c8"/>
-    <rect x="604" y="470" width="26" height="16" rx="2" fill="#ffb547"/>
-    <rect x="444" y="494" width="26" height="16" rx="2" fill="#5aa7e0"/>
-    <rect x="476" y="494" width="26" height="16" rx="2" fill="#ffd98f"/>
-    <rect x="508" y="494" width="26" height="16" rx="2" fill="#57503f"/>
-    <rect x="540" y="494" width="26" height="16" rx="2" fill="#ff8c2e"/>
-    <rect x="572" y="494" width="26" height="16" rx="2" fill="#57503f"/>
-    <rect x="604" y="494" width="26" height="16" rx="2" fill="#6ed8c8"/>
+    <!-- recessed wells the buttons sit down inside -->
+    <g fill="#080604">
+      <rect x="441" y="467" width="32" height="22" rx="3"/><rect x="473" y="467" width="32" height="22" rx="3"/>
+      <rect x="505" y="467" width="32" height="22" rx="3"/><rect x="537" y="467" width="32" height="22" rx="3"/>
+      <rect x="569" y="467" width="32" height="22" rx="3"/><rect x="601" y="467" width="32" height="22" rx="3"/>
+      <rect x="441" y="491" width="32" height="22" rx="3"/><rect x="473" y="491" width="32" height="22" rx="3"/>
+      <rect x="505" y="491" width="32" height="22" rx="3"/><rect x="537" y="491" width="32" height="22" rx="3"/>
+      <rect x="569" y="491" width="32" height="22" rx="3"/><rect x="601" y="491" width="32" height="22" rx="3"/>
+    </g>
+    <!-- lit faces: uneven age, two burnt out -->
+    <g filter="url(#cLit)">
+      <rect x="444" y="470" width="26" height="16" rx="2" fill="#ffb547" opacity="0.92"/>
+      <rect x="508" y="470" width="26" height="16" rx="2" fill="#ff8c2e" opacity="0.78"/>
+      <rect x="572" y="470" width="26" height="16" rx="2" fill="#6ed8c8" opacity="0.88"/>
+      <rect x="604" y="470" width="26" height="16" rx="2" fill="#ffb547" opacity="0.55"/>
+      <rect x="444" y="494" width="26" height="16" rx="2" fill="#5aa7e0" opacity="0.85"/>
+      <rect x="476" y="494" width="26" height="16" rx="2" fill="#ffd98f" opacity="0.70"/>
+      <rect x="540" y="494" width="26" height="16" rx="2" fill="#ff8c2e" opacity="0.95"/>
+      <rect x="604" y="494" width="26" height="16" rx="2" fill="#6ed8c8" opacity="0.62"/>
+    </g>
+    <!-- dead / unlit caps, worn plastic -->
+    <g fill="#4b4433">
+      <rect x="476" y="470" width="26" height="16" rx="2"/>
+      <rect x="540" y="470" width="26" height="16" rx="2"/>
+      <rect x="508" y="494" width="26" height="16" rx="2"/>
+      <rect x="572" y="494" width="26" height="16" rx="2"/>
+    </g>
+    <!-- top-edge highlight on every cap -->
+    <g fill="#ffffff" opacity="0.16">
+      <rect x="445" y="470" width="24" height="2" rx="1"/><rect x="477" y="470" width="24" height="2" rx="1"/>
+      <rect x="509" y="470" width="24" height="2" rx="1"/><rect x="541" y="470" width="24" height="2" rx="1"/>
+      <rect x="573" y="470" width="24" height="2" rx="1"/><rect x="605" y="470" width="24" height="2" rx="1"/>
+      <rect x="445" y="494" width="24" height="2" rx="1"/><rect x="477" y="494" width="24" height="2" rx="1"/>
+      <rect x="509" y="494" width="24" height="2" rx="1"/><rect x="541" y="494" width="24" height="2" rx="1"/>
+      <rect x="573" y="494" width="24" height="2" rx="1"/><rect x="605" y="494" width="24" height="2" rx="1"/>
+    </g>
     <!-- mini screen with scribble -->
     <rect x="444" y="520" width="90" height="46" rx="4" fill="#0e1a12" stroke="#0a0f0a" stroke-width="2"/>
-    <polyline points="452,552 466,540 480,548 494,532 508,544 522,536" fill="none" stroke="#58c07a" stroke-width="2" opacity="0.85"/>
+    <g filter="url(#cLit)">
+      <polyline points="452,552 466,540 480,548 494,532 508,544 522,536" fill="none" stroke="#58c07a" stroke-width="2" opacity="0.85"/>
+    </g>
+    <!-- scanlines + dusty glass on the screen -->
+    <g stroke="#000" stroke-width="1" opacity="0.22">
+      <line x1="446" y1="526" x2="532" y2="526"/><line x1="446" y1="532" x2="532" y2="532"/>
+      <line x1="446" y1="538" x2="532" y2="538"/><line x1="446" y1="544" x2="532" y2="544"/>
+      <line x1="446" y1="550" x2="532" y2="550"/><line x1="446" y1="556" x2="532" y2="556"/>
+      <line x1="446" y1="562" x2="532" y2="562"/>
+    </g>
+    <path d="M446,564 L466,522 L482,522 L452,564 Z" fill="#cfe6f5" opacity="0.05"/>
     <rect x="548" y="520" width="82" height="46" rx="4" fill="#241c0d" stroke="#0f0b05" stroke-width="2"/>
-    <rect x="556" y="528" width="16" height="10" rx="2" fill="#ffb547"/>
-    <rect x="578" y="528" width="16" height="10" rx="2" fill="#ff8c2e"/>
-    <rect x="600" y="528" width="16" height="10" rx="2" fill="#57503f"/>
-    <rect x="556" y="546" width="16" height="10" rx="2" fill="#57503f"/>
-    <rect x="578" y="546" width="16" height="10" rx="2" fill="#6ed8c8"/>
-    <rect x="600" y="546" width="16" height="10" rx="2" fill="#ffb547"/>
+    <g fill="#080604">
+      <rect x="554" y="526" width="20" height="14" rx="2"/><rect x="576" y="526" width="20" height="14" rx="2"/>
+      <rect x="598" y="526" width="20" height="14" rx="2"/><rect x="554" y="544" width="20" height="14" rx="2"/>
+      <rect x="576" y="544" width="20" height="14" rx="2"/><rect x="598" y="544" width="20" height="14" rx="2"/>
+    </g>
+    <g filter="url(#cLit)">
+      <rect x="556" y="528" width="16" height="10" rx="2" fill="#ffb547" opacity="0.9"/>
+      <rect x="578" y="528" width="16" height="10" rx="2" fill="#ff8c2e" opacity="0.75"/>
+      <rect x="578" y="546" width="16" height="10" rx="2" fill="#6ed8c8" opacity="0.8"/>
+    </g>
+    <g fill="#4b4433">
+      <rect x="600" y="528" width="16" height="10" rx="2"/>
+      <rect x="556" y="546" width="16" height="10" rx="2"/>
+      <rect x="600" y="546" width="16" height="10" rx="2"/>
+    </g>
   </g>
 
   <!-- right panel cluster -->
   <rect x="890" y="458" width="230" height="120" rx="8" fill="#241c0d" stroke="#0f0b05" stroke-width="2" transform="skewY(2)"/>
   <ellipse cx="1000" cy="540" rx="130" ry="55" fill="#ffb547" opacity="0.10" filter="url(#cGlow)"/>
   <g transform="skewY(2)">
-    <rect x="904" y="470" width="26" height="16" rx="2" fill="#57503f"/>
-    <rect x="936" y="470" width="26" height="16" rx="2" fill="#ffb547"/>
-    <rect x="968" y="470" width="26" height="16" rx="2" fill="#ff8c2e"/>
-    <rect x="1000" y="470" width="26" height="16" rx="2" fill="#6ed8c8"/>
-    <rect x="1032" y="470" width="26" height="16" rx="2" fill="#57503f"/>
-    <rect x="1064" y="470" width="26" height="16" rx="2" fill="#ffd98f"/>
-    <rect x="904" y="494" width="26" height="16" rx="2" fill="#ff8c2e"/>
-    <rect x="936" y="494" width="26" height="16" rx="2" fill="#57503f"/>
-    <rect x="968" y="494" width="26" height="16" rx="2" fill="#5aa7e0"/>
-    <rect x="1000" y="494" width="26" height="16" rx="2" fill="#ffb547"/>
-    <rect x="1032" y="494" width="26" height="16" rx="2" fill="#6ed8c8"/>
-    <rect x="1064" y="494" width="26" height="16" rx="2" fill="#57503f"/>
+    <g fill="#080604">
+      <rect x="901" y="467" width="32" height="22" rx="3"/><rect x="933" y="467" width="32" height="22" rx="3"/>
+      <rect x="965" y="467" width="32" height="22" rx="3"/><rect x="997" y="467" width="32" height="22" rx="3"/>
+      <rect x="1029" y="467" width="32" height="22" rx="3"/><rect x="1061" y="467" width="32" height="22" rx="3"/>
+      <rect x="901" y="491" width="32" height="22" rx="3"/><rect x="933" y="491" width="32" height="22" rx="3"/>
+      <rect x="965" y="491" width="32" height="22" rx="3"/><rect x="997" y="491" width="32" height="22" rx="3"/>
+      <rect x="1029" y="491" width="32" height="22" rx="3"/><rect x="1061" y="491" width="32" height="22" rx="3"/>
+    </g>
+    <g filter="url(#cLit)">
+      <rect x="936" y="470" width="26" height="16" rx="2" fill="#ffb547" opacity="0.9"/>
+      <rect x="968" y="470" width="26" height="16" rx="2" fill="#ff8c2e" opacity="0.72"/>
+      <rect x="1000" y="470" width="26" height="16" rx="2" fill="#6ed8c8" opacity="0.85"/>
+      <rect x="1064" y="470" width="26" height="16" rx="2" fill="#ffd98f" opacity="0.6"/>
+      <rect x="904" y="494" width="26" height="16" rx="2" fill="#ff8c2e" opacity="0.9"/>
+      <rect x="968" y="494" width="26" height="16" rx="2" fill="#5aa7e0" opacity="0.8"/>
+      <rect x="1000" y="494" width="26" height="16" rx="2" fill="#ffb547" opacity="0.95"/>
+      <rect x="1032" y="494" width="26" height="16" rx="2" fill="#6ed8c8" opacity="0.55"/>
+    </g>
+    <g fill="#4b4433">
+      <rect x="904" y="470" width="26" height="16" rx="2"/>
+      <rect x="1032" y="470" width="26" height="16" rx="2"/>
+      <rect x="936" y="494" width="26" height="16" rx="2"/>
+      <rect x="1064" y="494" width="26" height="16" rx="2"/>
+    </g>
+    <g fill="#ffffff" opacity="0.16">
+      <rect x="905" y="470" width="24" height="2" rx="1"/><rect x="937" y="470" width="24" height="2" rx="1"/>
+      <rect x="969" y="470" width="24" height="2" rx="1"/><rect x="1001" y="470" width="24" height="2" rx="1"/>
+      <rect x="1033" y="470" width="24" height="2" rx="1"/><rect x="1065" y="470" width="24" height="2" rx="1"/>
+      <rect x="905" y="494" width="24" height="2" rx="1"/><rect x="937" y="494" width="24" height="2" rx="1"/>
+      <rect x="969" y="494" width="24" height="2" rx="1"/><rect x="1001" y="494" width="24" height="2" rx="1"/>
+      <rect x="1033" y="494" width="24" height="2" rx="1"/><rect x="1065" y="494" width="24" height="2" rx="1"/>
+    </g>
     <!-- teal map screen -->
     <rect x="904" y="520" width="90" height="46" rx="4" fill="#0c1a1c" stroke="#0a0f0f" stroke-width="2"/>
-    <path d="M912,556 Q930,534 948,548 T986,540" fill="none" stroke="#4bb8e9" stroke-width="2" opacity="0.8"/>
-    <circle cx="952" cy="545" r="3" fill="#4bb8e9" opacity="0.9"/>
+    <g filter="url(#cLit)">
+      <path d="M912,556 Q930,534 948,548 T986,540" fill="none" stroke="#4bb8e9" stroke-width="2" opacity="0.8"/>
+      <circle cx="952" cy="545" r="3" fill="#4bb8e9" opacity="0.9"/>
+    </g>
+    <g stroke="#000" stroke-width="1" opacity="0.22">
+      <line x1="906" y1="526" x2="992" y2="526"/><line x1="906" y1="532" x2="992" y2="532"/>
+      <line x1="906" y1="538" x2="992" y2="538"/><line x1="906" y1="544" x2="992" y2="544"/>
+      <line x1="906" y1="550" x2="992" y2="550"/><line x1="906" y1="556" x2="992" y2="556"/>
+      <line x1="906" y1="562" x2="992" y2="562"/>
+    </g>
+    <path d="M906,564 L926,522 L942,522 L912,564 Z" fill="#cfe6f5" opacity="0.05"/>
     <rect x="1008" y="520" width="82" height="46" rx="4" fill="#241c0d" stroke="#0f0b05" stroke-width="2"/>
-    <rect x="1016" y="528" width="16" height="10" rx="2" fill="#6ed8c8"/>
-    <rect x="1038" y="528" width="16" height="10" rx="2" fill="#ffb547"/>
-    <rect x="1060" y="528" width="16" height="10" rx="2" fill="#ff8c2e"/>
-    <rect x="1016" y="546" width="16" height="10" rx="2" fill="#ffb547"/>
-    <rect x="1038" y="546" width="16" height="10" rx="2" fill="#57503f"/>
-    <rect x="1060" y="546" width="16" height="10" rx="2" fill="#6ed8c8"/>
+    <g fill="#080604">
+      <rect x="1014" y="526" width="20" height="14" rx="2"/><rect x="1036" y="526" width="20" height="14" rx="2"/>
+      <rect x="1058" y="526" width="20" height="14" rx="2"/><rect x="1014" y="544" width="20" height="14" rx="2"/>
+      <rect x="1036" y="544" width="20" height="14" rx="2"/><rect x="1058" y="544" width="20" height="14" rx="2"/>
+    </g>
+    <g filter="url(#cLit)">
+      <rect x="1016" y="528" width="16" height="10" rx="2" fill="#6ed8c8" opacity="0.85"/>
+      <rect x="1060" y="528" width="16" height="10" rx="2" fill="#ff8c2e" opacity="0.8"/>
+      <rect x="1016" y="546" width="16" height="10" rx="2" fill="#ffb547" opacity="0.7"/>
+    </g>
+    <g fill="#4b4433">
+      <rect x="1038" y="528" width="16" height="10" rx="2"/>
+      <rect x="1038" y="546" width="16" height="10" rx="2"/>
+      <rect x="1060" y="546" width="16" height="10" rx="2"/>
+    </g>
   </g>
 
   <!-- wing panels -->
   <g transform="rotate(-9 220 640)">
     <rect x="110" y="600" width="220" height="80" rx="8" fill="#241c0d" stroke="#0f0b05" stroke-width="2"/>
-    <rect x="126" y="614" width="30" height="18" rx="3" fill="#ffb547"/>
-    <rect x="162" y="614" width="30" height="18" rx="3" fill="#57503f"/>
-    <rect x="198" y="614" width="30" height="18" rx="3" fill="#ff8c2e"/>
-    <rect x="234" y="614" width="30" height="18" rx="3" fill="#6ed8c8"/>
+    <rect x="110" y="600" width="220" height="80" rx="8" filter="url(#cGrime)" opacity="0.4"/>
+    <g fill="#080604">
+      <rect x="123" y="611" width="36" height="24" rx="3"/><rect x="159" y="611" width="36" height="24" rx="3"/>
+      <rect x="195" y="611" width="36" height="24" rx="3"/><rect x="231" y="611" width="36" height="24" rx="3"/>
+    </g>
+    <g filter="url(#cLit)">
+      <rect x="126" y="614" width="30" height="18" rx="3" fill="#ffb547" opacity="0.9"/>
+      <rect x="198" y="614" width="30" height="18" rx="3" fill="#ff8c2e" opacity="0.75"/>
+      <rect x="234" y="614" width="30" height="18" rx="3" fill="#6ed8c8" opacity="0.6"/>
+    </g>
+    <rect x="162" y="614" width="30" height="18" rx="3" fill="#4b4433"/>
+    <g fill="#ffffff" opacity="0.16">
+      <rect x="127" y="614" width="28" height="2" rx="1"/><rect x="163" y="614" width="28" height="2" rx="1"/>
+      <rect x="199" y="614" width="28" height="2" rx="1"/><rect x="235" y="614" width="28" height="2" rx="1"/>
+    </g>
     <rect x="126" y="644" width="66" height="14" rx="3" fill="#3a301a"/>
     <rect x="204" y="644" width="66" height="14" rx="3" fill="#3a301a"/>
+    <rect x="126" y="644" width="66" height="2" rx="1" fill="#6d5f3c" opacity="0.4"/>
+    <rect x="204" y="644" width="66" height="2" rx="1" fill="#6d5f3c" opacity="0.4"/>
   </g>
   <g transform="rotate(9 1320 640)">
     <rect x="1210" y="600" width="220" height="80" rx="8" fill="#241c0d" stroke="#0f0b05" stroke-width="2"/>
-    <rect x="1226" y="614" width="30" height="18" rx="3" fill="#6ed8c8"/>
-    <rect x="1262" y="614" width="30" height="18" rx="3" fill="#ffb547"/>
-    <rect x="1298" y="614" width="30" height="18" rx="3" fill="#57503f"/>
-    <rect x="1334" y="614" width="30" height="18" rx="3" fill="#ff8c2e"/>
+    <rect x="1210" y="600" width="220" height="80" rx="8" filter="url(#cGrimeB)" opacity="0.4"/>
+    <g fill="#080604">
+      <rect x="1223" y="611" width="36" height="24" rx="3"/><rect x="1259" y="611" width="36" height="24" rx="3"/>
+      <rect x="1295" y="611" width="36" height="24" rx="3"/><rect x="1331" y="611" width="36" height="24" rx="3"/>
+    </g>
+    <g filter="url(#cLit)">
+      <rect x="1226" y="614" width="30" height="18" rx="3" fill="#6ed8c8" opacity="0.85"/>
+      <rect x="1262" y="614" width="30" height="18" rx="3" fill="#ffb547" opacity="0.95"/>
+      <rect x="1334" y="614" width="30" height="18" rx="3" fill="#ff8c2e" opacity="0.65"/>
+    </g>
+    <rect x="1298" y="614" width="30" height="18" rx="3" fill="#4b4433"/>
+    <g fill="#ffffff" opacity="0.16">
+      <rect x="1227" y="614" width="28" height="2" rx="1"/><rect x="1263" y="614" width="28" height="2" rx="1"/>
+      <rect x="1299" y="614" width="28" height="2" rx="1"/><rect x="1335" y="614" width="28" height="2" rx="1"/>
+    </g>
     <rect x="1226" y="644" width="66" height="14" rx="3" fill="#3a301a"/>
     <rect x="1304" y="644" width="66" height="14" rx="3" fill="#3a301a"/>
+    <rect x="1226" y="644" width="66" height="2" rx="1" fill="#6d5f3c" opacity="0.4"/>
+    <rect x="1304" y="644" width="66" height="2" rx="1" fill="#6d5f3c" opacity="0.4"/>
   </g>
 
   <!-- center screen housing -->
@@ -589,20 +1207,38 @@
     <circle cx="855" cy="562" r="9" fill="#3a3a3a" stroke="#111" stroke-width="2"/>
   </g>
   <!-- button rows -->
-  <g>
-    <rect x="712" y="636" width="22" height="14" rx="2" fill="#6ed8c8"/>
-    <rect x="740" y="636" width="22" height="14" rx="2" fill="#ffb547"/>
-    <rect x="768" y="636" width="22" height="14" rx="2" fill="#57503f"/>
-    <rect x="796" y="636" width="22" height="14" rx="2" fill="#5aa7e0"/>
-    <rect x="712" y="658" width="22" height="14" rx="2" fill="#ffb547"/>
-    <rect x="740" y="658" width="22" height="14" rx="2" fill="#57503f"/>
-    <rect x="768" y="658" width="22" height="14" rx="2" fill="#ff8c2e"/>
-    <rect x="796" y="658" width="22" height="14" rx="2" fill="#6ed8c8"/>
+  <g fill="#080604">
+    <rect x="709" y="633" width="28" height="20" rx="3"/><rect x="737" y="633" width="28" height="20" rx="3"/>
+    <rect x="765" y="633" width="28" height="20" rx="3"/><rect x="793" y="633" width="28" height="20" rx="3"/>
+    <rect x="709" y="655" width="28" height="20" rx="3"/><rect x="737" y="655" width="28" height="20" rx="3"/>
+    <rect x="765" y="655" width="28" height="20" rx="3"/><rect x="793" y="655" width="28" height="20" rx="3"/>
   </g>
-  <!-- warning dots -->
-  <circle cx="842" cy="662" r="6" fill="#ff8c2e"/>
-  <circle cx="842" cy="662" r="12" fill="#ff8c2e" opacity="0.3" filter="url(#cGlow)"/>
-  <circle cx="866" cy="662" r="6" fill="#ffb547"/>
+  <g filter="url(#cLit)">
+    <rect x="712" y="636" width="22" height="14" rx="2" fill="#6ed8c8" opacity="0.88"/>
+    <rect x="740" y="636" width="22" height="14" rx="2" fill="#ffb547" opacity="0.95"/>
+    <rect x="796" y="636" width="22" height="14" rx="2" fill="#5aa7e0" opacity="0.72"/>
+    <rect x="712" y="658" width="22" height="14" rx="2" fill="#ffb547" opacity="0.6"/>
+    <rect x="768" y="658" width="22" height="14" rx="2" fill="#ff8c2e" opacity="0.9"/>
+    <rect x="796" y="658" width="22" height="14" rx="2" fill="#6ed8c8" opacity="0.65"/>
+  </g>
+  <g fill="#4b4433">
+    <rect x="768" y="636" width="22" height="14" rx="2"/>
+    <rect x="740" y="658" width="22" height="14" rx="2"/>
+  </g>
+  <g fill="#ffffff" opacity="0.16">
+    <rect x="713" y="636" width="20" height="2" rx="1"/><rect x="741" y="636" width="20" height="2" rx="1"/>
+    <rect x="769" y="636" width="20" height="2" rx="1"/><rect x="797" y="636" width="20" height="2" rx="1"/>
+    <rect x="713" y="658" width="20" height="2" rx="1"/><rect x="741" y="658" width="20" height="2" rx="1"/>
+    <rect x="769" y="658" width="20" height="2" rx="1"/><rect x="797" y="658" width="20" height="2" rx="1"/>
+  </g>
+  <!-- warning dots, seated in metal bezels -->
+  <circle cx="842" cy="662" r="9" fill="#100c06" stroke="#3a3020" stroke-width="1.5"/>
+  <circle cx="866" cy="662" r="9" fill="#100c06" stroke="#3a3020" stroke-width="1.5"/>
+  <g filter="url(#cLit)">
+    <circle cx="842" cy="662" r="6" fill="#ff8c2e"/>
+    <circle cx="866" cy="662" r="6" fill="#ffb547" opacity="0.7"/>
+  </g>
+  <circle cx="842" cy="662" r="16" fill="#ff8c2e" opacity="0.22" filter="url(#cGlow)"/>
   <!-- vent slats -->
   <g fill="#1a150c">
     <rect x="704" y="760" width="172" height="8" rx="3"/>
@@ -621,27 +1257,98 @@
   <g>
     <rect x="318" y="660" width="240" height="240" rx="30" fill="url(#cLeather)" stroke="#241708" stroke-width="4"/>
     <rect x="352" y="586" width="168" height="100" rx="26" fill="url(#cLeather)" stroke="#241708" stroke-width="4"/>
-    <ellipse cx="436" cy="600" rx="60" ry="14" fill="#9a7a48" opacity="0.35"/>
-    <line x1="390" y1="700" x2="390" y2="860" stroke="#38270f" stroke-width="3" opacity="0.6"/>
-    <line x1="438" y1="700" x2="438" y2="860" stroke="#38270f" stroke-width="3" opacity="0.6"/>
-    <line x1="486" y1="700" x2="486" y2="860" stroke="#38270f" stroke-width="3" opacity="0.6"/>
+    <g clip-path="url(#cSeatL)">
+      <!-- hide grain + dirt worked into the leather -->
+      <rect x="296" y="580" width="290" height="320" filter="url(#cGrime)" opacity="0.34"/>
+      <!-- creases fanning from where a back presses -->
+      <g stroke="#33230e" stroke-width="2.5" fill="none" opacity="0.45" filter="url(#cHide)">
+        <path d="M356,706 q60,20 122,-2"/>
+        <path d="M348,748 q70,24 142,-4"/>
+        <path d="M352,796 q64,22 130,-4"/>
+        <path d="M362,838 q56,18 116,-4"/>
+      </g>
+      <g stroke="#9a7c4d" stroke-width="1.2" fill="none" opacity="0.20" filter="url(#cHide)">
+        <path d="M356,700 q60,20 122,-2"/>
+        <path d="M348,742 q70,24 142,-4"/>
+        <path d="M352,790 q64,22 130,-4"/>
+      </g>
+      <!-- polished crest of the headrest and the seat back -->
+      <ellipse cx="436" cy="598" rx="62" ry="13" fill="#b39055" opacity="0.16"/>
+      <ellipse cx="438" cy="684" rx="86" ry="16" fill="#a3844c" opacity="0.08"/>
+      <!-- cracked, worn-through patch at the shoulder -->
+      <ellipse cx="500" cy="726" rx="22" ry="15" fill="#3a2a12" opacity="0.5"/>
+      <path d="M486,722 q14,-6 28,2 M490,732 q12,-5 22,3" stroke="#241708" stroke-width="1.4" fill="none" opacity="0.6"/>
+    </g>
+    <line x1="390" y1="700" x2="390" y2="860" stroke="#241708" stroke-width="3" opacity="0.35"/>
+    <line x1="438" y1="700" x2="438" y2="860" stroke="#241708" stroke-width="3" opacity="0.35"/>
+    <line x1="486" y1="700" x2="486" y2="860" stroke="#241708" stroke-width="3" opacity="0.35"/>
+    <!-- armrests: darkened where hands sit, lit on the window side -->
     <rect x="296" y="700" width="34" height="150" rx="14" fill="#4a3418" stroke="#241708" stroke-width="3"/>
     <rect x="546" y="700" width="34" height="150" rx="14" fill="#4a3418" stroke="#241708" stroke-width="3"/>
+    <rect x="300" y="716" width="26" height="64" rx="12" fill="#241708" opacity="0.45"/>
+    <rect x="550" y="716" width="26" height="64" rx="12" fill="#241708" opacity="0.45"/>
+    <rect x="576" y="704" width="2.5" height="142" rx="1" fill="#a8c9dd" opacity="0.22"/>
+    <!-- cold planet-light on the chair's upper edges -->
+    <path d="M352,592 q0,-6 26,-6 L494,586 q26,0 26,8" fill="none" stroke="#a8c9dd" stroke-width="2.5" opacity="0.26"/>
   </g>
   <!-- right chair -->
   <g>
     <rect x="980" y="660" width="240" height="240" rx="30" fill="url(#cLeather)" stroke="#241708" stroke-width="4"/>
     <rect x="1014" y="586" width="168" height="100" rx="26" fill="url(#cLeather)" stroke="#241708" stroke-width="4"/>
-    <ellipse cx="1098" cy="600" rx="60" ry="14" fill="#9a7a48" opacity="0.35"/>
-    <line x1="1052" y1="700" x2="1052" y2="860" stroke="#38270f" stroke-width="3" opacity="0.6"/>
-    <line x1="1100" y1="700" x2="1100" y2="860" stroke="#38270f" stroke-width="3" opacity="0.6"/>
-    <line x1="1148" y1="700" x2="1148" y2="860" stroke="#38270f" stroke-width="3" opacity="0.6"/>
+    <g clip-path="url(#cSeatR)">
+      <rect x="958" y="580" width="290" height="320" filter="url(#cGrimeB)" opacity="0.34"/>
+      <g stroke="#33230e" stroke-width="2.5" fill="none" opacity="0.45" filter="url(#cHide)">
+        <path d="M1018,710 q60,18 122,-4"/>
+        <path d="M1010,752 q70,22 142,-6"/>
+        <path d="M1014,800 q64,20 130,-6"/>
+        <path d="M1024,842 q56,16 116,-6"/>
+      </g>
+      <g stroke="#9a7c4d" stroke-width="1.2" fill="none" opacity="0.20" filter="url(#cHide)">
+        <path d="M1018,704 q60,18 122,-4"/>
+        <path d="M1010,746 q70,22 142,-6"/>
+        <path d="M1014,794 q64,20 130,-6"/>
+      </g>
+      <ellipse cx="1098" cy="598" rx="62" ry="13" fill="#b39055" opacity="0.16"/>
+      <ellipse cx="1100" cy="684" rx="86" ry="16" fill="#a3844c" opacity="0.08"/>
+      <ellipse cx="1042" cy="734" rx="20" ry="13" fill="#3a2a12" opacity="0.45"/>
+      <path d="M1030,730 q12,-5 25,2" stroke="#241708" stroke-width="1.4" fill="none" opacity="0.6"/>
+    </g>
+    <line x1="1052" y1="700" x2="1052" y2="860" stroke="#241708" stroke-width="3" opacity="0.35"/>
+    <line x1="1100" y1="700" x2="1100" y2="860" stroke="#241708" stroke-width="3" opacity="0.35"/>
+    <line x1="1148" y1="700" x2="1148" y2="860" stroke="#241708" stroke-width="3" opacity="0.35"/>
     <rect x="958" y="700" width="34" height="150" rx="14" fill="#4a3418" stroke="#241708" stroke-width="3"/>
     <rect x="1208" y="700" width="34" height="150" rx="14" fill="#4a3418" stroke="#241708" stroke-width="3"/>
+    <rect x="962" y="716" width="26" height="64" rx="12" fill="#241708" opacity="0.45"/>
+    <rect x="1212" y="716" width="26" height="64" rx="12" fill="#241708" opacity="0.45"/>
+    <rect x="1238" y="704" width="2.5" height="142" rx="1" fill="#a8c9dd" opacity="0.26"/>
+    <path d="M1014,592 q0,-6 26,-6 L1156,586 q26,0 26,8" fill="none" stroke="#a8c9dd" stroke-width="2.5" opacity="0.30"/>
+  </g>
+
+  <!-- ===== atmosphere ===== -->
+  <g>
+    <!-- canopy glass: sheen and a smeared wipe-arc -->
+    <path d="M368,425 L405,-20 L1140,-20 L1170,425 Z" fill="url(#cGlass)"/>
+    <path d="M470,380 q220,-150 560,-80" fill="none" stroke="#cfe6f5" stroke-width="26" opacity="0.030"/>
+    <path d="M500,410 q210,-130 520,-70" fill="none" stroke="#cfe6f5" stroke-width="14" opacity="0.024"/>
+    <!-- warm haze under the frame lamps -->
+    <polygon points="104,60 210,60 258,330 60,330" fill="url(#cShaft)" filter="url(#cSoft)" opacity="0.30"/>
+    <polygon points="1336,66 1438,66 1486,330 1290,330" fill="url(#cShaft)" filter="url(#cSoft)" opacity="0.26"/>
+    <!-- dust drifting through the cabin -->
+    <g fill="#cfe0ee">
+      <circle cx="520" cy="300" r="1.4" opacity="0.34"/><circle cx="676" cy="212" r="1.1" opacity="0.28"/>
+      <circle cx="884" cy="336" r="1.6" opacity="0.24"/><circle cx="1042" cy="404" r="1.2" opacity="0.30"/>
+      <circle cx="612" cy="392" r="1.3" opacity="0.22"/><circle cx="960" cy="268" r="1.0" opacity="0.32"/>
+    </g>
+    <g fill="#ffd9a0">
+      <circle cx="188" cy="196" r="1.5" opacity="0.32"/><circle cx="146" cy="278" r="1.2" opacity="0.26"/>
+      <circle cx="1386" cy="204" r="1.4" opacity="0.28"/><circle cx="1430" cy="286" r="1.1" opacity="0.24"/>
+    </g>
   </g>
 
   <!-- vignette -->
   <rect width="1536" height="864" fill="url(#cVign)"/>
+  <rect width="1536" height="864" fill="url(#cGrade)" style="mix-blend-mode:soft-light"/>
+  <rect width="1536" height="864" filter="url(#cGrain)" opacity="0.16" style="mix-blend-mode:overlay"/>
 </svg>
 <button class="turn-around-btn" data-go="svg-door">TURN AROUND</button>
 </div>
@@ -661,6 +1368,57 @@ document.querySelectorAll('.turn-around-btn').forEach(function (btn) {
         });
     });
 });
+
+// ===== landing gate =====
+// Fullscreen can only be requested from a real user gesture, which is the whole
+// reason this page opens on a button instead of dropping you straight in.
+(function () {
+    var gate = document.getElementById('gate');
+    if (!gate) return;
+
+    function goFullscreen() {
+        var el = document.documentElement;
+        var req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        if (!req) return Promise.reject();
+        try {
+            var p = req.call(el);
+            return (p && p.then) ? p : Promise.resolve();
+        } catch (e) {
+            return Promise.reject(e);
+        }
+    }
+
+    function enter() {
+        gate.classList.add('gone');
+        // Landscape lock is best-effort: desktop and iOS both refuse it.
+        goFullscreen().then(function () {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(function () {});
+            }
+        }).catch(function () {
+            // Fullscreen refused (or unsupported) -- the scene still opens.
+        });
+    }
+
+    gate.addEventListener('click', enter);
+    gate.addEventListener('touchend', function (e) { e.preventDefault(); enter(); }, { passive: false });
+    document.addEventListener('keydown', function (e) {
+        if (gate.classList.contains('gone')) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enter(); }
+    });
+
+    function syncFsClass() {
+        var fs = document.fullscreenElement || document.webkitFullscreenElement;
+        document.body.classList.toggle('fs', !!fs);
+        // Dropping out of fullscreen puts the browser chrome back, so offer the
+        // way back in rather than leaving the scene boxed in by the UI.
+        if (!fs) gate.classList.remove('gone');
+    }
+    document.addEventListener('fullscreenchange', syncFsClass);
+    document.addEventListener('webkitfullscreenchange', syncFsClass);
+    // bfcache restores (mobile back button) come back without the class
+    window.addEventListener('pageshow', syncFsClass);
+})();
 </script>
 </body>
 </html>
