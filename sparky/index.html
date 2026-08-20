@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#15161a">
+<title>Sparky</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --room:#15161a;
+    --chrome:#1e2027;
+    --edge:#2c2f38;
+    --ink:#e8e6e1;
+    --dim:#8d8f98;
+    --lamp:#ffd9a0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none;}
+  body{
+    background:var(--room);
+    color:var(--ink);
+    font-family:'Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+
+  /* ---------- top bar ---------- */
+  #topbar{
+    flex:0 0 auto;display:flex;align-items:center;gap:8px;
+    padding:8px 10px;background:var(--chrome);
+    border-bottom:1px solid var(--edge);position:relative;z-index:30;
+  }
+  .brand{
+    font-weight:700;letter-spacing:.18em;font-size:13px;color:var(--lamp);
+    padding-right:4px;flex:0 0 auto;
+  }
+  #sheetSelect{
+    flex:1 1 auto;min-width:0;
+    background:#14161b;color:var(--ink);border:1px solid var(--edge);
+    border-radius:7px;padding:8px 9px;font:inherit;font-size:14px;
+  }
+  .btn{
+    flex:0 0 auto;background:#2a2d36;color:var(--ink);
+    border:1px solid var(--edge);border-radius:7px;
+    padding:8px 12px;font:inherit;font-size:14px;font-weight:700;
+    cursor:pointer;line-height:1;
+  }
+  .btn:active{background:#343843;}
+  .btn.primary{background:#3d6ea8;border-color:#4d82c0;}
+  .btn.primary:active{background:#4a80bd;}
+  #saveBtn .dot{
+    display:none;width:6px;height:6px;border-radius:50%;
+    background:var(--lamp);margin-left:6px;vertical-align:1px;
+  }
+  body.dirty #saveBtn .dot{display:inline-block;}
+
+  /* ---------- the projected sheet ---------- */
+  #stage{
+    flex:1 1 auto;position:relative;display:flex;
+    align-items:center;justify-content:center;
+    padding:10px;min-height:0;
+    background:radial-gradient(ellipse at 50% 45%, #23252c 0%, #15161a 70%);
+  }
+  #sheet{
+    position:relative;
+    box-shadow:0 0 0 1px rgba(255,255,255,.10),
+               0 0 60px 12px rgba(255,214,150,.10),
+               0 14px 40px rgba(0,0,0,.55);
+    background:#fff;
+  }
+  #bgImg{
+    position:absolute;inset:0;width:100%;height:100%;
+    display:block;user-select:none;-webkit-user-drag:none;pointer-events:none;
+  }
+  /* the film itself -- a faint sheen so you can tell there is a layer on top */
+  #sheet::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(122deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,0) 26%,
+               rgba(255,255,255,0) 74%,rgba(190,220,255,.10) 100%);
+    mix-blend-mode:screen;
+  }
+  #ink{
+    position:absolute;inset:0;width:100%;height:100%;
+    touch-action:none;cursor:crosshair;z-index:2;
+  }
+  body.tool-text #ink{cursor:text;}
+  body.tool-eraser #ink{cursor:cell;}
+
+  /* ---------- marker tray ---------- */
+  #tray{
+    flex:0 0 auto;background:var(--chrome);
+    border-top:1px solid var(--edge);padding:8px 10px 10px;
+    display:flex;flex-direction:column;gap:8px;z-index:30;
+  }
+  #colors{display:flex;gap:8px;justify-content:space-between;}
+  .swatch{
+    flex:1 1 0;height:34px;border-radius:6px;border:1px solid rgba(255,255,255,.22);
+    cursor:pointer;padding:0;position:relative;transition:transform .08s;
+  }
+  .swatch[aria-pressed="true"]{
+    transform:translateY(-4px);
+    box-shadow:0 0 0 2px var(--lamp),0 4px 10px rgba(0,0,0,.5);
+  }
+  #tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  .tbtn{
+    background:#2a2d36;color:var(--ink);border:1px solid var(--edge);
+    border-radius:7px;padding:7px 10px;font:inherit;font-size:13px;
+    font-weight:700;cursor:pointer;line-height:1;
+  }
+  .tbtn[aria-pressed="true"]{background:#3d6ea8;border-color:#4d82c0;}
+  .tbtn:disabled{opacity:.35;cursor:default;}
+  .tbtn .nib{
+    display:inline-block;background:currentColor;border-radius:50%;
+    vertical-align:middle;margin-right:3px;
+  }
+  .spacer{flex:1 1 auto;}
+
+  /* ---------- menu ---------- */
+  #menuPanel{
+    position:absolute;top:calc(100% + 6px);right:8px;
+    background:var(--chrome);border:1px solid var(--edge);border-radius:9px;
+    box-shadow:0 12px 32px rgba(0,0,0,.6);padding:6px;min-width:210px;display:none;
+  }
+  #menuPanel.open{display:block;}
+  #menuPanel button{
+    display:block;width:100%;text-align:left;background:none;border:0;
+    color:var(--ink);font:inherit;font-size:14px;padding:9px 10px;
+    border-radius:6px;cursor:pointer;
+  }
+  #menuPanel button:active{background:#343843;}
+  #menuPanel hr{border:0;border-top:1px solid var(--edge);margin:5px 4px;}
+  #menuPanel .danger{color:#ff8a80;}
+
+  /* ---------- toast ---------- */
+  #toast{
+    position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(10px);
+    background:rgba(20,22,27,.95);border:1px solid var(--edge);
+    color:var(--ink);padding:9px 16px;border-radius:20px;font-size:14px;
+    opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:60;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:420px){
+    .brand{display:none;}
+    .swatch{height:30px;}
+  }
+</style>
+</head>
+<body class="tool-pen">
+
+<header id="topbar">
+  <div class="brand">SPARKY</div>
+  <select id="sheetSelect" aria-label="Transparency"></select>
+  <button class="btn primary" id="saveBtn">Save<span class="dot"></span></button>
+  <button class="btn" id="menuBtn" aria-label="More">&#8942;</button>
+
+  <div id="menuPanel">
+    <button data-act="rename">Rename this transparency</button>
+    <button data-act="duplicate">Duplicate as a new one</button>
+    <hr>
+    <button data-act="export">Save as image (PNG)</button>
+    <button data-act="background">Change background image</button>
+    <hr>
+    <button data-act="clear">Clear all marks</button>
+    <button data-act="delete" class="danger">Delete this transparency</button>
+  </div>
+</header>
+
+<main id="stage">
+  <div id="sheet">
+    <img id="bgImg" alt="Background">
+    <canvas id="ink"></canvas>
+  </div>
+</main>
+
+<footer id="tray">
+  <div id="colors"></div>
+  <div id="tools">
+    <button class="tbtn" data-w="fine"><span class="nib" style="width:4px;height:4px"></span>Fine</button>
+    <button class="tbtn" data-w="med"><span class="nib" style="width:7px;height:7px"></span>Med</button>
+    <button class="tbtn" data-w="bold"><span class="nib" style="width:11px;height:11px"></span>Bold</button>
+    <span class="spacer"></span>
+    <button class="tbtn" data-tool="text">Text</button>
+    <button class="tbtn" data-tool="eraser">Erase</button>
+    <button class="tbtn" id="undoBtn">Undo</button>
+    <button class="tbtn" id="redoBtn">Redo</button>
+  </div>
+</footer>
+
+<div id="toast"></div>
+<input type="file" id="bgFile" accept="image/*" style="display:none">
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   Sparky -- a transparency over a fixed background.
+   Marks are stored as fractions of the image (0..1), never as
+   pixels, so a sheet drawn on a phone lands correctly anywhere.
+   ============================================================ */
+
+var COLORS = [
+  ['black',  '#111111'],
+  ['white',  '#ffffff'],
+  ['green',  '#00a651'],
+  ['red',    '#e02020'],
+  ['blue',   '#1a6fd4'],
+  ['brown',  '#8b5a2b'],
+  ['yellow', '#f5c518'],
+  ['purple', '#8b3fd0'],
+  ['orange', '#f07818'],
+  ['gray',   '#8a8f98']
+];
+
+/* tip widths and label sizes, as a fraction of image width */
+var WIDTHS = { fine:0.0015, med:0.0030, bold:0.0060 };
+var TEXTS  = { fine:0.0130, med:0.0180, bold:0.0260 };
+
+var SHEETS_KEY = 'sparky.sheets.v1';
+var BG_KEY     = 'sparky.bg.v1';
+var PREF_KEY   = 'sparky.prefs.v1';
+
+var stage   = document.getElementById('stage');
+var sheetEl = document.getElementById('sheet');
+var bgImg   = document.getElementById('bgImg');
+var cv      = document.getElementById('ink');
+var ctx     = cv.getContext('2d');
+var sel     = document.getElementById('sheetSelect');
+var toastEl = document.getElementById('toast');
+
+var S = {
+  id:null, name:null,
+  items:[],          /* committed marks */
+  redo:[],
+  dirty:false,
+  tool:'pen', color:'#111111', width:'med',
+  bgW:1600, bgH:1000
+};
+
+var live = null;     /* stroke in progress */
+
+/* ---------------- storage ---------------- */
+
+function loadSheets(){
+  try { return JSON.parse(localStorage.getItem(SHEETS_KEY)) || []; }
+  catch(e){ return []; }
+}
+function saveSheets(list){
+  try { localStorage.setItem(SHEETS_KEY, JSON.stringify(list)); return true; }
+  catch(e){ toast('Out of storage space -- delete an old transparency'); return false; }
+}
+function loadPrefs(){
+  try { return JSON.parse(localStorage.getItem(PREF_KEY)) || {}; }
+  catch(e){ return {}; }
+}
+function savePrefs(){
+  try {
+    localStorage.setItem(PREF_KEY, JSON.stringify({color:S.color, width:S.width}));
+  } catch(e){}
+}
+
+/* ---------------- ui bits ---------------- */
+
+var toastTimer;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 1900);
+}
+function setDirty(v){
+  S.dirty = !!v;
+  document.body.classList.toggle('dirty', S.dirty);
+}
+
+/* ---------------- sheet list ---------------- */
+
+function refreshSelect(){
+  var list = loadSheets();
+  list.sort(function(a,b){ return (b.updated||0) - (a.updated||0); });
+  sel.innerHTML = '';
+
+  var opt = document.createElement('option');
+  opt.value = '__new__';
+  opt.textContent = 'Create new transparency';
+  sel.appendChild(opt);
+
+  if(list.length){
+    var g = document.createElement('optgroup');
+    g.label = 'Saved';
+    list.forEach(function(sh){
+      var o = document.createElement('option');
+      o.value = sh.id;
+      o.textContent = sh.name;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  }
+
+  sel.value = S.id ? S.id : '__new__';
+}
+
+function newSheet(){
+  S.id = null; S.name = null; S.items = []; S.redo = [];
+  setDirty(false);
+  refreshSelect();
+  updateUndo();
+  render();
+}
+
+function openSheet(id){
+  var sh = loadSheets().filter(function(s){ return s.id === id; })[0];
+  if(!sh){ toast('That one is gone'); newSheet(); return; }
+  S.id = sh.id;
+  S.name = sh.name;
+  S.items = sh.items ? JSON.parse(JSON.stringify(sh.items)) : [];
+  S.redo = [];
+  setDirty(false);
+  refreshSelect();
+  updateUndo();
+  render();
+}
+
+function writeSheet(name){
+  var list = loadSheets();
+  var now = Date.now();
+  var existing = S.id ? list.filter(function(s){ return s.id === S.id; })[0] : null;
+
+  if(existing){
+    /* save IN PLACE -- this is the whole point, no copies */
+    existing.name = name || existing.name;
+    existing.items = S.items;
+    existing.updated = now;
+  } else {
+    S.id = 'sh_' + now.toString(36) + Math.random().toString(36).slice(2,6);
+    list.push({ id:S.id, name:name, items:S.items, updated:now, created:now });
+  }
+  if(!saveSheets(list)) return false;
+  S.name = name || S.name;
+  setDirty(false);
+  refreshSelect();
+  return true;
+}
+
+function nameTaken(name){
+  return loadSheets().some(function(s){
+    return s.name.toLowerCase() === name.toLowerCase() && s.id !== S.id;
+  });
+}
+
+function defaultName(){
+  var d = new Date();
+  return (d.getMonth()+1) + '.' + d.getDate() + '.' + String(d.getFullYear()).slice(2);
+}
+
+function doSave(){
+  if(!S.id && !S.items.length){ toast('Nothing to save yet'); return; }
+
+  if(S.id){
+    if(writeSheet(S.name)) toast('Saved -- ' + S.name);
+    return;
+  }
+
+  var suggested = defaultName();
+  var name = prompt('Name this transparency:', suggested);
+  if(name === null) return;
+  name = name.trim();
+  if(!name) name = suggested;
+
+  if(nameTaken(name)){
+    if(!confirm('"' + name + '" already exists.\n\nOK to overwrite it?')) return;
+    var hit = loadSheets().filter(function(s){
+      return s.name.toLowerCase() === name.toLowerCase();
+    })[0];
+    S.id = hit.id;
+  }
+  if(writeSheet(name)) toast('Saved -- ' + name);
+}
+
+function confirmDiscard(){
+  if(!S.dirty) return true;
+  return confirm('This transparency has unsaved marks.\n\nLeave them behind?');
+}
+
+/* ---------------- rendering ---------------- */
+
+var raf = null;
+function render(){
+  if(raf) return;
+  raf = requestAnimationFrame(function(){ raf = null; paint(); });
+}
+
+function paint(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  drawItems(ctx, S.items, cv.width, cv.height);
+  if(live) drawStroke(ctx, live, cv.width, cv.height);
+}
+
+function drawItems(c, items, w, h){
+  for(var i=0;i<items.length;i++){
+    var it = items[i];
+    if(it.t === 'text') drawText(c, it, w, h);
+    else drawStroke(c, it, w, h);
+  }
+}
+
+function drawStroke(c, s, w, h){
+  var pts = s.pts;
+  if(!pts || !pts.length) return;
+  var lw = Math.max(1, s.w * w);
+  c.save();
+  c.strokeStyle = s.c;
+  c.fillStyle = s.c;
+  c.lineWidth = lw;
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+
+  if(pts.length === 1){
+    c.beginPath();
+    c.arc(pts[0][0]*w, pts[0][1]*h, lw/2, 0, Math.PI*2);
+    c.fill();
+    c.restore();
+    return;
+  }
+
+  c.beginPath();
+  c.moveTo(pts[0][0]*w, pts[0][1]*h);
+  for(var i=1;i<pts.length-1;i++){
+    var x1 = pts[i][0]*w,   y1 = pts[i][1]*h;
+    var x2 = pts[i+1][0]*w, y2 = pts[i+1][1]*h;
+    c.quadraticCurveTo(x1, y1, (x1+x2)/2, (y1+y2)/2);
+  }
+  var last = pts[pts.length-1];
+  c.lineTo(last[0]*w, last[1]*h);
+  c.stroke();
+  c.restore();
+}
+
+function drawText(c, t, w, h){
+  var px = Math.max(9, t.s * w);
+  c.save();
+  c.fillStyle = t.c;
+  c.font = '700 ' + px + 'px Nunito, sans-serif';
+  c.textBaseline = 'middle';
+  /* a soft counter-shade so pale markers stay readable on pale maps */
+  c.shadowColor = (t.c === '#ffffff' || t.c === '#f5c518')
+    ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.45)';
+  c.shadowBlur = px * 0.22;
+  c.fillText(t.v, t.x*w, t.y*h);
+  c.restore();
+}
+
+/* ---------------- layout ---------------- */
+
+function layout(){
+  var pad = 20;
+  var availW = stage.clientWidth  - pad;
+  var availH = stage.clientHeight - pad;
+  if(availW <= 0 || availH <= 0) return;
+
+  var ar = S.bgW / S.bgH;
+  var w = availW, h = w / ar;
+  if(h > availH){ h = availH; w = h * ar; }
+
+  sheetEl.style.width  = Math.round(w) + 'px';
+  sheetEl.style.height = Math.round(h) + 'px';
+
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width  = Math.max(1, Math.round(w * dpr));
+  cv.height = Math.max(1, Math.round(h * dpr));
+  paint();
+}
+
+/* ---------------- background ---------------- */
+
+function setBackground(src){
+  var probe = new Image();
+  probe.onload = function(){
+    S.bgW = probe.naturalWidth  || 1600;
+    S.bgH = probe.naturalHeight || 1000;
+    bgImg.src = src;
+    layout();
+  };
+  probe.onerror = function(){ usePlaceholder(); };
+  probe.src = src;
+}
+
+function usePlaceholder(){
+  var c = document.createElement('canvas');
+  c.width = 1600; c.height = 1000;
+  var x = c.getContext('2d');
+  var i;
+  x.fillStyle = '#f4f1e8'; x.fillRect(0,0,1600,1000);
+  x.strokeStyle = '#d8d2c2'; x.lineWidth = 1;
+  for(i=40;i<1600;i+=40){ x.beginPath(); x.moveTo(i+0.5,0); x.lineTo(i+0.5,1000); x.stroke(); }
+  for(i=40;i<1000;i+=40){ x.beginPath(); x.moveTo(0,i+0.5); x.lineTo(1600,i+0.5); x.stroke(); }
+  x.strokeStyle = '#c9c1ad'; x.lineWidth = 2;
+  for(i=200;i<1600;i+=200){ x.beginPath(); x.moveTo(i+0.5,0); x.lineTo(i+0.5,1000); x.stroke(); }
+  for(i=200;i<1000;i+=200){ x.beginPath(); x.moveTo(0,i+0.5); x.lineTo(1600,i+0.5); x.stroke(); }
+  x.fillStyle = '#a89f8a';
+  x.textAlign = 'center';
+  x.font = '700 40px Nunito, sans-serif';
+  x.fillText('no background loaded', 800, 480);
+  x.font = '400 26px Nunito, sans-serif';
+  x.fillText('menu > change background image', 800, 530);
+
+  S.bgW = 1600; S.bgH = 1000;
+  bgImg.src = c.toDataURL('image/png');
+  layout();
+}
+
+function initBackground(){
+  var custom = null;
+  try { custom = localStorage.getItem(BG_KEY); } catch(e){}
+  if(custom){ setBackground(custom); return; }
+
+  var probe = new Image();
+  probe.onload = function(){
+    S.bgW = probe.naturalWidth;
+    S.bgH = probe.naturalHeight;
+    bgImg.src = 'assets/background.png';
+    layout();
+  };
+  probe.onerror = usePlaceholder;
+  probe.src = 'assets/background.png';
+}
+
+function loadBackgroundFile(file){
+  var fr = new FileReader();
+  fr.onload = function(){
+    var img = new Image();
+    img.onload = function(){
+      /* downscale so it fits in browser storage -- a raw phone photo is far too big */
+      var max = 2000;
+      var w = img.naturalWidth, h = img.naturalHeight;
+      if(w > max || h > max){
+        var k = Math.min(max/w, max/h);
+        w = Math.round(w*k); h = Math.round(h*k);
+      }
+      var c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      var url = c.toDataURL('image/jpeg', 0.85);
+      try {
+        localStorage.setItem(BG_KEY, url);
+      } catch(e){
+        toast('Image too big to store -- it will last this session only');
+      }
+      setBackground(url);
+      toast('Background loaded');
+    };
+    img.src = fr.result;
+  };
+  fr.readAsDataURL(file);
+}
+
+/* ---------------- drawing ---------------- */
+
+function pos(e){
+  var r = cv.getBoundingClientRect();
+  return [
+    (e.clientX - r.left) / r.width,
+    (e.clientY - r.top)  / r.height
+  ];
+}
+
+cv.addEventListener('pointerdown', function(e){
+  if(e.button !== undefined && e.button !== 0) return;
+  var p = pos(e);
+
+  if(S.tool === 'text'){ placeText(p); return; }
+  if(S.tool === 'eraser'){ eraseAt(p); return; }
+
+  try { cv.setPointerCapture(e.pointerId); } catch(err){}
+  live = { c:S.color, w:WIDTHS[S.width], pts:[p] };
+  render();
+});
+
+cv.addEventListener('pointermove', function(e){
+  if(!live) return;
+  var p = pos(e);
+  var last = live.pts[live.pts.length-1];
+  var dx = p[0]-last[0], dy = p[1]-last[1];
+  /* skip micro-jitter so saved sheets stay small */
+  if(dx*dx + dy*dy < 0.0000025) return;
+  live.pts.push(p);
+  render();
+});
+
+function endStroke(){
+  if(!live) return;
+  if(live.pts.length){
+    S.items.push(live);
+    S.redo = [];
+    setDirty(true);
+    updateUndo();
+  }
+  live = null;
+  render();
+}
+cv.addEventListener('pointerup', endStroke);
+cv.addEventListener('pointercancel', endStroke);
+
+function placeText(p){
+  var v = prompt('Label:');
+  if(v === null) return;
+  v = v.trim();
+  if(!v) return;
+  S.items.push({ t:'text', c:S.color, s:TEXTS[S.width], x:p[0], y:p[1], v:v });
+  S.redo = [];
+  setDirty(true);
+  updateUndo();
+  render();
+}
+
+function eraseAt(p){
+  var r = cv.getBoundingClientRect();
+  /* generous touch target: 14 px on screen, expressed back in image fractions */
+  var tolX = 14 / r.width, tolY = 14 / r.height;
+
+  for(var i = S.items.length - 1; i >= 0; i--){
+    if(hit(S.items[i], p, tolX, tolY)){
+      S.items.splice(i,1);
+      S.redo = [];
+      setDirty(true);
+      updateUndo();
+      render();
+      return;
+    }
+  }
+}
+
+function hit(it, p, tolX, tolY){
+  var r = cv.getBoundingClientRect();
+
+  if(it.t === 'text'){
+    var px = it.s * r.width;
+    ctx.save();
+    ctx.font = '700 ' + px + 'px Nunito, sans-serif';
+    var wFrac = ctx.measureText(it.v).width / r.width;
+    ctx.restore();
+    var hFrac = (px * 0.8) / r.height;
+    return p[0] >= it.x - tolX && p[0] <= it.x + wFrac + tolX &&
+           p[1] >= it.y - hFrac/2 - tolY && p[1] <= it.y + hFrac/2 + tolY;
+  }
+
+  var tol = Math.max(tolX, tolY) + it.w;
+  var pts = it.pts;
+  for(var i=0;i<pts.length;i++){
+    if(i){
+      if(segDist(p, pts[i-1], pts[i]) <= tol) return true;
+    } else if(Math.abs(pts[0][0]-p[0]) <= tol && Math.abs(pts[0][1]-p[1]) <= tol){
+      return true;
+    }
+  }
+  return false;
+}
+
+function segDist(p, a, b){
+  var vx = b[0]-a[0], vy = b[1]-a[1];
+  var wx = p[0]-a[0], wy = p[1]-a[1];
+  var len = vx*vx + vy*vy;
+  var t = len ? Math.max(0, Math.min(1, (wx*vx + wy*vy)/len)) : 0;
+  var dx = wx - t*vx, dy = wy - t*vy;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+/* ---------------- undo / redo ---------------- */
+
+function updateUndo(){
+  document.getElementById('undoBtn').disabled = !S.items.length;
+  document.getElementById('redoBtn').disabled = !S.redo.length;
+}
+document.getElementById('undoBtn').addEventListener('click', function(){
+  if(!S.items.length) return;
+  S.redo.push(S.items.pop());
+  setDirty(true); updateUndo(); render();
+});
+document.getElementById('redoBtn').addEventListener('click', function(){
+  if(!S.redo.length) return;
+  S.items.push(S.redo.pop());
+  setDirty(true); updateUndo(); render();
+});
+
+/* ---------------- export ---------------- */
+
+function exportPNG(){
+  var out = document.createElement('canvas');
+  var max = 3000;
+  var w = S.bgW, h = S.bgH;
+  if(w > max || h > max){
+    var k = Math.min(max/w, max/h);
+    w = Math.round(w*k); h = Math.round(h*k);
+  }
+  out.width = w; out.height = h;
+  var c = out.getContext('2d');
+  c.fillStyle = '#ffffff';
+  c.fillRect(0,0,w,h);
+
+  var img = new Image();
+  img.onload = function(){
+    c.drawImage(img, 0, 0, w, h);
+    drawItems(c, S.items, w, h);
+    var name = (S.name || 'sparky ' + defaultName()).replace(/[\\/:*?"<>|]/g,'-');
+    out.toBlob(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = name + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      toast('Image saved');
+    }, 'image/png');
+  };
+  img.onerror = function(){ toast('Could not read the background'); };
+  img.src = bgImg.src;
+}
+
+/* ---------------- tray ---------------- */
+
+var colorsEl = document.getElementById('colors');
+COLORS.forEach(function(pair){
+  var b = document.createElement('button');
+  b.className = 'swatch';
+  b.style.background = pair[1];
+  b.title = pair[0];
+  b.setAttribute('aria-label', pair[0]);
+  b.setAttribute('aria-pressed', 'false');
+  b.setAttribute('data-color', pair[1]);
+  b.addEventListener('click', function(){ setColor(pair[1]); });
+  colorsEl.appendChild(b);
+});
+
+function setColor(hex){
+  S.color = hex;
+  /* picking up a marker means you want to draw with it */
+  if(S.tool === 'eraser') setTool('pen');
+  Array.prototype.forEach.call(colorsEl.children, function(el){
+    el.setAttribute('aria-pressed', el.getAttribute('data-color') === hex ? 'true' : 'false');
+  });
+  savePrefs();
+}
+
+function setTool(t){
+  S.tool = t;
+  document.body.className = 'tool-' + t + (S.dirty ? ' dirty' : '');
+  Array.prototype.forEach.call(document.querySelectorAll('[data-tool]'), function(el){
+    el.setAttribute('aria-pressed', el.getAttribute('data-tool') === t ? 'true' : 'false');
+  });
+}
+
+function setWidth(w){
+  S.width = w;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-w]'), function(el){
+    el.setAttribute('aria-pressed', el.getAttribute('data-w') === w ? 'true' : 'false');
+  });
+  savePrefs();
+}
+
+Array.prototype.forEach.call(document.querySelectorAll('[data-w]'), function(el){
+  el.addEventListener('click', function(){ setWidth(el.getAttribute('data-w')); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-tool]'), function(el){
+  el.addEventListener('click', function(){
+    var t = el.getAttribute('data-tool');
+    setTool(S.tool === t ? 'pen' : t);
+  });
+});
+
+/* ---------------- top bar ---------------- */
+
+document.getElementById('saveBtn').addEventListener('click', doSave);
+
+sel.addEventListener('change', function(){
+  var v = sel.value;
+  if(!confirmDiscard()){ refreshSelect(); return; }
+  if(v === '__new__') newSheet();
+  else openSheet(v);
+});
+
+var menuBtn = document.getElementById('menuBtn');
+var menuPanel = document.getElementById('menuPanel');
+menuBtn.addEventListener('click', function(e){
+  e.stopPropagation();
+  menuPanel.classList.toggle('open');
+});
+document.addEventListener('click', function(){ menuPanel.classList.remove('open'); });
+menuPanel.addEventListener('click', function(e){ e.stopPropagation(); });
+
+menuPanel.addEventListener('click', function(e){
+  var act = e.target.getAttribute && e.target.getAttribute('data-act');
+  if(!act) return;
+  menuPanel.classList.remove('open');
+
+  if(act === 'rename'){
+    if(!S.id){ toast('Save it first, then you can rename it'); return; }
+    var n = prompt('Rename to:', S.name);
+    if(n === null) return;
+    n = n.trim(); if(!n) return;
+    if(nameTaken(n)){ toast('That name is already used'); return; }
+    if(writeSheet(n)) toast('Renamed');
+  }
+
+  else if(act === 'duplicate'){
+    var dn = prompt('Name the copy:', (S.name || defaultName()) + ' copy');
+    if(dn === null) return;
+    dn = dn.trim(); if(!dn) return;
+    S.id = null;                    /* detach first, then write as a fresh sheet */
+    if(nameTaken(dn)){ toast('That name is already used'); refreshSelect(); return; }
+    if(writeSheet(dn)) toast('Copied to "' + dn + '"');
+  }
+
+  else if(act === 'export') exportPNG();
+
+  else if(act === 'background') document.getElementById('bgFile').click();
+
+  else if(act === 'clear'){
+    if(!S.items.length) return;
+    if(!confirm('Wipe every mark on this transparency?\n\nThe background stays.')) return;
+    S.redo = S.items.slice().reverse();
+    S.items = [];
+    setDirty(true); updateUndo(); render();
+    toast('Sheet wiped');
+  }
+
+  else if(act === 'delete'){
+    if(!S.id){ toast('This one was never saved'); return; }
+    if(!confirm('Delete "' + S.name + '" for good?')) return;
+    saveSheets(loadSheets().filter(function(s){ return s.id !== S.id; }));
+    toast('Deleted');
+    newSheet();
+  }
+});
+
+document.getElementById('bgFile').addEventListener('change', function(e){
+  var f = e.target.files && e.target.files[0];
+  if(f) loadBackgroundFile(f);
+  e.target.value = '';
+});
+
+/* ---------------- keyboard (desktop) ---------------- */
+
+document.addEventListener('keydown', function(e){
+  var tag = e.target.tagName;
+  if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  var mod = e.ctrlKey || e.metaKey;
+  var k = (e.key || '').toLowerCase();
+
+  if(mod && k === 'z'){
+    e.preventDefault();
+    document.getElementById(e.shiftKey ? 'redoBtn' : 'undoBtn').click();
+  } else if(mod && k === 's'){
+    e.preventDefault(); doSave();
+  } else if(!mod && k === 'e'){
+    setTool(S.tool === 'eraser' ? 'pen' : 'eraser');
+  } else if(!mod && k === 't'){
+    setTool(S.tool === 'text' ? 'pen' : 'text');
+  }
+});
+
+window.addEventListener('beforeunload', function(e){
+  if(S.dirty){ e.preventDefault(); e.returnValue = ''; }
+});
+
+window.addEventListener('resize', layout);
+window.addEventListener('orientationchange', function(){ setTimeout(layout, 250); });
+
+/* ---------------- boot ---------------- */
+
+var prefs = loadPrefs();
+setTool('pen');
+setColor(prefs.color || '#111111');
+setWidth(prefs.width || 'med');
+updateUndo();
+refreshSelect();
+initBackground();
+layout();
+
+})();
+</script>
+</body>
+</html>
