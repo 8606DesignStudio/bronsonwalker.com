@@ -33,15 +33,11 @@
 
   /* ---------- top bar ---------- */
   #topbar{
-    flex:0 0 auto;display:flex;align-items:center;gap:8px;
+    flex:0 0 auto;display:flex;align-items:center;gap:7px;
     padding:8px 10px;background:var(--chrome);
     border-bottom:1px solid var(--edge);position:relative;z-index:30;
   }
-  .brand{
-    font-weight:700;letter-spacing:.18em;font-size:13px;color:var(--lamp);
-    padding-right:4px;flex:0 0 auto;
-  }
-  #sheetSelect{
+  #fileSelect{
     flex:1 1 auto;min-width:0;
     background:#14161b;color:var(--ink);border:1px solid var(--edge);
     border-radius:7px;padding:8px 9px;font:inherit;font-size:14px;
@@ -49,7 +45,7 @@
   .btn{
     flex:0 0 auto;background:#2a2d36;color:var(--ink);
     border:1px solid var(--edge);border-radius:7px;
-    padding:8px 12px;font:inherit;font-size:14px;font-weight:700;
+    padding:8px 11px;font:inherit;font-size:14px;font-weight:700;
     cursor:pointer;line-height:1;
   }
   .btn:active{background:#343843;}
@@ -60,6 +56,12 @@
     background:var(--lamp);margin-left:6px;vertical-align:1px;
   }
   body.dirty #saveBtn .dot{display:inline-block;}
+  .btn.icon{padding:7px 9px;display:flex;align-items:center;}
+  .btn.icon svg{display:block;width:17px;height:17px;stroke:currentColor;
+    stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  body.isfull #fsOut{display:block;}
+  body.isfull #fsIn{display:none;}
+  #fsOut{display:none;}
 
   /* ---------- the projected sheet ---------- */
   #stage{
@@ -75,6 +77,25 @@
                0 14px 40px rgba(0,0,0,.55);
     background:#fff;
   }
+  #bgImg{
+    position:absolute;inset:0;width:100%;height:100%;
+    display:block;user-select:none;-webkit-user-drag:none;pointer-events:none;
+  }
+  /* the film itself -- a faint sheen so you can tell there is a layer on top */
+  #sheet::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(122deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,0) 26%,
+               rgba(255,255,255,0) 74%,rgba(190,220,255,.10) 100%);
+    mix-blend-mode:screen;
+  }
+  #ink{
+    position:absolute;inset:0;width:100%;height:100%;
+    touch-action:none;cursor:crosshair;z-index:2;
+  }
+  body.tool-text #ink{cursor:text;}
+  body.tool-eraser #ink{cursor:cell;}
+  body.panning #ink{cursor:grabbing;}
+
   /* ---------- inline label editor ----------
      The text you type is not DOM text -- it is drawn straight onto the
      canvas at its final position, in the marker's own colour and size.
@@ -114,30 +135,12 @@
     padding:6px 12px;border-radius:16px;cursor:pointer;
   }
   #zoomPill.show{display:block;}
-  body.panning #ink{cursor:grabbing;}
-  #bgImg{
-    position:absolute;inset:0;width:100%;height:100%;
-    display:block;user-select:none;-webkit-user-drag:none;pointer-events:none;
-  }
-  /* the film itself -- a faint sheen so you can tell there is a layer on top */
-  #sheet::after{
-    content:'';position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(122deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,0) 26%,
-               rgba(255,255,255,0) 74%,rgba(190,220,255,.10) 100%);
-    mix-blend-mode:screen;
-  }
-  #ink{
-    position:absolute;inset:0;width:100%;height:100%;
-    touch-action:none;cursor:crosshair;z-index:2;
-  }
-  body.tool-text #ink{cursor:text;}
-  body.tool-eraser #ink{cursor:cell;}
 
   /* ---------- marker tray ---------- */
   #tray{
     flex:0 0 auto;background:var(--chrome);
     border-top:1px solid var(--edge);padding:8px 10px 10px;
-    display:flex;flex-direction:column;gap:8px;z-index:30;
+    display:flex;flex-direction:column;gap:8px;z-index:30;position:relative;
   }
   #colors{display:flex;gap:8px;justify-content:space-between;}
   .swatch{
@@ -160,23 +163,63 @@
     display:inline-block;background:currentColor;border-radius:50%;
     vertical-align:middle;margin-right:3px;
   }
+  #layersBtn{background:#33384a;border-color:#454b60;}
+  #layersBtn[aria-pressed="true"]{background:#3d6ea8;border-color:#4d82c0;}
   .spacer{flex:1 1 auto;}
 
-  /* ---------- menu ---------- */
-  #menuPanel{
-    position:absolute;top:calc(100% + 6px);right:8px;
-    background:var(--chrome);border:1px solid var(--edge);border-radius:9px;
-    box-shadow:0 12px 32px rgba(0,0,0,.6);padding:6px;min-width:210px;display:none;
+  /* ---------- popovers ---------- */
+  .pop{
+    position:absolute;background:var(--chrome);
+    border:1px solid var(--edge);border-radius:9px;
+    box-shadow:0 12px 32px rgba(0,0,0,.6);padding:6px;display:none;z-index:40;
   }
-  #menuPanel.open{display:block;}
-  #menuPanel button{
+  .pop.open{display:block;}
+  .pop button{
     display:block;width:100%;text-align:left;background:none;border:0;
     color:var(--ink);font:inherit;font-size:14px;padding:9px 10px;
     border-radius:6px;cursor:pointer;
   }
-  #menuPanel button:active{background:#343843;}
-  #menuPanel hr{border:0;border-top:1px solid var(--edge);margin:5px 4px;}
-  #menuPanel .danger{color:#ff8a80;}
+  .pop button:active{background:#343843;}
+  .pop hr{border:0;border-top:1px solid var(--edge);margin:5px 4px;}
+  .pop .danger{color:#ff8a80;}
+  #menuPanel{top:calc(100% + 6px);right:8px;min-width:212px;}
+  #newPanel{top:calc(100% + 6px);right:104px;min-width:158px;}
+
+  /* ---------- transparencies (the stack) ---------- */
+  #layerPanel{
+    bottom:calc(100% + 6px);left:8px;right:8px;max-height:46vh;overflow:auto;
+  }
+  .lp-head{
+    font-size:12px;letter-spacing:.12em;color:var(--dim);
+    padding:4px 8px 6px;text-transform:uppercase;
+  }
+  .lrow{
+    display:flex;align-items:center;gap:6px;
+    border-radius:6px;padding:2px;margin-bottom:2px;
+  }
+  .lrow.active{background:#2d3752;box-shadow:inset 0 0 0 1px #4d82c0;}
+  .lrow .eye{
+    flex:0 0 auto;width:34px;height:32px;border-radius:6px;border:1px solid var(--edge);
+    background:#22252e;color:var(--ink);cursor:pointer;font-size:13px;
+    display:flex;align-items:center;justify-content:center;padding:0;
+  }
+  .lrow .eye[aria-pressed="false"]{color:#5d616c;background:#191b21;}
+  .lrow .lname{
+    flex:1 1 auto;min-width:0;text-align:left;background:none;border:0;
+    color:var(--ink);font:inherit;font-size:14px;font-weight:700;
+    padding:8px 6px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .lrow .lcount{color:var(--dim);font-weight:400;font-size:12px;margin-left:6px;}
+  .lrow .ldel{
+    flex:0 0 auto;width:30px;height:32px;border-radius:6px;border:0;
+    background:none;color:#ff8a80;font-size:17px;cursor:pointer;padding:0;
+  }
+  #addLayer{
+    width:100%;text-align:center;background:#2a2d36;border:1px solid var(--edge);
+    border-radius:7px;color:var(--ink);font:inherit;font-size:14px;font-weight:700;
+    padding:9px;margin-top:4px;cursor:pointer;
+  }
 
   /* ---------- toast ---------- */
   #toast{
@@ -184,19 +227,13 @@
     background:rgba(20,22,27,.95);border:1px solid var(--edge);
     color:var(--ink);padding:9px 16px;border-radius:20px;font-size:14px;
     opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:60;
+    max-width:80vw;text-align:center;
   }
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
-  .btn.icon{padding:7px 9px;display:flex;align-items:center;}
-  .btn.icon svg{display:block;width:17px;height:17px;stroke:currentColor;
-    stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;}
-  body.isfull #fsOut{display:block;}
-  body.isfull #fsIn{display:none;}
-  #fsOut{display:none;}
-
   @media (max-width:420px){
-    .brand{display:none;}
     .swatch{height:30px;}
+    .btn{padding:8px 9px;}
   }
   /* Landscape on a phone -- claw back vertical space, one row instead of
      two. Driven by a class rather than a height media query, because the
@@ -204,9 +241,8 @@
      reflows the moment the keyboard appears is exactly the jump we are
      trying to get rid of. layout() owns this class and holds it still
      while a label is being typed. */
-  body.compact .brand{display:none;}
   body.compact #topbar{padding:5px 8px;gap:6px;}
-  body.compact #sheetSelect,body.compact .btn{padding:6px 9px;font-size:13px;}
+  body.compact #fileSelect,body.compact .btn{padding:6px 9px;font-size:13px;}
   body.compact #tray{padding:5px 8px 6px;gap:5px;flex-direction:row;align-items:center;}
   body.compact #colors{flex:1 1 auto;gap:5px;}
   body.compact .swatch{height:26px;}
@@ -220,8 +256,7 @@
 <body class="tool-pen">
 
 <header id="topbar">
-  <div class="brand">SPARKY</div>
-  <select id="sheetSelect" aria-label="Transparency"></select>
+  <select id="fileSelect" aria-label="File"></select>
   <button class="btn" id="newBtn">New</button>
   <button class="btn primary" id="saveBtn">Save<span class="dot"></span></button>
   <button class="btn icon" id="fsBtn" aria-label="Full screen" title="Full screen">
@@ -240,16 +275,22 @@
   </button>
   <button class="btn" id="menuBtn" aria-label="More">&#8942;</button>
 
-  <div id="menuPanel">
-    <button data-act="rename">Rename this transparency</button>
-    <button data-act="duplicate">Duplicate as a new one</button>
+  <div class="pop" id="newPanel">
+    <button data-new="file">New file</button>
+    <button data-new="layer">New transparency</button>
+  </div>
+
+  <div class="pop" id="menuPanel">
+    <button data-act="renamefile">Rename this file</button>
+    <button data-act="renamelayer">Rename this transparency</button>
+    <button data-act="duplicate">Duplicate this file</button>
     <hr>
     <button data-act="export">Save as image (PNG)</button>
     <button data-act="background">Change background image</button>
     <button data-act="dropbg">Back to the blank pad</button>
     <hr>
-    <button data-act="clear">Clear all marks</button>
-    <button data-act="delete" class="danger">Delete this transparency</button>
+    <button data-act="clear">Clear this transparency</button>
+    <button data-act="delete" class="danger">Delete this file</button>
     <hr>
     <button data-act="factory" class="danger">Start over -- erase everything</button>
   </div>
@@ -270,10 +311,17 @@
     <button class="tbtn" data-w="med"><span class="nib" style="width:7px;height:7px"></span>Med</button>
     <button class="tbtn" data-w="bold"><span class="nib" style="width:11px;height:11px"></span>Bold</button>
     <span class="spacer"></span>
+    <button class="tbtn" id="layersBtn" aria-pressed="false">Layers</button>
     <button class="tbtn" data-tool="text">Text</button>
     <button class="tbtn" data-tool="eraser">Erase</button>
     <button class="tbtn" id="undoBtn">Undo</button>
     <button class="tbtn" id="redoBtn">Redo</button>
+  </div>
+
+  <div class="pop" id="layerPanel">
+    <div class="lp-head">Transparencies -- top of the stack first</div>
+    <div id="layerList"></div>
+    <button id="addLayer">+ New transparency</button>
   </div>
 </footer>
 
@@ -285,9 +333,16 @@
 'use strict';
 
 /* ============================================================
-   Sparky -- a transparency over a fixed background.
-   Marks are stored as fractions of the image (0..1), never as
-   pixels, so a sheet drawn on a phone lands correctly anywhere.
+   Sparky
+
+   A FILE is one background plus a stack of TRANSPARENCIES over it.
+   Marks live on a transparency, never on the background, and every
+   coordinate is a fraction of the image (0..1) rather than a pixel --
+   so a file drawn on a phone lines up on a desktop.
+
+   Backgrounds are stored once each, keyed by their content, and files
+   point at them. Ten days of work over the same print costs one copy
+   of the print.
    ============================================================ */
 
 var COLORS = [
@@ -307,22 +362,24 @@ var COLORS = [
 var WIDTHS = { fine:0.0015, med:0.0030, bold:0.0060 };
 var TEXTS  = { fine:0.0130, med:0.0180, bold:0.0260 };
 
-var SHEETS_KEY = 'sparky.sheets.v1';
-var BG_KEY     = 'sparky.bg.v1';
+var FILES_KEY  = 'sparky.files.v1';
+var BGS_KEY    = 'sparky.bgs.v1';
 var PREF_KEY   = 'sparky.prefs.v1';
+var OLD_SHEETS = 'sparky.sheets.v1';   /* the pre-files format */
+var OLD_BG     = 'sparky.bg.v1';
 
-var stage   = document.getElementById('stage');
-var sheetEl = document.getElementById('sheet');
-var bgImg   = document.getElementById('bgImg');
-var cv      = document.getElementById('ink');
-var ctx     = cv.getContext('2d');
-var sel     = document.getElementById('sheetSelect');
-var toastEl = document.getElementById('toast');
+var stage    = document.getElementById('stage');
+var sheetEl  = document.getElementById('sheet');
+var bgImg    = document.getElementById('bgImg');
+var cv       = document.getElementById('ink');
+var ctx      = cv.getContext('2d');
+var sel      = document.getElementById('fileSelect');
+var toastEl  = document.getElementById('toast');
+var zoomPill = document.getElementById('zoomPill');
 
 var S = {
-  id:null, name:null,
-  items:[],          /* committed marks */
-  redo:[],
+  fileId:null, name:null, bgId:null,
+  layers:[], active:0,
   dirty:false,
   tool:'pen', color:'#111111', width:'med',
   bgW:1600, bgH:1000
@@ -330,24 +387,73 @@ var S = {
 
 var live = null;     /* stroke in progress */
 
+function newId(p){
+  return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
 /* ---------------- storage ---------------- */
 
-function loadSheets(){
-  try { return JSON.parse(localStorage.getItem(SHEETS_KEY)) || []; }
-  catch(e){ return []; }
+function readJSON(key, fallback){
+  try { var v = JSON.parse(localStorage.getItem(key)); return v || fallback; }
+  catch(e){ return fallback; }
 }
-function saveSheets(list){
-  try { localStorage.setItem(SHEETS_KEY, JSON.stringify(list)); return true; }
-  catch(e){ toast('Out of storage space -- delete an old transparency'); return false; }
+function writeJSON(key, val){
+  try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+  catch(e){
+    toast('Storage is full -- delete a file, or use Save as image');
+    return false;
+  }
 }
-function loadPrefs(){
-  try { return JSON.parse(localStorage.getItem(PREF_KEY)) || {}; }
-  catch(e){ return {}; }
+function loadFiles(){ return readJSON(FILES_KEY, []); }
+function saveFiles(list){ return writeJSON(FILES_KEY, list); }
+function loadBgs(){ return readJSON(BGS_KEY, {}); }
+function saveBgs(map){ return writeJSON(BGS_KEY, map); }
+function loadPrefs(){ return readJSON(PREF_KEY, {}); }
+function savePrefs(){ writeJSON(PREF_KEY, { color:S.color, width:S.width }); }
+
+/* drop any background no file points at any more */
+function pruneBgs(){
+  var used = {};
+  loadFiles().forEach(function(f){ if(f.bgId) used[f.bgId] = 1; });
+  if(S.bgId) used[S.bgId] = 1;
+  var map = loadBgs(), changed = false;
+  for(var k in map){
+    if(map.hasOwnProperty(k) && !used[k]){ delete map[k]; changed = true; }
+  }
+  if(changed) saveBgs(map);
 }
-function savePrefs(){
-  try {
-    localStorage.setItem(PREF_KEY, JSON.stringify({color:S.color, width:S.width}));
-  } catch(e){}
+
+/* content key, so the same print loaded twice is stored once */
+function hashOf(str){
+  var h = 5381;
+  for(var i=0;i<str.length;i++){ h = ((h*33) ^ str.charCodeAt(i)) >>> 0; }
+  return 'bg_' + h.toString(36) + '_' + str.length.toString(36);
+}
+
+/* one-time move from the old flat list of transparencies */
+function migrate(){
+  var old = readJSON(OLD_SHEETS, null);
+  if(!old || !old.length) return;
+
+  var oldBg = null;
+  try { oldBg = localStorage.getItem(OLD_BG); } catch(e){}
+
+  var bgId = null;
+  if(oldBg){
+    bgId = hashOf(oldBg);
+    var map = loadBgs(); map[bgId] = oldBg; saveBgs(map);
+  }
+  var files = loadFiles();
+  old.forEach(function(sh){
+    files.push({
+      id: newId('f'), name: sh.name, bgId: bgId,
+      created: sh.created || Date.now(), updated: sh.updated || Date.now(),
+      active: 0,
+      layers: [{ id:newId('l'), name:'Transparency 1', on:true, items: sh.items || [] }]
+    });
+  });
+  saveFiles(files);
+  try { localStorage.removeItem(OLD_SHEETS); localStorage.removeItem(OLD_BG); } catch(e){}
 }
 
 /* ---------------- ui bits ---------------- */
@@ -357,87 +463,179 @@ function toast(msg){
   toastEl.textContent = msg;
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 1900);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2100);
 }
 function setDirty(v){
   S.dirty = !!v;
   document.body.classList.toggle('dirty', S.dirty);
 }
 
-/* ---------------- sheet list ---------------- */
+/* ---------------- transparencies ---------------- */
 
-function refreshSelect(){
-  var list = loadSheets();
+function activeLayer(){ return S.layers[S.active] || null; }
+
+function makeLayer(name){
+  return { id:newId('l'), name:name, on:true, items:[], redo:[] };
+}
+
+function addLayer(){
+  commitText();
+  S.layers.push(makeLayer('Transparency ' + (S.layers.length + 1)));
+  S.active = S.layers.length - 1;
+  setDirty(true);
+  refreshLayers(); updateUndo(); render();
+  toast('Added ' + activeLayer().name);
+}
+
+function refreshLayers(){
+  var list = document.getElementById('layerList');
+  list.innerHTML = '';
+  /* top of the stack reads first, the way you look down at a pile of film */
+  for(var i = S.layers.length - 1; i >= 0; i--){
+    (function(idx){
+      var L = S.layers[idx];
+      var row = document.createElement('div');
+      row.className = 'lrow' + (idx === S.active ? ' active' : '');
+      row.setAttribute('data-layer', String(idx));
+
+      var eye = document.createElement('button');
+      eye.className = 'eye';
+      eye.setAttribute('aria-pressed', L.on ? 'true' : 'false');
+      eye.textContent = L.on ? '◉' : '○';
+      eye.title = L.on ? 'Hide' : 'Show';
+      eye.addEventListener('click', function(e){
+        e.stopPropagation();
+        L.on = !L.on;
+        setDirty(true);
+        refreshLayers(); render();
+      });
+
+      var name = document.createElement('button');
+      name.className = 'lname';
+      name.textContent = L.name;
+      var count = document.createElement('span');
+      count.className = 'lcount';
+      count.textContent = L.items.length + (L.items.length === 1 ? ' mark' : ' marks');
+      name.appendChild(count);
+      name.addEventListener('click', function(){
+        commitText();
+        S.active = idx;
+        if(!L.on){ L.on = true; setDirty(true); }
+        refreshLayers(); updateUndo(); render();
+      });
+
+      var del = document.createElement('button');
+      del.className = 'ldel';
+      del.innerHTML = '&times;';
+      del.title = 'Delete';
+      del.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(S.layers.length === 1){ toast('A file needs at least one transparency'); return; }
+        if(L.items.length && !confirm('Delete "' + L.name + '" and its ' +
+            L.items.length + ' marks?')) return;
+        S.layers.splice(idx, 1);
+        if(S.active >= S.layers.length) S.active = S.layers.length - 1;
+        setDirty(true);
+        refreshLayers(); updateUndo(); render();
+      });
+
+      row.appendChild(eye); row.appendChild(name); row.appendChild(del);
+      list.appendChild(row);
+    })(i);
+  }
+  var hidden = S.layers.filter(function(l){ return !l.on; }).length;
+  document.getElementById('layersBtn').textContent =
+    'Layers ' + (S.active + 1) + '/' + S.layers.length + (hidden ? ' -' + hidden : '');
+}
+
+/* ---------------- files ---------------- */
+
+function refreshFiles(){
+  var list = loadFiles();
   list.sort(function(a,b){ return (b.updated||0) - (a.updated||0); });
   sel.innerHTML = '';
 
-  var opt = document.createElement('option');
-  opt.value = '__new__';
-  opt.textContent = 'Create new transparency';
-  sel.appendChild(opt);
-
-  if(list.length){
-    var g = document.createElement('optgroup');
-    g.label = 'Saved';
-    list.forEach(function(sh){
-      var o = document.createElement('option');
-      o.value = sh.id;
-      o.textContent = sh.name;
-      g.appendChild(o);
-    });
-    sel.appendChild(g);
+  if(!S.fileId){
+    var o = document.createElement('option');
+    o.value = '__unsaved__';
+    o.textContent = 'Unsaved file';
+    sel.appendChild(o);
   }
-
-  sel.value = S.id ? S.id : '__new__';
+  list.forEach(function(f){
+    var op = document.createElement('option');
+    op.value = f.id;
+    op.textContent = f.name + '  (' + (f.layers ? f.layers.length : 1) + ')';
+    sel.appendChild(op);
+  });
+  sel.value = S.fileId ? S.fileId : '__unsaved__';
 }
 
-function newSheet(){
+function newFile(){
   cancelText();
-  S.id = null; S.name = null; S.items = []; S.redo = [];
+  S.fileId = null; S.name = null; S.bgId = null;
+  S.layers = [makeLayer('Transparency 1')];
+  S.active = 0;
   setDirty(false);
-  refreshSelect();
-  updateUndo();
+  refreshFiles(); refreshLayers(); updateUndo();
+  view.s = 1;
+  showBackground(null);          /* straight back to the blank pad */
   render();
 }
 
-function openSheet(id){
+function openFile(id){
   cancelText();
-  var sh = loadSheets().filter(function(s){ return s.id === id; })[0];
-  if(!sh){ toast('That one is gone'); newSheet(); return; }
-  S.id = sh.id;
-  S.name = sh.name;
-  S.items = sh.items ? JSON.parse(JSON.stringify(sh.items)) : [];
-  S.redo = [];
+  var f = loadFiles().filter(function(x){ return x.id === id; })[0];
+  if(!f){ toast('That file is gone'); newFile(); return; }
+  S.fileId = f.id;
+  S.name = f.name;
+  S.bgId = f.bgId || null;
+  S.layers = (f.layers || []).map(function(L){
+    return { id:L.id, name:L.name, on:L.on !== false,
+             items:JSON.parse(JSON.stringify(L.items || [])), redo:[] };
+  });
+  if(!S.layers.length) S.layers = [makeLayer('Transparency 1')];
+  S.active = Math.min(f.active || 0, S.layers.length - 1);
   setDirty(false);
-  refreshSelect();
-  updateUndo();
+  refreshFiles(); refreshLayers(); updateUndo();
+  view.s = 1;
+  showBackground(S.bgId ? (loadBgs()[S.bgId] || null) : null);
   render();
 }
 
-function writeSheet(name){
-  var list = loadSheets();
+function packLayers(){
+  return S.layers.map(function(L){
+    return { id:L.id, name:L.name, on:L.on, items:L.items };
+  });
+}
+
+function writeFile(name){
+  var list = loadFiles();
   var now = Date.now();
-  var existing = S.id ? list.filter(function(s){ return s.id === S.id; })[0] : null;
+  var existing = S.fileId ? list.filter(function(f){ return f.id === S.fileId; })[0] : null;
 
   if(existing){
-    /* save IN PLACE -- this is the whole point, no copies */
+    /* save IN PLACE -- the whole point, no copies */
     existing.name = name || existing.name;
-    existing.items = S.items;
+    existing.bgId = S.bgId;
+    existing.layers = packLayers();
+    existing.active = S.active;
     existing.updated = now;
   } else {
-    S.id = 'sh_' + now.toString(36) + Math.random().toString(36).slice(2,6);
-    list.push({ id:S.id, name:name, items:S.items, updated:now, created:now });
+    S.fileId = newId('f');
+    list.push({ id:S.fileId, name:name, bgId:S.bgId, layers:packLayers(),
+                active:S.active, created:now, updated:now });
   }
-  if(!saveSheets(list)) return false;
+  if(!saveFiles(list)){ if(!existing) S.fileId = null; return false; }
   S.name = name || S.name;
   setDirty(false);
-  refreshSelect();
+  pruneBgs();
+  refreshFiles();
   return true;
 }
 
 function nameTaken(name){
-  return loadSheets().some(function(s){
-    return s.name.toLowerCase() === name.toLowerCase() && s.id !== S.id;
+  return loadFiles().some(function(f){
+    return f.name.toLowerCase() === name.toLowerCase() && f.id !== S.fileId;
   });
 }
 
@@ -446,35 +644,38 @@ function defaultName(){
   return (d.getMonth()+1) + '.' + d.getDate() + '.' + String(d.getFullYear()).slice(2);
 }
 
+function totalMarks(){
+  return S.layers.reduce(function(n, L){ return n + L.items.length; }, 0);
+}
+
 function doSave(){
   commitText();
-  if(!S.id && !S.items.length){ toast('Nothing to save yet'); return; }
+  if(!S.fileId && !totalMarks() && !S.bgId){ toast('Nothing to save yet'); return; }
 
-  if(S.id){
-    if(writeSheet(S.name)) toast('Saved -- ' + S.name);
+  if(S.fileId){
+    if(writeFile(S.name)) toast('Saved -- ' + S.name);
     return;
   }
-
   var suggested = defaultName();
-  var name = prompt('Name this transparency:', suggested);
+  var name = prompt('Name this file:', suggested);
   if(name === null) return;
   name = name.trim();
   if(!name) name = suggested;
 
   if(nameTaken(name)){
     if(!confirm('"' + name + '" already exists.\n\nOK to overwrite it?')) return;
-    var hit = loadSheets().filter(function(s){
-      return s.name.toLowerCase() === name.toLowerCase();
-    })[0];
-    S.id = hit.id;
+    S.fileId = loadFiles().filter(function(f){
+      return f.name.toLowerCase() === name.toLowerCase();
+    })[0].id;
   }
-  if(writeSheet(name)) toast('Saved -- ' + name);
+  if(writeFile(name)) toast('Saved -- ' + name);
 }
 
 function factoryReset(){
   cancelText();
-
-  S.id = null; S.name = null; S.items = []; S.redo = [];
+  S.fileId = null; S.name = null; S.bgId = null;
+  S.layers = [makeLayer('Transparency 1')];
+  S.active = 0;
   setDirty(false);
   setTool('pen');
   setColor('#111111');
@@ -483,21 +684,22 @@ function factoryReset(){
   /* clear storage AFTER resetting the markers -- setColor and setWidth
      each write the preferences back, so wiping first left a key behind */
   try {
-    localStorage.removeItem(SHEETS_KEY);
-    localStorage.removeItem(BG_KEY);
+    localStorage.removeItem(FILES_KEY);
+    localStorage.removeItem(BGS_KEY);
     localStorage.removeItem(PREF_KEY);
+    localStorage.removeItem(OLD_SHEETS);
+    localStorage.removeItem(OLD_BG);
   } catch(e){}
 
-  refreshSelect();
-  updateUndo();
-  resetView();
-  initBackground();
+  refreshFiles(); refreshLayers(); updateUndo();
+  view.s = 1;
+  showBackground(null);
   render();
 }
 
 function confirmDiscard(){
   if(!S.dirty) return true;
-  return confirm('This transparency has unsaved marks.\n\nLeave them behind?');
+  return confirm('This file has unsaved marks.\n\nLeave them behind?');
 }
 
 /* ---------------- rendering ---------------- */
@@ -511,12 +713,18 @@ function render(){
 function paint(){
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,cv.width,cv.height);
-  drawItems(ctx, S.items, cv.width, cv.height);
+  drawLayers(ctx, S.layers, cv.width, cv.height);
   if(live) drawStroke(ctx, live, cv.width, cv.height);
   /* the label being typed, drawn exactly where it will stay */
   if(editor && editor.input.value){
     drawText(ctx, { c:editor.c, s:editor.s, x:editor.p[0], y:editor.p[1],
                     v:editor.input.value }, cv.width, cv.height);
+  }
+}
+
+function drawLayers(c, layers, w, h){
+  for(var i=0;i<layers.length;i++){
+    if(layers[i].on !== false) drawItems(c, layers[i].items, w, h);
   }
 }
 
@@ -546,7 +754,6 @@ function drawStroke(c, s, w, h){
     c.restore();
     return;
   }
-
   c.beginPath();
   c.moveTo(pts[0][0]*w, pts[0][1]*h);
   for(var i=1;i<pts.length-1;i++){
@@ -575,13 +782,12 @@ function isPale(hex){
 /* Where a browser puts the glyphs inside a line box of height 1em:
    baseline = top + (1em - (ascent + descent))/2 + ascent.
    Drawing the canvas text on that same rule is what keeps a label from
-   hopping when the editing box goes away. Older engines without the
-   metrics fall back to a plain top-left anchor. */
+   hopping when the editing box goes away. */
 function baselineIn(c, px){
   var m = c.measureText('Hg');
   if(m.fontBoundingBoxAscent === undefined) return null;
-  var a = m.fontBoundingBoxAscent, d = m.fontBoundingBoxDescent;
-  return (px - (a + d)) / 2 + a;
+  return (px - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2
+         + m.fontBoundingBoxAscent;
 }
 
 function drawText(c, t, w, h){
@@ -599,17 +805,15 @@ function drawText(c, t, w, h){
 }
 
 /* ---------------- layout and view ----------------
-   base  = where the sheet sits at rest, fitted to the stage
-   view  = the zoom on top of that (scale + offset, no rotation)
+   base = where the sheet sits at rest, fitted to the stage
+   view = the zoom on top of that (scale + offset, no rotation)
    Because the zoom is a CSS transform, getBoundingClientRect() already
-   reports the zoomed box, so the drawing maths below needs no changes.
+   reports the zoomed box, so the drawing maths needs no changes.
 --------------------------------------------------------------- */
 
 var base = { x:0, y:0, w:0, h:0 };
 var view = { s:1, tx:0, ty:0 };
 var MAX_ZOOM = 8;
-var zoomPill = document.getElementById('zoomPill');
-
 var layoutFrozen = false;
 
 function layout(){
@@ -658,8 +862,6 @@ function clampView(){
   var sw = stage.clientWidth, sh = stage.clientHeight;
   var scaledW = base.w * view.s, scaledH = base.h * view.s;
 
-  /* if the sheet is smaller than the stage, park it in the middle;
-     if it is bigger, never let an edge drift inside the stage */
   if(scaledW <= sw) view.tx = (sw - scaledW) / 2 - base.x;
   else view.tx = Math.min(-base.x, Math.max(sw - scaledW - base.x, view.tx));
 
@@ -716,7 +918,8 @@ function scheduleRes(){
 
 /* ---------------- background ---------------- */
 
-function setBackground(src){
+function showBackground(src){
+  if(!src){ usePlaceholder(); return; }
   var probe = new Image();
   probe.onload = function(){
     S.bgW = probe.naturalWidth  || 1600;
@@ -728,6 +931,7 @@ function setBackground(src){
   probe.src = src;
 }
 
+/* the notepad Sparky starts life on */
 function usePlaceholder(){
   var c = document.createElement('canvas');
   c.width = 1600; c.height = 1000;
@@ -740,32 +944,10 @@ function usePlaceholder(){
   x.strokeStyle = '#c9c1ad'; x.lineWidth = 2;
   for(i=200;i<1600;i+=200){ x.beginPath(); x.moveTo(i+0.5,0); x.lineTo(i+0.5,1000); x.stroke(); }
   for(i=200;i<1000;i+=200){ x.beginPath(); x.moveTo(0,i+0.5); x.lineTo(1600,i+0.5); x.stroke(); }
-  x.fillStyle = '#a89f8a';
-  x.textAlign = 'center';
-  x.font = '700 40px Nunito, sans-serif';
-  x.fillText('no background loaded', 800, 480);
-  x.font = '400 26px Nunito, sans-serif';
-  x.fillText('menu > change background image', 800, 530);
 
   S.bgW = 1600; S.bgH = 1000;
   bgImg.src = c.toDataURL('image/png');
   layout();
-}
-
-function initBackground(){
-  var custom = null;
-  try { custom = localStorage.getItem(BG_KEY); } catch(e){}
-  if(custom){ setBackground(custom); return; }
-
-  var probe = new Image();
-  probe.onload = function(){
-    S.bgW = probe.naturalWidth;
-    S.bgH = probe.naturalHeight;
-    bgImg.src = 'assets/background.png';
-    layout();
-  };
-  probe.onerror = usePlaceholder;
-  probe.src = 'assets/background.png';
 }
 
 function loadBackgroundFile(file){
@@ -773,7 +955,7 @@ function loadBackgroundFile(file){
   fr.onload = function(){
     var img = new Image();
     img.onload = function(){
-      /* downscale so it fits in browser storage -- a raw phone photo is far too big */
+      /* downscale so one print does not eat the whole storage budget */
       var max = 2000;
       var w = img.naturalWidth, h = img.naturalHeight;
       if(w > max || h > max){
@@ -782,15 +964,18 @@ function loadBackgroundFile(file){
       }
       var c = document.createElement('canvas');
       c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      var url = c.toDataURL('image/jpeg', 0.85);
-      try {
-        localStorage.setItem(BG_KEY, url);
-      } catch(e){
-        toast('Image too big to store -- it will last this session only');
-      }
-      setBackground(url);
-      toast('Background loaded');
+      var cc = c.getContext('2d');
+      cc.fillStyle = '#ffffff'; cc.fillRect(0,0,w,h);
+      cc.drawImage(img, 0, 0, w, h);
+      var url = c.toDataURL('image/jpeg', 0.78);
+
+      var id = hashOf(url);
+      var map = loadBgs();
+      if(!map[id]){ map[id] = url; saveBgs(map); }
+      S.bgId = id;
+      setDirty(true);
+      showBackground(url);
+      toast('Background set -- about ' + Math.round(url.length/1400) + ' KB');
     };
     img.src = fr.result;
   };
@@ -808,11 +993,11 @@ function pos(e){
   ];
 }
 
-var ptrs    = {};    /* every finger currently down, by pointerId */
+var ptrs    = {};
 var nPtrs   = 0;
-var gesture = null;  /* two-finger pinch/pan in progress */
-var tapPend = null;  /* a text/eraser tap waiting to see if it becomes a gesture */
-var panDrag = null;  /* desktop: space-drag or middle-drag */
+var gesture = null;
+var tapPend = null;
+var panDrag = null;
 var spaceHeld = false;
 
 function ptrList(){
@@ -822,17 +1007,16 @@ function ptrList(){
 }
 
 stage.addEventListener('pointerdown', function(e){
-  if(e.target === zoomPill) return;          /* let the pill take its own click */
+  if(e.target === zoomPill) return;                      /* the pill takes its own click */
   if(editor && editor.wrap.contains(e.target)) return;   /* typing a label */
+  closePops();
   try { stage.setPointerCapture(e.pointerId); } catch(err){}
   ptrs[e.pointerId] = { x:e.clientX, y:e.clientY };
   nPtrs++;
 
   /* second finger down -- this is a pinch, not a mark */
   if(nPtrs === 2){
-    live = null;
-    tapPend = null;
-    panDrag = null;
+    live = null; tapPend = null; panDrag = null;
     startGesture();
     render();
     return;
@@ -853,7 +1037,6 @@ stage.addEventListener('pointerdown', function(e){
 
   var p = pos(e);
   if(S.tool === 'text' || S.tool === 'eraser'){
-    /* wait for the lift -- a second finger may still be on its way */
     tapPend = { p:p, x:e.clientX, y:e.clientY };
     return;
   }
@@ -872,18 +1055,16 @@ stage.addEventListener('pointermove', function(e){
     clampView(); applyView();
     return;
   }
-
   if(tapPend){
     var dx0 = e.clientX - tapPend.x, dy0 = e.clientY - tapPend.y;
     if(dx0*dx0 + dy0*dy0 > 100) tapPend = null;   /* dragged, not a tap */
     return;
   }
-
   if(!live) return;
   var p = pos(e);
   var last = live.pts[live.pts.length-1];
   var dx = p[0]-last[0], dy = p[1]-last[1];
-  /* skip micro-jitter so saved sheets stay small */
+  /* skip micro-jitter so saved files stay small */
   if(dx*dx + dy*dy < 0.0000025) return;
   live.pts.push(p);
   render();
@@ -894,7 +1075,7 @@ function pointerGone(e){
 
   if(gesture){
     if(nPtrs < 2){ gesture = null; scheduleRes(); }
-    else startGesture();          /* a third finger lifted -- re-seat on the pair */
+    else startGesture();
     return;
   }
   if(panDrag){
@@ -915,11 +1096,13 @@ stage.addEventListener('pointercancel', pointerGone);
 
 function endStroke(){
   if(!live) return;
-  if(live.pts.length){
-    S.items.push(live);
-    S.redo = [];
+  var L = activeLayer();
+  if(live.pts.length && L){
+    L.items.push(live);
+    L.redo = [];
     setDirty(true);
     updateUndo();
+    refreshLayers();
   }
   live = null;
   render();
@@ -935,7 +1118,6 @@ function startGesture(){
   gesture = {
     d0: Math.max(1, Math.hypot(b.x-a.x, b.y-a.y)),
     s0: view.s,
-    /* the point of the drawing pinned under the two fingers */
     a: {
       x: (mx - r.left - base.x - view.tx) / view.s,
       y: (my - r.top  - base.y - view.ty) / view.s
@@ -952,25 +1134,20 @@ function moveGesture(){
   zoomTo(gesture.s0 * (d / gesture.d0), mx, my, gesture.a);
 }
 
-/* trackpad pinch arrives as ctrl+wheel; a plain wheel zooms too */
 stage.addEventListener('wheel', function(e){
   e.preventDefault();
   zoomTo(view.s * Math.exp(-e.deltaY * 0.0022), e.clientX, e.clientY);
   scheduleRes();
 }, { passive:false });
 
-/* double-click / double-tap snaps back to the whole sheet */
 stage.addEventListener('dblclick', function(){ if(view.s > 1.01) resetView(); });
 
-/* ---------------- the label editor ----------------
-   Type where the label will live. The field carries the marker's own
-   colour, size and font, sitting inside the sheet so the zoom scales it
-   with everything else. Done removes the box; the text does not move. */
+/* ---------------- the label editor ---------------- */
 
 var editor = null;
 
 function openEditor(p){
-  commitText();                       /* only one open at a time */
+  commitText();
 
   var frac   = TEXTS[S.width];
   var fontPx = frac * base.w;
@@ -1008,7 +1185,6 @@ function openEditor(p){
   editor = { wrap:wrap, plate:plate, input:inp, p:p, s:frac, c:S.color };
   layoutFrozen = true;              /* the keyboard must not resize the sheet */
 
-  /* keep the invisible field, the box and the canvas preview in step */
   editor.fit = function(){
     var px = editor.s * base.w;
     wrap.style.fontSize = px + 'px';
@@ -1033,7 +1209,7 @@ function openEditor(p){
 
   inp.addEventListener('input', editor.fit);
   inp.addEventListener('keydown', function(e){
-    e.stopPropagation();                       /* keep shortcuts out of the field */
+    e.stopPropagation();
     if(e.key === 'Enter'){ e.preventDefault(); commitText(); }
     else if(e.key === 'Escape'){ e.preventDefault(); cancelText(); }
   });
@@ -1044,8 +1220,6 @@ function openEditor(p){
   try { inp.focus({ preventScroll:true }); } catch(err){ inp.focus(); }
   lockScroll();
 
-  /* tapping away uses whatever was typed. Guard against a late blur from
-     the previous field landing on a newly opened one. */
   inp.addEventListener('blur', function(){
     if(editor && editor.input === inp) commitText();
   });
@@ -1077,11 +1251,13 @@ function commitText(){
   var e = closeEditor();
   if(!e) return;
   var v = e.input.value.trim();
-  if(!v){ render(); return; }
-  S.items.push({ t:'text', c:e.c, s:e.s, x:e.p[0], y:e.p[1], v:v });
-  S.redo = [];
+  var L = activeLayer();
+  if(!v || !L){ render(); return; }
+  L.items.push({ t:'text', c:e.c, s:e.s, x:e.p[0], y:e.p[1], v:v });
+  L.redo = [];
   setDirty(true);
   updateUndo();
+  refreshLayers();
   render();
 }
 
@@ -1089,21 +1265,27 @@ function cancelText(){
   if(closeEditor()) render();
 }
 
+/* ---------------- eraser (works on the active transparency) ---------------- */
+
 function eraseAt(p){
+  var L = activeLayer();
+  if(!L) return;
   var r = cv.getBoundingClientRect();
   /* generous touch target: 14 px on screen, expressed back in image fractions */
   var tolX = 14 / r.width, tolY = 14 / r.height;
 
-  for(var i = S.items.length - 1; i >= 0; i--){
-    if(hit(S.items[i], p, tolX, tolY)){
-      S.items.splice(i,1);
-      S.redo = [];
+  for(var i = L.items.length - 1; i >= 0; i--){
+    if(hit(L.items[i], p, tolX, tolY)){
+      L.items.splice(i,1);
+      L.redo = [];
       setDirty(true);
       updateUndo();
+      refreshLayers();
       render();
       return;
     }
   }
+  if(S.layers.length > 1) toast('Nothing on ' + L.name + ' there');
 }
 
 function hit(it, p, tolX, tolY){
@@ -1142,26 +1324,31 @@ function segDist(p, a, b){
   return Math.sqrt(dx*dx + dy*dy);
 }
 
-/* ---------------- undo / redo ---------------- */
+/* ---------------- undo / redo (per transparency) ---------------- */
 
 function updateUndo(){
-  document.getElementById('undoBtn').disabled = !S.items.length;
-  document.getElementById('redoBtn').disabled = !S.redo.length;
+  var L = activeLayer();
+  document.getElementById('undoBtn').disabled = !L || !L.items.length;
+  document.getElementById('redoBtn').disabled = !L || !L.redo || !L.redo.length;
 }
 document.getElementById('undoBtn').addEventListener('click', function(){
-  if(!S.items.length) return;
-  S.redo.push(S.items.pop());
-  setDirty(true); updateUndo(); render();
+  var L = activeLayer();
+  if(!L || !L.items.length) return;
+  L.redo = L.redo || [];
+  L.redo.push(L.items.pop());
+  setDirty(true); updateUndo(); refreshLayers(); render();
 });
 document.getElementById('redoBtn').addEventListener('click', function(){
-  if(!S.redo.length) return;
-  S.items.push(S.redo.pop());
-  setDirty(true); updateUndo(); render();
+  var L = activeLayer();
+  if(!L || !L.redo || !L.redo.length) return;
+  L.items.push(L.redo.pop());
+  setDirty(true); updateUndo(); refreshLayers(); render();
 });
 
 /* ---------------- export ---------------- */
 
 function exportPNG(){
+  commitText();
   var out = document.createElement('canvas');
   var max = 3000;
   var w = S.bgW, h = S.bgH;
@@ -1177,7 +1364,7 @@ function exportPNG(){
   var img = new Image();
   img.onload = function(){
     c.drawImage(img, 0, 0, w, h);
-    drawItems(c, S.items, w, h);
+    drawLayers(c, S.layers, w, h);           /* visible transparencies only */
     var name = (S.name || 'sparky ' + defaultName()).replace(/[\\/:*?"<>|]/g,'-');
     out.toBlob(function(blob){
       var url = URL.createObjectURL(blob);
@@ -1214,15 +1401,15 @@ function setColor(hex){
   S.color = hex;
   /* picking up a marker means you want to draw with it */
   if(S.tool === 'eraser') setTool('pen');
+  Array.prototype.forEach.call(colorsEl.children, function(el){
+    el.setAttribute('aria-pressed', el.getAttribute('data-color') === hex ? 'true' : 'false');
+  });
   if(editor){
     editor.c = hex;
     editor.wrap.style.caretColor = hex;
     editor.plate.classList.toggle('onlight', !isPale(hex));
     render();
   }
-  Array.prototype.forEach.call(colorsEl.children, function(el){
-    el.setAttribute('aria-pressed', el.getAttribute('data-color') === hex ? 'true' : 'false');
-  });
   savePrefs();
 }
 
@@ -1255,93 +1442,142 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-tool]'), function(
   });
 });
 
+/* ---------------- popovers ---------------- */
+
+var newPanel   = document.getElementById('newPanel');
+var menuPanel  = document.getElementById('menuPanel');
+var layerPanel = document.getElementById('layerPanel');
+var pops = [newPanel, menuPanel, layerPanel];
+
+function closePops(){
+  pops.forEach(function(p){ p.classList.remove('open'); });
+  document.getElementById('layersBtn').setAttribute('aria-pressed', 'false');
+}
+function togglePop(el){
+  var wasOpen = el.classList.contains('open');
+  closePops();
+  if(!wasOpen){
+    el.classList.add('open');
+    if(el === layerPanel) document.getElementById('layersBtn').setAttribute('aria-pressed','true');
+  }
+}
+pops.forEach(function(p){
+  p.addEventListener('click', function(e){ e.stopPropagation(); });
+  p.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+});
+document.addEventListener('click', function(){ closePops(); });
+
+document.getElementById('menuBtn').addEventListener('click', function(e){
+  e.stopPropagation(); togglePop(menuPanel);
+});
+document.getElementById('newBtn').addEventListener('click', function(e){
+  e.stopPropagation(); togglePop(newPanel);
+});
+document.getElementById('layersBtn').addEventListener('click', function(e){
+  e.stopPropagation(); togglePop(layerPanel);
+});
+document.getElementById('addLayer').addEventListener('click', function(){ addLayer(); });
+
+newPanel.addEventListener('click', function(e){
+  var what = e.target.getAttribute && e.target.getAttribute('data-new');
+  if(!what) return;
+  closePops();
+  if(what === 'layer'){ addLayer(); return; }
+  commitText();
+  if(!confirmDiscard()) return;
+  newFile();
+  toast('New file -- back to the blank pad');
+});
+
 /* ---------------- top bar ---------------- */
 
 document.getElementById('saveBtn').addEventListener('click', doSave);
 
-document.getElementById('newBtn').addEventListener('click', function(){
-  commitText();
-  if(!confirmDiscard()) return;
-  newSheet();
-  toast('New transparency');
-});
-
 sel.addEventListener('change', function(){
   var v = sel.value;
-  if(!confirmDiscard()){ refreshSelect(); return; }
-  if(v === '__new__') newSheet();
-  else openSheet(v);
+  if(v === '__unsaved__') return;
+  if(!confirmDiscard()){ refreshFiles(); return; }
+  openFile(v);
 });
-
-var menuBtn = document.getElementById('menuBtn');
-var menuPanel = document.getElementById('menuPanel');
-menuBtn.addEventListener('click', function(e){
-  e.stopPropagation();
-  menuPanel.classList.toggle('open');
-});
-document.addEventListener('click', function(){ menuPanel.classList.remove('open'); });
-menuPanel.addEventListener('click', function(e){ e.stopPropagation(); });
 
 menuPanel.addEventListener('click', function(e){
   var act = e.target.getAttribute && e.target.getAttribute('data-act');
   if(!act) return;
-  menuPanel.classList.remove('open');
+  closePops();
 
-  if(act === 'rename'){
-    if(!S.id){ toast('Save it first, then you can rename it'); return; }
-    var n = prompt('Rename to:', S.name);
+  if(act === 'renamefile'){
+    if(!S.fileId){ toast('Save it first, then you can rename it'); return; }
+    var n = prompt('Rename this file:', S.name);
     if(n === null) return;
     n = n.trim(); if(!n) return;
     if(nameTaken(n)){ toast('That name is already used'); return; }
-    if(writeSheet(n)) toast('Renamed');
+    if(writeFile(n)) toast('Renamed');
+  }
+
+  else if(act === 'renamelayer'){
+    var L = activeLayer();
+    if(!L) return;
+    var ln = prompt('Rename this transparency:', L.name);
+    if(ln === null) return;
+    ln = ln.trim(); if(!ln) return;
+    L.name = ln;
+    setDirty(true);
+    refreshLayers();
+    toast('Renamed');
   }
 
   else if(act === 'duplicate'){
     var dn = prompt('Name the copy:', (S.name || defaultName()) + ' copy');
     if(dn === null) return;
     dn = dn.trim(); if(!dn) return;
-    S.id = null;                    /* detach first, then write as a fresh sheet */
-    if(nameTaken(dn)){ toast('That name is already used'); refreshSelect(); return; }
-    if(writeSheet(dn)) toast('Copied to "' + dn + '"');
+    S.fileId = null;                    /* detach first, then write afresh */
+    if(nameTaken(dn)){ toast('That name is already used'); refreshFiles(); return; }
+    S.layers.forEach(function(L){ L.id = newId('l'); });
+    if(writeFile(dn)) toast('Copied to "' + dn + '"');
   }
 
   else if(act === 'export') exportPNG();
 
   else if(act === 'background') document.getElementById('bgFile').click();
 
-  else if(act === 'clear'){
-    if(!S.items.length) return;
-    if(!confirm('Wipe every mark on this transparency?\n\nThe background stays.')) return;
-    S.redo = S.items.slice().reverse();
-    S.items = [];
-    setDirty(true); updateUndo(); render();
-    toast('Sheet wiped');
-  }
-
-  else if(act === 'delete'){
-    if(!S.id){ toast('This one was never saved'); return; }
-    if(!confirm('Delete "' + S.name + '" for good?')) return;
-    saveSheets(loadSheets().filter(function(s){ return s.id !== S.id; }));
-    toast('Deleted');
-    newSheet();
-  }
-
   else if(act === 'dropbg'){
-    var had = null;
-    try { had = localStorage.getItem(BG_KEY); localStorage.removeItem(BG_KEY); } catch(err){}
-    if(!had){ toast('Already on the blank pad'); return; }
-    resetView();
-    initBackground();
+    if(!S.bgId){ toast('Already on the blank pad'); return; }
+    S.bgId = null;
+    setDirty(true);
+    view.s = 1;
+    showBackground(null);
+    pruneBgs();
     toast('Back to the blank pad');
   }
 
-  /* everything back to how it was before he ever opened it */
+  else if(act === 'clear'){
+    var CL = activeLayer();
+    if(!CL || !CL.items.length) return;
+    if(!confirm('Wipe every mark on "' + CL.name + '"?\n\n' +
+                'The background and the other transparencies stay.')) return;
+    CL.redo = CL.items.slice().reverse();
+    CL.items = [];
+    setDirty(true); updateUndo(); refreshLayers(); render();
+    toast('Wiped ' + CL.name);
+  }
+
+  else if(act === 'delete'){
+    if(!S.fileId){ toast('This file was never saved'); return; }
+    if(!confirm('Delete the file "' + S.name + '" and all ' + S.layers.length +
+                ' of its transparencies?')) return;
+    saveFiles(loadFiles().filter(function(f){ return f.id !== S.fileId; }));
+    S.fileId = null;
+    pruneBgs();
+    toast('Deleted');
+    newFile();
+  }
+
   else if(act === 'factory'){
-    var n = loadSheets().length;
+    var n = loadFiles().length;
     if(!confirm(
         'Start over?\n\n' +
-        'This erases ' + n + ' saved transparenc' + (n === 1 ? 'y' : 'ies') + ', ' +
-        'the background image, and your marker settings.\n\n' +
+        'This erases ' + n + ' saved file' + (n === 1 ? '' : 's') + ', ' +
+        'every background, and your marker settings.\n\n' +
         'It cannot be undone.')) return;
     factoryReset();
     toast('Back to fresh');
@@ -1381,7 +1617,6 @@ document.getElementById('fsBtn').addEventListener('click', toggleFullscreen);
 
 function onFsChange(){
   document.body.classList.toggle('isfull', !!fsNow());
-  /* the viewport resizes a beat after the event fires */
   setTimeout(layout, 60);
   setTimeout(layout, 300);
 }
@@ -1412,6 +1647,7 @@ document.addEventListener('keydown', function(e){
   if(!mod && k === '-'){
     zoomTo(view.s / 1.25, innerWidth/2, innerHeight/2); scheduleRes(); return;
   }
+  if(!mod && k === 'l'){ togglePop(layerPanel); return; }
 
   if(mod && k === 'z'){
     e.preventDefault();
@@ -1434,13 +1670,19 @@ window.addEventListener('orientationchange', function(){ setTimeout(layout, 250)
 
 /* ---------------- boot ---------------- */
 
+migrate();
+
 var prefs = loadPrefs();
 setTool('pen');
 setColor(prefs.color || '#111111');
 setWidth(prefs.width || 'med');
+
+S.layers = [makeLayer('Transparency 1')];
+S.active = 0;
+refreshFiles();
+refreshLayers();
 updateUndo();
-refreshSelect();
-initBackground();
+showBackground(null);
 layout();
 
 })();
