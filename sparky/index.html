@@ -75,6 +75,37 @@
                0 14px 40px rgba(0,0,0,.55);
     background:#fff;
   }
+  /* ---------- inline label editor ----------
+     The text you type is not DOM text -- it is drawn straight onto the
+     canvas at its final position, in the marker's own colour and size.
+     The field above it is invisible and carries only the caret. So there
+     is no rendering to reconcile: pressing Done just takes the box away.
+     The box sits UNDER the ink layer so it never veils the text. */
+  .txtedit{
+    position:absolute;z-index:6;display:flex;align-items:flex-start;
+    font-family:'Nunito',sans-serif;font-weight:700;line-height:1;
+    white-space:nowrap;background:none;border:0;padding:0;
+  }
+  .txtedit input{
+    font:inherit;line-height:1;color:transparent;background:transparent;
+    border:0;outline:0;padding:0;margin:0;
+  }
+  .txtedit button{
+    flex:0 0 auto;align-self:center;margin-left:.55em;
+    font-family:'Nunito',sans-serif;font-weight:700;
+    font-size:.46em;letter-spacing:.1em;
+    background:#f5c518;color:#111;border:0;border-radius:.2em;
+    padding:.45em .75em;cursor:pointer;line-height:1;
+  }
+  .txtedit button:active{background:#ffe066;}
+  .txtplate{
+    position:absolute;z-index:1;pointer-events:none;
+    border:.06em solid #f5c518;border-radius:.1em;
+    background:rgba(18,19,24,.45);
+    box-shadow:0 .18em .5em rgba(0,0,0,.35);
+  }
+  .txtplate.onlight{background:rgba(255,255,255,.52);}
+
   /* zoom readout -- only there when you are zoomed, tap it to snap back */
   #zoomPill{
     position:absolute;left:10px;top:10px;z-index:20;display:none;
@@ -354,6 +385,7 @@ function refreshSelect(){
 }
 
 function newSheet(){
+  cancelText();
   S.id = null; S.name = null; S.items = []; S.redo = [];
   setDirty(false);
   refreshSelect();
@@ -362,6 +394,7 @@ function newSheet(){
 }
 
 function openSheet(id){
+  cancelText();
   var sh = loadSheets().filter(function(s){ return s.id === id; })[0];
   if(!sh){ toast('That one is gone'); newSheet(); return; }
   S.id = sh.id;
@@ -407,6 +440,7 @@ function defaultName(){
 }
 
 function doSave(){
+  commitText();
   if(!S.id && !S.items.length){ toast('Nothing to save yet'); return; }
 
   if(S.id){
@@ -448,6 +482,11 @@ function paint(){
   ctx.clearRect(0,0,cv.width,cv.height);
   drawItems(ctx, S.items, cv.width, cv.height);
   if(live) drawStroke(ctx, live, cv.width, cv.height);
+  /* the label being typed, drawn exactly where it will stay */
+  if(editor && editor.input.value){
+    drawText(ctx, { c:editor.c, s:editor.s, x:editor.p[0], y:editor.p[1],
+                    v:editor.input.value }, cv.width, cv.height);
+  }
 }
 
 function drawItems(c, items, w, h){
@@ -490,17 +529,41 @@ function drawStroke(c, s, w, h){
   c.restore();
 }
 
+/* a soft counter-shade so pale markers stay readable on pale maps */
+function shadeFor(hex){
+  return (hex === '#ffffff' || hex === '#f5c518')
+    ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.45)';
+}
+/* is this marker light enough that it needs a dark plate behind it? */
+function isPale(hex){
+  var n = parseInt(hex.slice(1), 16);
+  var lum = 0.2126*((n>>16)&255) + 0.7152*((n>>8)&255) + 0.0722*(n&255);
+  return lum > 150;
+}
+
+/* Where a browser puts the glyphs inside a line box of height 1em:
+   baseline = top + (1em - (ascent + descent))/2 + ascent.
+   Drawing the canvas text on that same rule is what keeps a label from
+   hopping when the editing box goes away. Older engines without the
+   metrics fall back to a plain top-left anchor. */
+function baselineIn(c, px){
+  var m = c.measureText('Hg');
+  if(m.fontBoundingBoxAscent === undefined) return null;
+  var a = m.fontBoundingBoxAscent, d = m.fontBoundingBoxDescent;
+  return (px - (a + d)) / 2 + a;
+}
+
 function drawText(c, t, w, h){
   var px = Math.max(9, t.s * w);
   c.save();
   c.fillStyle = t.c;
   c.font = '700 ' + px + 'px Nunito, sans-serif';
-  c.textBaseline = 'middle';
-  /* a soft counter-shade so pale markers stay readable on pale maps */
-  c.shadowColor = (t.c === '#ffffff' || t.c === '#f5c518')
-    ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.45)';
+  var off = baselineIn(c, px);
+  if(off === null){ c.textBaseline = 'top'; off = 0; }
+  else c.textBaseline = 'alphabetic';
+  c.shadowColor = shadeFor(t.c);
   c.shadowBlur = px * 0.22;
-  c.fillText(t.v, t.x*w, t.y*h);
+  c.fillText(t.v, t.x*w, t.y*h + off);
   c.restore();
 }
 
@@ -538,6 +601,8 @@ function layout(){
   clampView();
   applyView();
   setCanvasRes();
+
+  if(editor) editor.fit();
 }
 
 function applyView(){
@@ -717,6 +782,7 @@ function ptrList(){
 
 stage.addEventListener('pointerdown', function(e){
   if(e.target === zoomPill) return;          /* let the pill take its own click */
+  if(editor && editor.wrap.contains(e.target)) return;   /* typing a label */
   try { stage.setPointerCapture(e.pointerId); } catch(err){}
   ptrs[e.pointerId] = { x:e.clientX, y:e.clientY };
   nPtrs++;
@@ -740,6 +806,9 @@ stage.addEventListener('pointerdown', function(e){
   }
   if(e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
   if(e.target !== cv) return;
+
+  /* tapping elsewhere finishes the label you were typing */
+  if(editor) commitText();
 
   var p = pos(e);
   if(S.tool === 'text' || S.tool === 'eraser'){
@@ -794,7 +863,7 @@ function pointerGone(e){
   }
   if(tapPend){
     var t = tapPend; tapPend = null;
-    if(S.tool === 'text') placeText(t.p);
+    if(S.tool === 'text') openEditor(t.p);
     else if(S.tool === 'eraser') eraseAt(t.p);
     return;
   }
@@ -852,16 +921,110 @@ stage.addEventListener('wheel', function(e){
 /* double-click / double-tap snaps back to the whole sheet */
 stage.addEventListener('dblclick', function(){ if(view.s > 1.01) resetView(); });
 
-function placeText(p){
-  var v = prompt('Label:');
-  if(v === null) return;
-  v = v.trim();
-  if(!v) return;
-  S.items.push({ t:'text', c:S.color, s:TEXTS[S.width], x:p[0], y:p[1], v:v });
+/* ---------------- the label editor ----------------
+   Type where the label will live. The field carries the marker's own
+   colour, size and font, sitting inside the sheet so the zoom scales it
+   with everything else. Done removes the box; the text does not move. */
+
+var editor = null;
+
+function openEditor(p){
+  commitText();                       /* only one open at a time */
+
+  var frac   = TEXTS[S.width];
+  var fontPx = frac * base.w;
+  var pale   = isPale(S.color);
+
+  var plate = document.createElement('div');
+  plate.className = 'txtplate' + (pale ? '' : ' onlight');
+  plate.style.fontSize = fontPx + 'px';
+  plate.style.left = (p[0] * 100) + '%';
+  plate.style.top  = (p[1] * 100) + '%';
+
+  var wrap = document.createElement('div');
+  wrap.className = 'txtedit';
+  wrap.style.fontSize = fontPx + 'px';
+  wrap.style.left = (p[0] * 100) + '%';
+  wrap.style.top  = (p[1] * 100) + '%';
+  wrap.style.caretColor = S.color;
+
+  var inp = document.createElement('input');
+  inp.type = 'text';
+  inp.spellcheck = false;
+  inp.autocomplete = 'off';
+  inp.setAttribute('autocapitalize', 'sentences');
+  inp.setAttribute('enterkeyhint', 'done');
+
+  var done = document.createElement('button');
+  done.type = 'button';
+  done.textContent = 'DONE';
+
+  wrap.appendChild(inp);
+  wrap.appendChild(done);
+  sheetEl.appendChild(plate);
+  sheetEl.appendChild(wrap);
+
+  editor = { wrap:wrap, plate:plate, input:inp, p:p, s:frac, c:S.color };
+
+  /* keep the invisible field, the box and the canvas preview in step */
+  editor.fit = function(){
+    var px = editor.s * base.w;
+    wrap.style.fontSize = px + 'px';
+    plate.style.fontSize = px + 'px';
+
+    ctx.save();
+    ctx.font = '700 ' + px + 'px Nunito, sans-serif';
+    var tw = ctx.measureText(inp.value).width;
+    ctx.restore();
+    inp.style.width = Math.max(px * 8, tw + px * 0.2) + 'px';
+
+    /* the label scales with the image, so at 1x on a phone it can be a
+       few pixels tall -- the button must not shrink with it */
+    done.style.fontSize = Math.max(11, px * 0.46) + 'px';
+
+    var padX = px * 0.40, padY = px * 0.24, bd = px * 0.06;
+    plate.style.transform = 'translate(' + (-(padX + bd)) + 'px,' + (-(padY + bd)) + 'px)';
+    plate.style.width  = (wrap.offsetWidth  + 2 * (padX + bd)) + 'px';
+    plate.style.height = (wrap.offsetHeight + 2 * (padY + bd)) + 'px';
+    render();
+  };
+
+  inp.addEventListener('input', editor.fit);
+  inp.addEventListener('keydown', function(e){
+    e.stopPropagation();                       /* keep shortcuts out of the field */
+    if(e.key === 'Enter'){ e.preventDefault(); commitText(); }
+    else if(e.key === 'Escape'){ e.preventDefault(); cancelText(); }
+  });
+  done.addEventListener('click', function(e){ e.preventDefault(); commitText(); });
+  wrap.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+
+  editor.fit();
+  inp.focus();
+}
+
+function closeEditor(){
+  if(!editor) return null;
+  var e = editor;
+  editor = null;
+  e.wrap.remove();
+  e.plate.remove();
+  return e;
+}
+
+function commitText(){
+  var e = closeEditor();
+  if(!e) return;
+  var v = e.input.value.trim();
+  if(!v){ render(); return; }
+  S.items.push({ t:'text', c:e.c, s:e.s, x:e.p[0], y:e.p[1], v:v });
   S.redo = [];
   setDirty(true);
   updateUndo();
   render();
+}
+
+function cancelText(){
+  if(closeEditor()) render();
 }
 
 function eraseAt(p){
@@ -890,9 +1053,10 @@ function hit(it, p, tolX, tolY){
     ctx.font = '700 ' + px + 'px Nunito, sans-serif';
     var wFrac = ctx.measureText(it.v).width / r.width;
     ctx.restore();
-    var hFrac = (px * 0.8) / r.height;
+    /* the anchor is the top-left corner, so the box runs down and right */
+    var hFrac = px / r.height;
     return p[0] >= it.x - tolX && p[0] <= it.x + wFrac + tolX &&
-           p[1] >= it.y - hFrac/2 - tolY && p[1] <= it.y + hFrac/2 + tolY;
+           p[1] >= it.y - tolY && p[1] <= it.y + hFrac + tolY;
   }
 
   var tol = Math.max(tolX, tolY) + it.w;
@@ -988,6 +1152,12 @@ function setColor(hex){
   S.color = hex;
   /* picking up a marker means you want to draw with it */
   if(S.tool === 'eraser') setTool('pen');
+  if(editor){
+    editor.c = hex;
+    editor.wrap.style.caretColor = hex;
+    editor.plate.classList.toggle('onlight', !isPale(hex));
+    render();
+  }
   Array.prototype.forEach.call(colorsEl.children, function(el){
     el.setAttribute('aria-pressed', el.getAttribute('data-color') === hex ? 'true' : 'false');
   });
@@ -995,6 +1165,7 @@ function setColor(hex){
 }
 
 function setTool(t){
+  if(t !== 'text') commitText();
   S.tool = t;
   /* classList, not className -- body also carries dirty / isfull / panning */
   document.body.classList.remove('tool-pen','tool-text','tool-eraser');
