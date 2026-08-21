@@ -222,6 +222,7 @@
 <header id="topbar">
   <div class="brand">SPARKY</div>
   <select id="sheetSelect" aria-label="Transparency"></select>
+  <button class="btn" id="newBtn">New</button>
   <button class="btn primary" id="saveBtn">Save<span class="dot"></span></button>
   <button class="btn icon" id="fsBtn" aria-label="Full screen" title="Full screen">
     <svg viewBox="0 0 24 24" id="fsIn" aria-hidden="true">
@@ -245,9 +246,12 @@
     <hr>
     <button data-act="export">Save as image (PNG)</button>
     <button data-act="background">Change background image</button>
+    <button data-act="dropbg">Back to the blank pad</button>
     <hr>
     <button data-act="clear">Clear all marks</button>
     <button data-act="delete" class="danger">Delete this transparency</button>
+    <hr>
+    <button data-act="factory" class="danger">Start over -- erase everything</button>
   </div>
 </header>
 
@@ -465,6 +469,30 @@ function doSave(){
     S.id = hit.id;
   }
   if(writeSheet(name)) toast('Saved -- ' + name);
+}
+
+function factoryReset(){
+  cancelText();
+
+  S.id = null; S.name = null; S.items = []; S.redo = [];
+  setDirty(false);
+  setTool('pen');
+  setColor('#111111');
+  setWidth('med');
+
+  /* clear storage AFTER resetting the markers -- setColor and setWidth
+     each write the preferences back, so wiping first left a key behind */
+  try {
+    localStorage.removeItem(SHEETS_KEY);
+    localStorage.removeItem(BG_KEY);
+    localStorage.removeItem(PREF_KEY);
+  } catch(e){}
+
+  refreshSelect();
+  updateUndo();
+  resetView();
+  initBackground();
+  render();
 }
 
 function confirmDiscard(){
@@ -1231,6 +1259,13 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-tool]'), function(
 
 document.getElementById('saveBtn').addEventListener('click', doSave);
 
+document.getElementById('newBtn').addEventListener('click', function(){
+  commitText();
+  if(!confirmDiscard()) return;
+  newSheet();
+  toast('New transparency');
+});
+
 sel.addEventListener('change', function(){
   var v = sel.value;
   if(!confirmDiscard()){ refreshSelect(); return; }
@@ -1289,6 +1324,27 @@ menuPanel.addEventListener('click', function(e){
     saveSheets(loadSheets().filter(function(s){ return s.id !== S.id; }));
     toast('Deleted');
     newSheet();
+  }
+
+  else if(act === 'dropbg'){
+    var had = null;
+    try { had = localStorage.getItem(BG_KEY); localStorage.removeItem(BG_KEY); } catch(err){}
+    if(!had){ toast('Already on the blank pad'); return; }
+    resetView();
+    initBackground();
+    toast('Back to the blank pad');
+  }
+
+  /* everything back to how it was before he ever opened it */
+  else if(act === 'factory'){
+    var n = loadSheets().length;
+    if(!confirm(
+        'Start over?\n\n' +
+        'This erases ' + n + ' saved transparenc' + (n === 1 ? 'y' : 'ies') + ', ' +
+        'the background image, and your marker settings.\n\n' +
+        'It cannot be undone.')) return;
+    factoryReset();
+    toast('Back to fresh');
   }
 });
 
