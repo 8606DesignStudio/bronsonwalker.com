@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content">
 <meta name="theme-color" content="#15161a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -198,20 +198,23 @@
     .brand{display:none;}
     .swatch{height:30px;}
   }
-  /* landscape on a phone -- claw back vertical space, one row instead of two */
-  @media (max-height:520px){
-    .brand{display:none;}
-    #topbar{padding:5px 8px;gap:6px;}
-    #sheetSelect,.btn{padding:6px 9px;font-size:13px;}
-    #tray{padding:5px 8px 6px;gap:5px;flex-direction:row;align-items:center;}
-    #colors{flex:1 1 auto;gap:5px;}
-    .swatch{height:26px;}
-    #tools{flex:0 0 auto;flex-wrap:nowrap;}
-    #tools .spacer{display:none;}
-    .tbtn{padding:6px 7px;font-size:12px;}
-    .tbtn .nib{display:none;}
-    #toast{bottom:60px;}
-  }
+  /* Landscape on a phone -- claw back vertical space, one row instead of
+     two. Driven by a class rather than a height media query, because the
+     on-screen keyboard also shortens the viewport, and a toolbar that
+     reflows the moment the keyboard appears is exactly the jump we are
+     trying to get rid of. layout() owns this class and holds it still
+     while a label is being typed. */
+  body.compact .brand{display:none;}
+  body.compact #topbar{padding:5px 8px;gap:6px;}
+  body.compact #sheetSelect,body.compact .btn{padding:6px 9px;font-size:13px;}
+  body.compact #tray{padding:5px 8px 6px;gap:5px;flex-direction:row;align-items:center;}
+  body.compact #colors{flex:1 1 auto;gap:5px;}
+  body.compact .swatch{height:26px;}
+  body.compact #tools{flex:0 0 auto;flex-wrap:nowrap;}
+  body.compact #tools .spacer{display:none;}
+  body.compact .tbtn{padding:6px 7px;font-size:12px;}
+  body.compact .tbtn .nib{display:none;}
+  body.compact #toast{bottom:60px;}
 </style>
 </head>
 <body class="tool-pen">
@@ -579,7 +582,17 @@ var view = { s:1, tx:0, ty:0 };
 var MAX_ZOOM = 8;
 var zoomPill = document.getElementById('zoomPill');
 
+var layoutFrozen = false;
+
 function layout(){
+  /* While a label is being typed the on-screen keyboard shrinks the
+     viewport. Re-fitting the sheet to that smaller box is what made the
+     whole screen jump, so hold everything exactly where it is. */
+  if(layoutFrozen) return;
+
+  /* decide the toolbar shape first -- it changes how tall the stage is */
+  document.body.classList.toggle('compact', window.innerHeight <= 520);
+
   var pad = 20;
   var sw = stage.clientWidth, sh = stage.clientHeight;
   if(sw - pad <= 0 || sh - pad <= 0) return;
@@ -965,6 +978,7 @@ function openEditor(p){
   sheetEl.appendChild(wrap);
 
   editor = { wrap:wrap, plate:plate, input:inp, p:p, s:frac, c:S.color };
+  layoutFrozen = true;              /* the keyboard must not resize the sheet */
 
   /* keep the invisible field, the box and the canvas preview in step */
   editor.fit = function(){
@@ -999,8 +1013,22 @@ function openEditor(p){
   wrap.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
 
   editor.fit();
-  inp.focus();
+  try { inp.focus({ preventScroll:true }); } catch(err){ inp.focus(); }
+  lockScroll();
+
+  /* tapping away uses whatever was typed. Guard against a late blur from
+     the previous field landing on a newly opened one. */
+  inp.addEventListener('blur', function(){
+    if(editor && editor.input === inp) commitText();
+  });
 }
+
+/* the page never scrolls; if a focused field drags it, put it back */
+function lockScroll(){
+  if(window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  if(document.body.scrollTop) document.body.scrollTop = 0;
+}
+window.addEventListener('scroll', lockScroll, { passive:true });
 
 function closeEditor(){
   if(!editor) return null;
@@ -1008,6 +1036,12 @@ function closeEditor(){
   editor = null;
   e.wrap.remove();
   e.plate.remove();
+
+  /* let the sheet fit itself again once the keyboard has gone. The
+     viewport ends up the size it was before, so nothing actually moves. */
+  layoutFrozen = false;
+  setTimeout(layout, 60);
+  setTimeout(layout, 350);
   return e;
 }
 
