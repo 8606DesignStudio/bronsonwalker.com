@@ -94,8 +94,17 @@ body{
   fill:rgba(75,184,233,0.20);
   stroke:rgba(140,215,255,0.85);
 }
+/* Nothing is written on the map until you ask. A press writes the name
+   into the room itself -- in place, at the room's own size -- rather than
+   throwing a chip up at the top where it means nothing. */
+#rooms g{
+  opacity:0;
+  transition:opacity .2s ease;
+}
+#rooms g.show{opacity:1;}
+
 #rooms text{
-  fill:rgba(255,255,255,0.90);
+  fill:rgba(255,255,255,0.94);
   stroke:rgba(0,0,0,0.85);
   stroke-width:0.5;
   paint-order:stroke fill;
@@ -106,23 +115,7 @@ body{
   dominant-baseline:middle;
 }
 
-#roomPop{
-  left:50%;
-  top:calc(var(--pad) + 52px + env(safe-area-inset-top));
-  transform:translate(-50%, -6px);
-  padding:9px 18px;
-  font-family:"Barlow Condensed",sans-serif;
-  font-size:1.35rem;
-  font-weight:700;
-  letter-spacing:.13em;
-  text-transform:uppercase;
-  color:#fff;
-  white-space:nowrap;
-  opacity:0;
-  pointer-events:none;
-  transition:opacity .16s ease,transform .16s ease;
-}
-#roomPop.show{opacity:1;transform:translate(-50%, 0);}
+
 
 /* ---------------- floating chrome ---------------- */
 .chip{
@@ -333,8 +326,6 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
     <svg id="rooms" viewBox="0 0 600 462" preserveAspectRatio="none"></svg>
   </div>
 
-  <div class="chip" id="roomPop"></div>
-
   <div class="chip" id="brand">Consul<span>ate</span></div>
 
   <div class="chip" id="tools">
@@ -459,10 +450,10 @@ function setFloor(id, withSound){
 ----------------------------------------- */
 var SVGNS  = 'http://www.w3.org/2000/svg';
 var roomsEl = document.getElementById('rooms');
-var roomPop = document.getElementById('roomPop');
 var ROOMS  = {};          /* floor id -> [{n, p, poly, el}] */
 var popTimer = null;
 var hitEl = null;
+var shownLabel = null;
 
 function bboxOf(p){
   var xs = p.map(function(q){ return q[0]; }), ys = p.map(function(q){ return q[1]; });
@@ -526,6 +517,7 @@ function fitLabel(g, name, bb){
 }
 
 function buildRooms(floorId){
+  hitEl = null; shownLabel = null;
   while(roomsEl.firstChild) roomsEl.removeChild(roomsEl.firstChild);
   var list = ROOMS[floorId] || [];
   list.forEach(function(r){
@@ -545,15 +537,17 @@ function buildRooms(floorId){
 
 function showRoom(r){
   if(hitEl){ hitEl.classList.remove('hit'); hitEl = null; }
+  if(shownLabel){ shownLabel.classList.remove('show'); shownLabel = null; }
   if(popTimer){ clearTimeout(popTimer); popTimer = null; }
-  if(!r){ roomPop.classList.remove('show'); return; }
+  if(!r) return;
 
   r.el.classList.add('hit');
+  r.label.classList.add('show');
   hitEl = r.el;
-  roomPop.textContent = r.n;
-  roomPop.classList.add('show');
+  shownLabel = r.label;
+
   popTimer = setTimeout(function(){
-    roomPop.classList.remove('show');
+    if(shownLabel){ shownLabel.classList.remove('show'); shownLabel = null; }
     if(hitEl){ hitEl.classList.remove('hit'); hitEl = null; }
     popTimer = null;
   }, 2000);
