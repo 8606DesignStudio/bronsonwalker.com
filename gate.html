@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#05070a">
+<meta name="robots" content="noindex, nofollow">
+<title>Sparky</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{background:#05070a;font-family:'Nunito',system-ui,sans-serif;}
+
+  /* Same hatch-release panel as the /svg landing gate. There the whole panel
+     was the button and the click bought fullscreen. Here the dial takes a
+     word instead, and the click buys entry. */
+  #gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  #gate svg{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .enter-label{
+    font-family:'Nunito',system-ui,sans-serif;font-weight:700;
+    letter-spacing:.34em;fill:#F5B800;
+  }
+  .sub{
+    font-family:'Nunito',system-ui,sans-serif;font-weight:400;
+    letter-spacing:.16em;fill:#6f6653;
+  }
+  @keyframes pulse{ 0%,100%{opacity:.30;} 50%{opacity:.85;} }
+  .ring-pulse{animation:pulse 3.4s ease-in-out infinite;}
+  @keyframes flicker{ 0%,96%,100%{opacity:1;} 97%{opacity:.55;} 98%{opacity:.95;} }
+  .flick{animation:flicker 6s linear infinite;}
+  @media (prefers-reduced-motion: reduce){
+    .ring-pulse,.flick{animation:none;}
+  }
+
+  /* the word goes on the face of the dial, where ENTER used to sit */
+  #face{
+    position:relative;z-index:5;
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    width:min(50vmin,240px);
+  }
+  #w{
+    width:100%;background:transparent;
+    border:0;border-bottom:1px solid rgba(245,184,0,.45);
+    outline:0;color:#F5B800;caret-color:#F5B800;
+    font-family:'Nunito',system-ui,sans-serif;font-weight:700;
+    font-size:clamp(20px,5.2vmin,34px);letter-spacing:.28em;
+    text-align:center;padding:6px 0 8px;text-indent:.28em;
+  }
+  #w::placeholder{color:#5a5340;letter-spacing:.34em;font-weight:400;}
+  #w:focus{border-bottom-color:#F5B800;}
+  #hint{
+    font-size:clamp(11px,1.9vmin,15px);letter-spacing:.16em;
+    color:#6f6653;font-weight:400;text-transform:uppercase;
+  }
+  #hint.bad{color:#c9705f;}
+
+  .shake{animation:shake .34s;}
+  @keyframes shake{
+    0%,100%{transform:translateX(0);}
+    20%{transform:translateX(-8px);}
+    40%{transform:translateX(7px);}
+    60%{transform:translateX(-4px);}
+    80%{transform:translateX(2px);}
+  }
+  body.open #gate{opacity:0;transition:opacity .3s ease-out;}
+</style>
+</head>
+<body>
+
+<div id="gate">
+<svg viewBox="0 0 1536 864" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <radialGradient id="gBack" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0" stop-color="#16202c"/>
+      <stop offset="0.55" stop-color="#0a0f16"/>
+      <stop offset="1" stop-color="#04060a"/>
+    </radialGradient>
+    <linearGradient id="gRing" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd98f"/>
+      <stop offset="0.5" stop-color="#F5B800"/>
+      <stop offset="1" stop-color="#a06a12"/>
+    </linearGradient>
+    <filter id="gSoft" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="34"/>
+    </filter>
+    <filter id="gGrain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0"/>
+    </filter>
+    <filter id="gScuff" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="23" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="gDirt" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.014" numOctaves="5" seed="3" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.075
+                0 0 0 0 0.062
+                0 0 0 0 0.040
+                1.15 0.45 0 0 -0.45"/>
+    </filter>
+    <radialGradient id="gVign" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0.35" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.88"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1536" height="864" fill="url(#gBack)"/>
+  <!-- hull plating behind the dial -->
+  <g stroke="#141c26" stroke-width="2" opacity="0.8">
+    <line x1="0" y1="216" x2="1536" y2="216"/>
+    <line x1="0" y1="648" x2="1536" y2="648"/>
+    <line x1="512" y1="0" x2="512" y2="864"/>
+    <line x1="1024" y1="0" x2="1024" y2="864"/>
+  </g>
+  <rect width="1536" height="864" filter="url(#gDirt)" opacity="0.18"/>
+  <g fill="#2a3340" opacity="0.55">
+    <circle cx="512" cy="216" r="4"/><circle cx="1024" cy="216" r="4"/>
+    <circle cx="512" cy="648" r="4"/><circle cx="1024" cy="648" r="4"/>
+  </g>
+
+  <!-- the dial, worn from use -->
+  <ellipse cx="768" cy="432" rx="290" ry="290" fill="#F5B800" opacity="0.06" filter="url(#gSoft)"/>
+  <g class="ring-pulse">
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="1.5" opacity="0.28"/>
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="6" opacity="0.07"/>
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="14" opacity="0.03"/>
+  </g>
+  <circle cx="768" cy="432" r="158" fill="#0b1017" stroke="#1d2733" stroke-width="10"/>
+  <circle cx="768" cy="432" r="158" fill="none" stroke="url(#gRing)" stroke-width="3" opacity="0.85" filter="url(#gScuff)"/>
+  <circle cx="768" cy="432" r="140" fill="none" stroke="#F5B800" stroke-width="1.2" opacity="0.30" filter="url(#gScuff)"/>
+  <circle cx="768" cy="432" r="150" fill="#0d131b"/>
+  <circle cx="768" cy="432" r="150" filter="url(#gDirt)" opacity="0.30"/>
+  <!-- wear where thumbs land, low on the face -->
+  <ellipse cx="768" cy="512" rx="86" ry="34" fill="#F5B800" opacity="0.05"/>
+
+  <!-- tick marks around the dial, a few worn away -->
+  <g stroke="#F5B800" stroke-width="3" opacity="0.35">
+    <line x1="768" y1="252" x2="768" y2="268"/>
+    <line x1="948" y1="432" x2="932" y2="432"/>
+    <line x1="768" y1="612" x2="768" y2="596"/>
+    <line x1="588" y1="432" x2="604" y2="432"/>
+  </g>
+  <g stroke="#F5B800" stroke-width="2" opacity="0.16">
+    <line x1="895" y1="305" x2="884" y2="316"/>
+    <line x1="895" y1="559" x2="884" y2="548"/>
+    <line x1="641" y1="559" x2="652" y2="548"/>
+    <line x1="641" y1="305" x2="652" y2="316"/>
+  </g>
+
+  <text class="sub" x="768" y="742" font-size="15" text-anchor="middle" opacity="0.55">SPARKY</text>
+
+  <rect width="1536" height="864" fill="url(#gVign)"/>
+  <rect width="1536" height="864" filter="url(#gGrain)" opacity="0.16" style="mix-blend-mode:overlay"/>
+</svg>
+
+  <form id="face" autocomplete="off">
+    <input id="w" type="password" inputmode="text" autocapitalize="none"
+           autocorrect="off" spellcheck="false" enterkeyhint="go"
+           placeholder="&#183; &#183; &#183; &#183; &#183;" aria-label="Pass code">
+    <div id="hint" class="flick">say the word</div>
+  </form>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var KEY   = 'sparky';
+  var input = document.getElementById('w');
+  var hint  = document.getElementById('hint');
+  var face  = document.getElementById('face');
+
+  function cookie(name){
+    var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+
+  /* The wall decides, not this page. If we are still looking at the dial
+     while a key cookie exists, that word was wrong -- clear it and say so. */
+  if(cookie(KEY)){
+    document.cookie = KEY + '=; path=/; max-age=0';
+    hint.textContent = 'not that one';
+    hint.classList.add('bad');
+    face.classList.add('shake');
+  }
+
+  face.addEventListener('submit', function(e){
+    e.preventDefault();
+    var word = input.value.trim();
+    if(!word){ input.focus(); return; }
+
+    var secure = location.protocol === 'https:' ? '; secure' : '';
+    document.cookie = KEY + '=' + encodeURIComponent(word) +
+                      '; path=/; max-age=31536000; samesite=lax' + secure;
+
+    /* the word is never checked here -- reload and let the wall decide */
+    document.body.classList.add('open');
+    setTimeout(function(){ location.reload(); }, 260);
+  });
+
+  /* the whole panel is the button, the way the fullscreen gate was --
+     but an empty dial just asks for the word rather than opening */
+  document.getElementById('gate').addEventListener('click', function(e){
+    if(e.target === input) return;
+    if(input.value.trim()) face.dispatchEvent(new Event('submit', {cancelable:true}));
+    else input.focus();
+  });
+
+  input.focus();
+})();
+</script>
+</body>
+</html>

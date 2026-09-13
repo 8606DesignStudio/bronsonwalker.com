@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>R6 Map Room &mdash; Consulate</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0d10;
+  --panel:rgba(16,19,24,0.82);
+  --line:rgba(255,255,255,0.13);
+  --line-hot:rgba(120,200,255,0.55);
+  --ink:#e8edf3;
+  --ink-dim:#8d98a6;
+  --hot:#4bb8e9;
+  --rail-w:96px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Nunito",system-ui,sans-serif;
+  overflow:hidden;
+  overscroll-behavior:none;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ---------------- header ---------------- */
+header{
+  flex:0 0 auto;
+  display:flex;
+  align-items:baseline;
+  gap:14px;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px calc(16px + env(safe-area-inset-left));
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(20,24,30,0.9),rgba(11,13,16,0.9));
+}
+.mapname{
+  font-family:"Barlow Condensed",sans-serif;
+  font-weight:700;
+  font-size:clamp(1.3rem,4.5vw,1.75rem);
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink);
+}
+.mapname span{color:var(--hot);}
+.tagline{
+  font-size:.72rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink-dim);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.hbtns{margin-left:auto;display:flex;gap:8px;flex:0 0 auto;}
+.hbtn{
+  width:34px;height:34px;border-radius:8px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,0.04);
+  color:var(--ink-dim);
+  font-size:.95rem;line-height:1;
+  display:grid;place-items:center;cursor:pointer;
+}
+.hbtn:hover{color:var(--ink);border-color:var(--line-hot);}
+.hbtn.on{color:var(--hot);border-color:var(--line-hot);}
+
+/* ---------------- stage ---------------- */
+#stage{
+  position:relative;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+  touch-action:none;
+  cursor:grab;
+}
+#stage.dragging{cursor:grabbing;}
+
+/* the stack of floors -- all four are the same camera, so they register exactly */
+#sheet{
+  position:absolute;
+  transform-origin:0 0;
+  will-change:transform;
+}
+#sheet img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  opacity:0;
+  transition:opacity .28s ease;
+  pointer-events:none;
+  user-select:none;
+  -webkit-user-drag:none;
+}
+#sheet img.live{opacity:1;}
+
+/* ---------------- floor rail ---------------- */
+#rail{
+  position:absolute;
+  top:50%;
+  right:calc(12px + env(safe-area-inset-right));
+  transform:translateY(-50%);
+  width:var(--rail-w);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:8px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--panel);
+  backdrop-filter:blur(9px);
+  -webkit-backdrop-filter:blur(9px);
+  box-shadow:0 10px 30px rgba(0,0,0,.55);
+}
+#rail .cap{
+  font-family:"Barlow Condensed",sans-serif;
+  font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-dim);text-align:center;padding-bottom:2px;
+}
+.floor{
+  display:flex;align-items:center;gap:8px;
+  width:100%;
+  padding:7px 8px;
+  border:1px solid transparent;
+  border-radius:8px;
+  background:rgba(255,255,255,0.03);
+  color:var(--ink-dim);
+  cursor:pointer;
+  text-align:left;
+  font-family:"Barlow Condensed",sans-serif;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.floor:hover{background:rgba(255,255,255,0.07);color:var(--ink);}
+.floor .key{
+  flex:0 0 20px;
+  font-size:.95rem;font-weight:700;letter-spacing:.04em;
+  text-align:center;
+}
+.floor .nm{
+  font-size:.7rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  line-height:1.1;
+}
+.floor.on{
+  background:rgba(75,184,233,0.15);
+  border-color:var(--line-hot);
+  color:#fff;
+}
+.floor.on .key{color:var(--hot);}
+
+/* ---------------- overlays ---------------- */
+#compass{
+  position:absolute;
+  left:calc(12px + env(safe-area-inset-left));
+  bottom:calc(12px + env(safe-area-inset-bottom));
+  padding:8px 11px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--panel);
+  backdrop-filter:blur(9px);
+  -webkit-backdrop-filter:blur(9px);
+  font-family:"Barlow Condensed",sans-serif;
+  font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-dim);
+  line-height:1.5;
+  pointer-events:none;
+}
+#compass b{display:block;color:var(--ink);font-size:.7rem;letter-spacing:.16em;}
+#zoompill{
+  position:absolute;
+  left:50%;
+  bottom:calc(12px + env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  padding:6px 12px;
+  border:1px solid var(--line-hot);
+  border-radius:999px;
+  background:var(--panel);
+  backdrop-filter:blur(9px);
+  -webkit-backdrop-filter:blur(9px);
+  font-family:"Barlow Condensed",sans-serif;
+  font-size:.72rem;letter-spacing:.12em;
+  color:var(--hot);
+  opacity:0;
+  transition:opacity .2s;
+  pointer-events:auto;
+  cursor:pointer;
+}
+#zoompill.show{opacity:1;}
+
+/* ---------------- info sheet ---------------- */
+#info{
+  position:absolute;
+  inset:0;
+  background:rgba(6,8,10,0.9);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  z-index:5;
+}
+#info.show{display:flex;}
+#info .card{
+  max-width:440px;
+  max-height:100%;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#11151a;
+  padding:22px;
+  font-size:.87rem;
+  line-height:1.6;
+  color:var(--ink-dim);
+}
+#info h2{
+  font-family:"Barlow Condensed",sans-serif;
+  font-size:1.15rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink);margin-bottom:12px;
+}
+#info p{margin-bottom:11px;}
+#info strong{color:var(--ink);}
+#info .close{
+  margin-top:6px;width:100%;padding:10px;
+  border:1px solid var(--line-hot);border-radius:9px;
+  background:rgba(75,184,233,0.12);color:var(--hot);
+  font-family:"Barlow Condensed",sans-serif;
+  font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;
+}
+#info a{color:var(--hot);}
+
+/* ---------------- narrow phones ---------------- */
+@media (max-width:560px){
+  :root{--rail-w:62px;}
+  .tagline{display:none;}
+  .floor{flex-direction:column;gap:1px;padding:6px 2px;align-items:center;}
+  .floor .key{flex:0 0 auto;font-size:.9rem;}
+  .floor .nm{font-size:.5rem;letter-spacing:.06em;}
+  #compass{font-size:.55rem;padding:6px 8px;}
+}
+@media (max-height:430px){
+  #rail{padding:5px;gap:4px;}
+  #rail .cap{display:none;}
+  .floor{padding:5px 6px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mapname">Consul<span>ate</span></div>
+  <div class="tagline">Interactive floor stack</div>
+  <div class="hbtns">
+    <button class="hbtn on" id="sndBtn" title="Sound">&#9834;</button>
+    <button class="hbtn" id="infoBtn" title="About this map">i</button>
+  </div>
+</header>
+
+<div id="stage">
+  <div id="sheet"></div>
+
+  <nav id="rail">
+    <div class="cap">Floor</div>
+  </nav>
+
+  <div id="compass">
+    <b>&#9660; Front entrance</b>
+    Blueprint orientation
+  </div>
+
+  <div id="zoompill">1.0&times; &#8635;</div>
+</div>
+
+<div id="info">
+  <div class="card">
+    <h2>About this map</h2>
+    <p><strong>Consulate</strong>, as it exists in game today. The floor plans are
+    Ubisoft's own blueprints from the <strong>June 2023 rework</strong> (Y8S2, Dread
+    Factor), which rebuilt the map from scratch. The Year 10 Season 3 pass in
+    September 2025 was a <strong>visual</strong> modernisation &mdash; 4K textures,
+    lighting, shadows, and a few new destructible props. It did not change the
+    layout, so these are current.</p>
+    <p>All four floors are the same camera at the same position, so they line up
+    exactly. Switching floors peels one layer off the same building rather than
+    swapping to a different picture.</p>
+    <p><strong>On orientation:</strong> Siege gives players no compass, so there is no
+    in&#8209;game north to align to. This uses Ubisoft's canonical blueprint
+    orientation &mdash; the one every community resource and the in&#8209;game
+    tactical map share &mdash; with the <strong>main entrance at the bottom</strong>.</p>
+    <p><strong>Controls:</strong> drag to pan, pinch or scroll to zoom, double&#8209;tap
+    to reset. Keys <strong>1&ndash;4</strong> or <strong>&#8593;/&#8595;</strong>
+    change floor.</p>
+    <p>Blueprints &copy; Ubisoft Entertainment. This is a fan reference, not
+    affiliated with Ubisoft.</p>
+    <button class="close" id="infoClose">Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------------------------------------------------------------
+   Map data. Adding another map later is data, not code: give it a
+   folder under maps/ and list its floors top-down.
+   'tone' drives the floor-change tick -- pitch falls as you go down,
+   so you can hear which way through the building you just moved.
+----------------------------------------------------------------- */
+var MAPS = {
+  consulate: {
+    name: 'Consulate',
+    dir: 'maps/consulate/',
+    w: 600, h: 462,
+    floors: [
+      { id:'roof',     key:'1', nm:'Bird’s-eye', tone:659.3 },
+      { id:'2f',       key:'2', nm:'2F',              tone:523.3 },
+      { id:'1f',       key:'3', nm:'1F',              tone:415.3 },
+      { id:'basement', key:'4', nm:'Basement',        tone:329.6 }
+    ]
+  }
+};
+
+var MAP    = MAPS.consulate;
+var stage  = document.getElementById('stage');
+var sheet  = document.getElementById('sheet');
+var rail   = document.getElementById('rail');
+var pill   = document.getElementById('zoompill');
+var imgs   = {};
+var btns   = {};
+var active = null;
+
+/* ---------------- build the stack and the rail ---------------- */
+MAP.floors.forEach(function(f){
+  var im = new Image();
+  im.src = MAP.dir + f.id + '.webp';
+  im.alt = MAP.name + ' — ' + f.nm;
+  im.decoding = 'async';
+  sheet.appendChild(im);
+  imgs[f.id] = im;
+
+  var b = document.createElement('button');
+  b.className = 'floor';
+  b.type = 'button';
+  b.innerHTML = '<span class="key">' + f.key + '</span><span class="nm">' + f.nm + '</span>';
+  b.addEventListener('click', function(){ setFloor(f.id, true); });
+  rail.appendChild(b);
+  btns[f.id] = b;
+});
+
+function setFloor(id, withSound){
+  if(id === active) return;
+  var f = MAP.floors.filter(function(x){ return x.id === id; })[0];
+  if(!f) return;
+  if(active){ imgs[active].classList.remove('live'); btns[active].classList.remove('on'); }
+  active = id;
+  imgs[id].classList.add('live');
+  btns[id].classList.add('on');
+  try{ localStorage.setItem('r6.floor.' + MAP.name, id); }catch(e){}
+  if(withSound) tick(f.tone);
+}
+
+/* ---------------- layout and view ----------------
+   base = where the sheet sits at rest, fitted to the stage
+   view = the zoom on top of that (scale + offset)
+-------------------------------------------------- */
+var base = { x:0, y:0, w:0, h:0 };
+var view = { s:1, tx:0, ty:0 };
+var MAX_ZOOM = 7;
+
+function layout(){
+  var pad = 16;
+  var sw = stage.clientWidth, sh = stage.clientHeight;
+  if(sw - pad <= 0 || sh - pad <= 0) return;
+
+  /* keep the building clear of the rail on wide screens */
+  var railBite = sw > 560 ? 110 : 0;
+  var avail = sw - pad - railBite;
+
+  var ar = MAP.w / MAP.h;
+  var w = avail, h = w / ar;
+  if(h > sh - pad){ h = sh - pad; w = h * ar; }
+
+  base.w = Math.round(w);
+  base.h = Math.round(h);
+  base.x = Math.round((sw - railBite - base.w) / 2);
+  base.y = Math.round((sh - base.h) / 2);
+
+  sheet.style.left   = base.x + 'px';
+  sheet.style.top    = base.y + 'px';
+  sheet.style.width  = base.w + 'px';
+  sheet.style.height = base.h + 'px';
+
+  clampView();
+  applyView();
+}
+
+function applyView(){
+  sheet.style.transform =
+    'translate(' + view.tx + 'px,' + view.ty + 'px) scale(' + view.s + ')';
+  var zoomed = view.s > 1.01;
+  pill.classList.toggle('show', zoomed);
+  if(zoomed) pill.textContent = view.s.toFixed(1) + '× ↻';
+}
+
+function clampView(){
+  var sw = stage.clientWidth, sh = stage.clientHeight;
+  var scaledW = base.w * view.s, scaledH = base.h * view.s;
+
+  if(scaledW <= sw) view.tx = (sw - scaledW) / 2 - base.x;
+  else view.tx = Math.min(-base.x, Math.max(sw - scaledW - base.x, view.tx));
+
+  if(scaledH <= sh) view.ty = (sh - scaledH) / 2 - base.y;
+  else view.ty = Math.min(-base.y, Math.max(sh - scaledH - base.y, view.ty));
+}
+
+/* zoom about a fixed point: whatever was under it stays under it */
+function zoomTo(newScale, screenX, screenY, anchor){
+  var r = stage.getBoundingClientRect();
+  var sx = screenX - r.left, sy = screenY - r.top;
+  var a = anchor || {
+    x: (sx - base.x - view.tx) / view.s,
+    y: (sy - base.y - view.ty) / view.s
+  };
+  view.s  = Math.max(1, Math.min(MAX_ZOOM, newScale));
+  view.tx = sx - base.x - view.s * a.x;
+  view.ty = sy - base.y - view.s * a.y;
+  clampView();
+  applyView();
+  return a;
+}
+
+function resetView(){
+  view.s = 1; view.tx = 0; view.ty = 0;
+  clampView(); applyView();
+}
+
+/* ---------------- pointer: drag, pinch, double-tap ---------------- */
+/* tapCand is the "this might turn out to be a tap" record. It is torn down
+   the moment the touch becomes something else -- a drag, or a second finger.
+   Without that, the opening finger of a pinch counts as a tap, and the next
+   touch reads as a double tap and throws the zoom away. */
+var ptrs = {}, gesture = null, panning = null, tapCand = null, lastTap = 0;
+var TAP_SLOP = 8, TAP_MS = 250, DBL_MS = 300;
+
+function ptrList(){
+  var out = [];
+  for(var k in ptrs) out.push(ptrs[k]);
+  return out;
+}
+
+stage.addEventListener('pointerdown', function(e){
+  if(e.target.closest('#rail') || e.target.closest('#zoompill')) return;
+
+  /* Record the pointer first. Capture is a convenience -- if it throws the
+     gesture bookkeeping must still be correct, or the pinch never starts. */
+  ptrs[e.pointerId] = { x:e.clientX, y:e.clientY };
+  try{ stage.setPointerCapture(e.pointerId); }catch(err){}
+  var n = ptrList().length;
+
+  if(n === 2){ panning = null; tapCand = null; startGesture(); return; }
+  if(n > 2){ tapCand = null; return; }
+
+  tapCand = { t: Date.now(), x: e.clientX, y: e.clientY };
+  panning = { x:e.clientX, y:e.clientY, tx:view.tx, ty:view.ty };
+  stage.classList.add('dragging');
+}, { passive:false });
+
+stage.addEventListener('pointermove', function(e){
+  if(!ptrs[e.pointerId]) return;
+  ptrs[e.pointerId] = { x:e.clientX, y:e.clientY };
+
+  /* moved far enough to be a drag, so it is no longer a tap */
+  if(tapCand && Math.hypot(e.clientX - tapCand.x, e.clientY - tapCand.y) > TAP_SLOP){
+    tapCand = null;
+  }
+
+  if(gesture){ moveGesture(); return; }
+  if(panning){
+    view.tx = panning.tx + (e.clientX - panning.x);
+    view.ty = panning.ty + (e.clientY - panning.y);
+    clampView();
+    applyView();
+  }
+}, { passive:false });
+
+function endPtr(e){
+  delete ptrs[e.pointerId];
+  if(ptrList().length < 2) gesture = null;
+  if(ptrList().length > 0) return;
+
+  panning = null;
+  stage.classList.remove('dragging');
+
+  /* a tap only counts once the last finger is up and it stayed still */
+  var now = Date.now();
+  if(tapCand && now - tapCand.t < TAP_MS){
+    if(now - lastTap < DBL_MS && view.s > 1.01){ resetView(); lastTap = 0; }
+    else lastTap = now;
+  }
+  tapCand = null;
+}
+stage.addEventListener('pointerup', endPtr);
+stage.addEventListener('pointercancel', endPtr);
+
+function startGesture(){
+  var a = ptrList()[0], b = ptrList()[1];
+  if(!a || !b){ gesture = null; return; }
+  var r = stage.getBoundingClientRect();
+  var mx = (a.x + b.x)/2, my = (a.y + b.y)/2;
+  gesture = {
+    d0: Math.max(1, Math.hypot(b.x-a.x, b.y-a.y)),
+    s0: view.s,
+    a: {
+      x: (mx - r.left - base.x - view.tx) / view.s,
+      y: (my - r.top  - base.y - view.ty) / view.s
+    }
+  };
+}
+
+function moveGesture(){
+  var a = ptrList()[0], b = ptrList()[1];
+  if(!a || !b) return;
+  var d = Math.max(1, Math.hypot(b.x-a.x, b.y-a.y));
+  var mx = (a.x + b.x)/2, my = (a.y + b.y)/2;
+  zoomTo(gesture.s0 * (d / gesture.d0), mx, my, gesture.a);
+}
+
+stage.addEventListener('wheel', function(e){
+  e.preventDefault();
+  zoomTo(view.s * Math.exp(-e.deltaY * 0.0022), e.clientX, e.clientY);
+}, { passive:false });
+
+stage.addEventListener('dblclick', function(){ if(view.s > 1.01) resetView(); });
+pill.addEventListener('click', resetView);
+
+/* ---------------- keyboard ---------------- */
+window.addEventListener('keydown', function(e){
+  var ids = MAP.floors.map(function(f){ return f.id; });
+  var i = ids.indexOf(active);
+
+  var byKey = MAP.floors.filter(function(f){ return f.key === e.key; })[0];
+  if(byKey){ setFloor(byKey.id, true); return; }
+
+  if(e.key === 'ArrowDown' && i < ids.length-1){ e.preventDefault(); setFloor(ids[i+1], true); }
+  else if(e.key === 'ArrowUp' && i > 0){ e.preventDefault(); setFloor(ids[i-1], true); }
+  else if(e.key === '0' || e.key === 'Escape'){ resetView(); closeInfo(); }
+});
+
+/* ---------------- sound ----------------
+   A short tick on every floor change, pitched to the floor's depth.
+   Built in WebAudio so there is no asset to load.
+---------------------------------------- */
+var ac = null, sndOn = true;
+try{ sndOn = localStorage.getItem('r6.sound') !== 'off'; }catch(e){}
+
+var sndBtn = document.getElementById('sndBtn');
+function paintSnd(){
+  sndBtn.classList.toggle('on', sndOn);
+  sndBtn.innerHTML = sndOn ? '&#9834;' : '&#9834;̸';
+}
+paintSnd();
+sndBtn.addEventListener('click', function(){
+  sndOn = !sndOn;
+  try{ localStorage.setItem('r6.sound', sndOn ? 'on' : 'off'); }catch(e){}
+  paintSnd();
+  if(sndOn) tick(523.3);
+});
+
+function tick(freq){
+  if(!sndOn) return;
+  try{
+    if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if(ac.state === 'suspended') ac.resume();
+    var t = ac.currentTime;
+
+    var osc = ac.createOscillator();
+    var gain = ac.createGain();
+    var filt = ac.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = freq * 3.2;
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.86, t + 0.09);
+
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.13, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+
+    osc.connect(filt); filt.connect(gain); gain.connect(ac.destination);
+    osc.start(t); osc.stop(t + 0.2);
+  }catch(e){}
+}
+
+/* ---------------- info sheet ---------------- */
+var info = document.getElementById('info');
+function closeInfo(){ info.classList.remove('show'); }
+document.getElementById('infoBtn').addEventListener('click', function(){ info.classList.add('show'); });
+document.getElementById('infoClose').addEventListener('click', closeInfo);
+info.addEventListener('click', function(e){ if(e.target === info) closeInfo(); });
+
+/* ---------------- go ---------------- */
+window.addEventListener('resize', layout);
+window.addEventListener('orientationchange', function(){ setTimeout(layout, 120); });
+
+var start = 'roof';
+try{
+  var saved = localStorage.getItem('r6.floor.' + MAP.name);
+  if(saved && imgs[saved]) start = saved;
+}catch(e){}
+
+layout();
+setFloor(start, false);
+
+/* re-fit once the first image has real dimensions, in case the font
+   or the rail settled after first paint */
+if(imgs[start].complete) layout();
+else imgs[start].addEventListener('load', layout);
+
+})();
+</script>
+</body>
+</html>
