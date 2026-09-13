@@ -68,6 +68,62 @@ body{
 }
 #sheet img.live{opacity:1;}
 
+/* ---------------- room labels ----------------
+   The overlay lives INSIDE #sheet, so it inherits the pan/zoom transform
+   for free: labels are anchored to the map and grow as you zoom in,
+   which is the only way a room name can mean a place rather than float
+   above one. Hit-testing is done in JS on a tap, not by the SVG, so it
+   cannot fight the panning.
+------------------------------------------------ */
+#rooms{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:2;          /* the floor images are appended after it in the DOM */
+  pointer-events:none;
+  overflow:visible;
+}
+#rooms polygon{
+  fill:rgba(75,184,233,0);
+  stroke:rgba(75,184,233,0);
+  stroke-width:1.2;
+  transition:fill .18s ease,stroke .18s ease;
+}
+#rooms polygon.hit{
+  fill:rgba(75,184,233,0.20);
+  stroke:rgba(140,215,255,0.85);
+}
+#rooms text{
+  fill:rgba(255,255,255,0.90);
+  stroke:rgba(0,0,0,0.85);
+  stroke-width:0.5;
+  paint-order:stroke fill;
+  font-family:"Barlow Condensed",sans-serif;
+  font-weight:600;
+  letter-spacing:0.04em;
+  text-anchor:middle;
+  dominant-baseline:middle;
+}
+
+#roomPop{
+  left:50%;
+  top:calc(var(--pad) + 52px + env(safe-area-inset-top));
+  transform:translate(-50%, -6px);
+  padding:9px 18px;
+  font-family:"Barlow Condensed",sans-serif;
+  font-size:1.35rem;
+  font-weight:700;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  color:#fff;
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .16s ease,transform .16s ease;
+}
+#roomPop.show{opacity:1;transform:translate(-50%, 0);}
+
 /* ---------------- floating chrome ---------------- */
 .chip{
   position:absolute;
@@ -273,7 +329,11 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 <body>
 
 <div id="stage">
-  <div id="sheet"></div>
+  <div id="sheet">
+    <svg id="rooms" viewBox="0 0 600 462" preserveAspectRatio="none"></svg>
+  </div>
+
+  <div class="chip" id="roomPop"></div>
 
   <div class="chip" id="brand">Consul<span>ate</span></div>
 
@@ -386,8 +446,146 @@ function setFloor(id, withSound){
   active = id;
   imgs[id].classList.add('live');
   btns[id].classList.add('on');
+  showRoom(null);
+  buildRooms(id);
   if(withSound) tick(f.tone);
 }
+
+/* ---------------- rooms ----------------
+   Polygons in normalised map coords. The SVG sits inside #sheet so it
+   pans and zooms with the map for free. Labels are sized per room to the
+   largest that still fits inside it, which is why a big room shouts and a
+   closet whispers -- the type itself tells you how much space you have.
+----------------------------------------- */
+var SVGNS  = 'http://www.w3.org/2000/svg';
+var roomsEl = document.getElementById('rooms');
+var roomPop = document.getElementById('roomPop');
+var ROOMS  = {};          /* floor id -> [{n, p, poly, el}] */
+var popTimer = null;
+var hitEl = null;
+
+function bboxOf(p){
+  var xs = p.map(function(q){ return q[0]; }), ys = p.map(function(q){ return q[1]; });
+  var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+  var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+  return { x:x0, y:y0, w:x1-x0, h:y1-y0, cx:(x0+x1)/2, cy:(y0+y1)/2 };
+}
+
+/* ray casting, in normalised coords */
+function inPoly(p, x, y){
+  var inside = false;
+  for(var i = 0, j = p.length - 1; i < p.length; j = i++){
+    var xi = p[i][0], yi = p[i][1], xj = p[j][0], yj = p[j][1];
+    if(((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+/* Largest type that fits: render at a known size, measure, then scale.
+   Two lines are tried as well -- "Lower Spiral" stacked fits a square
+   room far better than strung out on one line. */
+function fitLabel(g, name, bb){
+  var W = bb.w * 600, H = bb.h * 462;
+  var maxW = W * 0.86, maxH = H * 0.80;
+  var options = [[name]];
+  var sp = name.split(' ');
+  if(sp.length === 2) options.push(sp);
+
+  var best = null;
+  options.forEach(function(lines){
+    while(g.firstChild) g.removeChild(g.firstChild);
+    var probe = 20;
+    lines.forEach(function(ln, i){
+      var t = document.createElementNS(SVGNS, 'text');
+      t.setAttribute('x', bb.cx * 600);
+      t.setAttribute('y', bb.cy * 462 + (i - (lines.length - 1) / 2) * probe * 1.05);
+      t.setAttribute('font-size', probe);
+      t.textContent = ln;
+      g.appendChild(t);
+    });
+    var r;
+    try{ r = g.getBBox(); }catch(e){ return; }
+    if(!r || !r.width || !r.height) return;
+    var s = Math.min(maxW / r.width, maxH / r.height) * probe;
+    if(!best || s > best.size) best = { size:s, lines:lines };
+  });
+
+  if(!best) best = { size: 8, lines: [name] };
+  var size = Math.max(3, Math.min(best.size, H * 0.7));
+
+  while(g.firstChild) g.removeChild(g.firstChild);
+  best.lines.forEach(function(ln, i){
+    var t = document.createElementNS(SVGNS, 'text');
+    t.setAttribute('x', bb.cx * 600);
+    t.setAttribute('y', bb.cy * 462 + (i - (best.lines.length - 1) / 2) * size * 1.05);
+    t.setAttribute('font-size', size);
+    t.setAttribute('stroke-width', Math.max(0.4, size * 0.055));
+    t.textContent = ln;
+    g.appendChild(t);
+  });
+}
+
+function buildRooms(floorId){
+  while(roomsEl.firstChild) roomsEl.removeChild(roomsEl.firstChild);
+  var list = ROOMS[floorId] || [];
+  list.forEach(function(r){
+    var poly = document.createElementNS(SVGNS, 'polygon');
+    poly.setAttribute('points', r.p.map(function(q){
+      return (q[0] * 600).toFixed(2) + ',' + (q[1] * 462).toFixed(2);
+    }).join(' '));
+    roomsEl.appendChild(poly);
+    r.el = poly;
+
+    var g = document.createElementNS(SVGNS, 'g');
+    roomsEl.appendChild(g);
+    fitLabel(g, r.n, bboxOf(r.p));
+    r.label = g;
+  });
+}
+
+function showRoom(r){
+  if(hitEl){ hitEl.classList.remove('hit'); hitEl = null; }
+  if(popTimer){ clearTimeout(popTimer); popTimer = null; }
+  if(!r){ roomPop.classList.remove('show'); return; }
+
+  r.el.classList.add('hit');
+  hitEl = r.el;
+  roomPop.textContent = r.n;
+  roomPop.classList.add('show');
+  popTimer = setTimeout(function(){
+    roomPop.classList.remove('show');
+    if(hitEl){ hitEl.classList.remove('hit'); hitEl = null; }
+    popTimer = null;
+  }, 2000);
+}
+
+/* screen point -> normalised map coords */
+function toMap(clientX, clientY){
+  var rct = stage.getBoundingClientRect();
+  var sx = clientX - rct.left, sy = clientY - rct.top;
+  return {
+    u: (sx - base.x - view.tx) / (view.s * base.w),
+    v: (sy - base.y - view.ty) / (view.s * base.h)
+  };
+}
+
+function roomAt(clientX, clientY){
+  var m = toMap(clientX, clientY);
+  if(m.u < 0 || m.u > 1 || m.v < 0 || m.v > 1) return null;
+  var list = ROOMS[active] || [];
+  for(var i = 0; i < list.length; i++){
+    if(inPoly(list[i].p, m.u, m.v)) return list[i];
+  }
+  return null;
+}
+
+fetch('maps/consulate/rooms.json')
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    ROOMS = d.floors || {};
+    if(active) buildRooms(active);
+  })
+  .catch(function(){ /* no rooms yet is a fine state */ });
 
 /* ---------------- layout and view ----------------
    base = where the sheet sits at rest, fitted to the stage
@@ -526,8 +724,20 @@ function endPtr(e){
   /* a tap only counts once the last finger is up and it stayed still */
   var now = Date.now();
   if(tapCand && now - tapCand.t < TAP_MS){
-    if(now - lastTap < DBL_MS && view.s > 1.01){ resetView(); lastTap = 0; }
-    else lastTap = now;
+    if(now - lastTap < DBL_MS && view.s > 1.01){
+      resetView(); lastTap = 0; showRoom(null);
+    } else {
+      lastTap = now;
+      /* tapping a room says its name for two seconds */
+      var r = roomAt(tapCand.x, tapCand.y);
+      if(r){
+        showRoom(r);
+        var f = MAP.floors.filter(function(x){ return x.id === active; })[0];
+        tick(f ? f.tone : 1400);
+      } else {
+        showRoom(null);
+      }
+    }
   }
   tapCand = null;
 }
