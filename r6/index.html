@@ -58,7 +58,10 @@ body{
   height:100%;
   display:block;
   opacity:0;
-  transition:opacity .28s ease;
+  /* No transition on purpose. Cross-fading two stacked floors puts both
+     at partial opacity at once, so for a moment you are looking through
+     one floor at another -- it reads as a flicker. A hard cut is cleaner
+     and the frames register exactly, so nothing appears to move. */
   pointer-events:none;
   user-select:none;
   -webkit-user-drag:none;
@@ -330,8 +333,9 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 /* ---------------------------------------------------------------
    Map data. Adding another map later is data, not code: give it a
    folder under maps/ and list its floors top-down.
-   'tone' drives the floor-change tick -- pitch falls as you go down,
-   so you can hear which way through the building you just moved.
+   'tone' is the centre frequency of the paper sound for that floor --
+   the sheet reads brighter up top and duller down in the basement, so
+   you still hear which way through the building you moved.
 ----------------------------------------------------------------- */
 var MAPS = {
   consulate: {
@@ -339,10 +343,10 @@ var MAPS = {
     dir: 'maps/consulate/',
     w: 600, h: 462,
     floors: [
-      { id:'roof',     key:'1', nm:'Bird’s-eye', tone:659.3 },
-      { id:'2f',       key:'2', nm:'2F',              tone:523.3 },
-      { id:'1f',       key:'3', nm:'1F',              tone:415.3 },
-      { id:'basement', key:'4', nm:'Basement',        tone:329.6 }
+      { id:'roof',     key:'1', nm:'Bird’s-eye', tone:3200 },
+      { id:'2f',       key:'2', nm:'2F',              tone:2700 },
+      { id:'1f',       key:'3', nm:'1F',              tone:2300 },
+      { id:'basement', key:'4', nm:'Basement',        tone:1900 }
     ]
   }
 };
@@ -576,10 +580,15 @@ window.addEventListener('keydown', function(e){
 });
 
 /* ---------------- sound ----------------
-   A short tick on every floor change, pitched to the floor's depth.
-   Built in WebAudio so there is no asset to load.
+   A sheet being flicked over, not a beep. Paper is broadband noise with
+   a very fast attack and almost no tail, so this is a short burst of
+   white noise through a band-pass that darkens as it decays, plus a
+   quieter second grain for the sheet settling. Every trigger jitters its
+   filter and its position in the noise buffer -- a sample replayed
+   identically is exactly what starts to sound synthetic.
+   Still no asset to load.
 ---------------------------------------- */
-var ac = null, sndOn = true;
+var ac = null, noiseBuf = null, sndOn = true;
 try{ sndOn = localStorage.getItem('r6.sound') !== 'off'; }catch(e){}
 
 var sndBtn = document.getElementById('sndBtn');
@@ -589,32 +598,54 @@ sndBtn.addEventListener('click', function(){
   sndOn = !sndOn;
   try{ localStorage.setItem('r6.sound', sndOn ? 'on' : 'off'); }catch(e){}
   paintSnd();
-  if(sndOn) tick(523.3);
+  if(sndOn) tick(2700);
 });
 
-function tick(freq){
+function noiseBuffer(){
+  if(noiseBuf) return noiseBuf;
+  var n = Math.floor(ac.sampleRate * 0.4);
+  noiseBuf = ac.createBuffer(1, n, ac.sampleRate);
+  var d = noiseBuf.getChannelData(0);
+  for(var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return noiseBuf;
+}
+
+/* one grain of paper: a filtered burst of noise that darkens as it dies */
+function grain(t, centre, peak, dur){
+  var src = ac.createBufferSource();
+  src.buffer = noiseBuffer();
+  src.loop = true;
+
+  var hp = ac.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 600;          /* no rumble -- paper has no body */
+
+  var bp = ac.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.Q.value = 0.7;                  /* broad: a band, not a pitch */
+  bp.frequency.setValueAtTime(centre * (0.9 + Math.random() * 0.2), t);
+  bp.frequency.exponentialRampToValueAtTime(centre * 0.55, t + dur);
+
+  var g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.004);          /* the snap */
+  g.gain.exponentialRampToValueAtTime(peak * 0.18, t + dur * 0.3);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  src.connect(hp); hp.connect(bp); bp.connect(g); g.connect(ac.destination);
+  src.start(t, Math.random() * 0.3);   /* random point in the noise */
+  src.stop(t + dur + 0.02);
+}
+
+function tick(centre){
   if(!sndOn) return;
   try{
     if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
     if(ac.state === 'suspended') ac.resume();
     var t = ac.currentTime;
-
-    var osc = ac.createOscillator();
-    var gain = ac.createGain();
-    var filt = ac.createBiquadFilter();
-    filt.type = 'lowpass';
-    filt.frequency.value = freq * 3.2;
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, t);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.86, t + 0.09);
-
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.13, t + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
-
-    osc.connect(filt); filt.connect(gain); gain.connect(ac.destination);
-    osc.start(t); osc.stop(t + 0.2);
+    var c = centre || 2400;
+    grain(t,         c,       0.22, 0.075);   /* the flick */
+    grain(t + 0.045, c * 0.8, 0.07, 0.055);   /* the sheet settling */
   }catch(e){}
 }
 
@@ -693,7 +724,7 @@ function enter(){
   defrost();
   setTimeout(function(){ layout(); paintFs(); }, 90);
   var f = MAP.floors.filter(function(x){ return x.id === active; })[0];
-  tick(f ? f.tone : 329.6);
+  tick(f ? f.tone : 1900);
 }
 enterBtn.addEventListener('click', enter);
 
