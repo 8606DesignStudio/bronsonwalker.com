@@ -74,6 +74,7 @@ body{
   backdrop-filter:blur(9px);
   -webkit-backdrop-filter:blur(9px);
   box-shadow:0 8px 24px rgba(0,0,0,.5);
+  transition:opacity .55s ease;
 }
 
 #brand{
@@ -200,37 +201,54 @@ body{
   font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;
 }
 
-/* ---------------- landing gate ----------------
-   Fullscreen can only be requested from a real user gesture, which is
-   the whole reason this opens on a button instead of dropping you in.
-   Same hatch release as the /svg landing.
------------------------------------------------- */
-#gate{
+/* ---------------- landing overlay ----------------
+   The map is already sitting behind this -- the overlay only frosts it.
+   Same treatment as the door on the front page: a dark wash over a 14px
+   backdrop blur, scanlines on top, one small button. On ENTER the blur
+   eases to zero over 1.4s and the whole sheet leaves.
+--------------------------------------------------- */
+#enter-overlay{
   position:fixed;inset:0;z-index:100;
-  background:#05070a;
+  background:rgba(10,5,0,0.45);
+  /* 14px is the front-page value and it is right on a wide screen, but
+     there it is ~1% of the viewport and on a phone it is ~3.6% -- same
+     number, three times the frost. Hold it proportional instead. */
+  backdrop-filter:blur(clamp(7px, 1.1vw, 14px));
+  -webkit-backdrop-filter:blur(clamp(7px, 1.1vw, 14px));
   display:flex;align-items:center;justify-content:center;
-  cursor:pointer;
+  overflow:hidden;
 }
-#gate.gone{display:none;}
-#gate svg{width:100%;height:100%;display:block;}
-#gate .enter-hit{cursor:pointer;}
-#gate .enter-label{
-  font-family:"Nunito",system-ui,sans-serif;font-weight:700;
-  letter-spacing:0.34em;fill:#F5B800;
+#enter-overlay::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,
+    transparent 0px, transparent 2px,
+    rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
 }
-#gate .sub{
-  font-family:"Nunito",system-ui,sans-serif;font-weight:400;
-  letter-spacing:0.16em;fill:#6f6653;
+#enter-overlay.gone{display:none;}
+
+@keyframes enterPulse{
+  0%,100%{box-shadow:0 0 8px rgba(245,184,0,0.3), inset 0 0 0 1.5px #F5B800;}
+  50%    {box-shadow:0 0 20px rgba(245,184,0,0.7), inset 0 0 0 1.5px #F5B800;}
 }
-/* The ring breathes so the button reads as live. Opacity only -- animating
-   transform makes Chrome rasterise the blur to the untransformed box. */
-@keyframes pulse{ 0%,100%{opacity:0.30;} 50%{opacity:0.85;} }
-#gate .ring-pulse{animation:pulse 3.4s ease-in-out infinite;}
-@keyframes flicker{ 0%,96%,100%{opacity:1;} 97%{opacity:0.55;} 98%{opacity:0.95;} }
-#gate .flick{animation:flicker 6s linear infinite;}
-@media (prefers-reduced-motion: reduce){
-  #gate .ring-pulse,#gate .flick{animation:none;}
+#enterBtn{
+  position:relative;z-index:2;   /* above the scanlines */
+  font-family:"Nunito",system-ui,sans-serif;
+  font-size:clamp(1rem,2vw,1.4rem);
+  font-weight:700;letter-spacing:0.15em;
+  color:#F5B800;background:#000;
+  border:1.5px solid #F5B800;border-radius:8px;
+  padding:10px 28px;cursor:pointer;
+  box-shadow:0 0 8px rgba(245,184,0,0.3);
+  transform:translateY(0);
+  transition:box-shadow .08s,transform .08s,opacity .35s ease;
+  animation:enterPulse 2.4s ease-in-out infinite;
 }
+#enterBtn.pressed{box-shadow:0 0 4px rgba(245,184,0,0.2);transform:translateY(4px);}
+#enterBtn.hide{opacity:0;pointer-events:none;}
+@media (prefers-reduced-motion: reduce){ #enterBtn{animation:none;} }
+
+/* the controls stay out of the way until you are in */
+body:not(.entered) .chip{opacity:0;pointer-events:none;}
 
 /* ---------------- narrow phones ---------------- */
 @media (max-width:560px){
@@ -301,107 +319,8 @@ body{
   </div>
 </div>
 
-<div id="gate">
-<svg viewBox="0 0 1536 864" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <radialGradient id="gBack" cx="0.5" cy="0.5" r="0.72">
-      <stop offset="0" stop-color="#16202c"/>
-      <stop offset="0.55" stop-color="#0a0f16"/>
-      <stop offset="1" stop-color="#04060a"/>
-    </radialGradient>
-    <linearGradient id="gRing" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffd98f"/>
-      <stop offset="0.5" stop-color="#F5B800"/>
-      <stop offset="1" stop-color="#a06a12"/>
-    </linearGradient>
-    <filter id="gGlow" x="-70%" y="-70%" width="240%" height="240%">
-      <feGaussianBlur stdDeviation="14"/>
-    </filter>
-    <filter id="gSoft" x="-70%" y="-70%" width="240%" height="240%">
-      <feGaussianBlur stdDeviation="34"/>
-    </filter>
-    <filter id="gGrain" x="0%" y="0%" width="100%" height="100%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch" result="n"/>
-      <feColorMatrix in="n" type="saturate" values="0"/>
-    </filter>
-    <filter id="gScuff" x="-8%" y="-8%" width="116%" height="116%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="23" result="n"/>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-    <filter id="gDirt" x="-5%" y="-5%" width="110%" height="110%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.014" numOctaves="5" seed="3" result="t"/>
-      <feColorMatrix in="t" type="matrix"
-        values="0 0 0 0 0.075
-                0 0 0 0 0.062
-                0 0 0 0 0.040
-                1.15 0.45 0 0 -0.45"/>
-    </filter>
-    <radialGradient id="gVign" cx="0.5" cy="0.5" r="0.72">
-      <stop offset="0.35" stop-color="#000" stop-opacity="0"/>
-      <stop offset="1" stop-color="#000" stop-opacity="0.88"/>
-    </radialGradient>
-  </defs>
-
-  <rect width="1536" height="864" fill="url(#gBack)"/>
-  <!-- hull plating behind the button -->
-  <g stroke="#141c26" stroke-width="2" opacity="0.8">
-    <line x1="0" y1="216" x2="1536" y2="216"/>
-    <line x1="0" y1="648" x2="1536" y2="648"/>
-    <line x1="512" y1="0" x2="512" y2="864"/>
-    <line x1="1024" y1="0" x2="1024" y2="864"/>
-  </g>
-  <rect width="1536" height="864" filter="url(#gDirt)" opacity="0.18"/>
-  <g fill="#2a3340" opacity="0.55">
-    <circle cx="512" cy="216" r="4"/><circle cx="1024" cy="216" r="4"/>
-    <circle cx="512" cy="648" r="4"/><circle cx="1024" cy="648" r="4"/>
-  </g>
-
-  <!-- the button: a hatch release, worn from use -->
-  <ellipse cx="768" cy="432" rx="290" ry="290" fill="#F5B800" opacity="0.06" filter="url(#gSoft)"/>
-  <!-- unfiltered: a blurred stroke here leaves a visible filter-region square -->
-  <g class="ring-pulse">
-    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="1.5" opacity="0.28"/>
-    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="6" opacity="0.07"/>
-    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="14" opacity="0.03"/>
-  </g>
-  <circle cx="768" cy="432" r="158" fill="#0b1017" stroke="#1d2733" stroke-width="10"/>
-  <circle cx="768" cy="432" r="158" fill="none" stroke="url(#gRing)" stroke-width="3" opacity="0.85" filter="url(#gScuff)"/>
-  <circle cx="768" cy="432" r="140" fill="none" stroke="#F5B800" stroke-width="1.2" opacity="0.30" filter="url(#gScuff)"/>
-  <!-- scuffed inner face -->
-  <circle cx="768" cy="432" r="150" fill="#0d131b"/>
-  <circle cx="768" cy="432" r="150" filter="url(#gDirt)" opacity="0.30"/>
-  <!-- wear where thumbs land, low on the face -->
-  <ellipse cx="768" cy="512" rx="86" ry="34" fill="#F5B800" opacity="0.05"/>
-
-  <!-- letter-spacing adds a trailing gap, so nudge left of centre to compensate -->
-  <g class="flick">
-    <text class="enter-label" x="757" y="418" font-size="62" text-anchor="middle">ENTER</text>
-    <text class="enter-label" x="757" y="418" font-size="62" text-anchor="middle"
-          opacity="0.5" filter="url(#gGlow)">ENTER</text>
-  </g>
-  <text class="sub" x="761" y="470" font-size="17" text-anchor="middle">FULL SCREEN</text>
-
-  <!-- tick marks around the dial, a few worn away -->
-  <g stroke="#F5B800" stroke-width="3" opacity="0.35">
-    <line x1="768" y1="252" x2="768" y2="268"/>
-    <line x1="948" y1="432" x2="932" y2="432"/>
-    <line x1="768" y1="612" x2="768" y2="596"/>
-    <line x1="588" y1="432" x2="604" y2="432"/>
-  </g>
-  <g stroke="#F5B800" stroke-width="2" opacity="0.16">
-    <line x1="895" y1="305" x2="884" y2="316"/>
-    <line x1="895" y1="559" x2="884" y2="548"/>
-    <line x1="641" y1="559" x2="652" y2="548"/>
-    <line x1="641" y1="305" x2="652" y2="316"/>
-  </g>
-
-  <text class="sub" x="768" y="742" font-size="15" text-anchor="middle" opacity="0.55">R6 MAP ROOM &#183; CONSULATE</text>
-
-  <rect width="1536" height="864" fill="url(#gVign)"/>
-  <rect width="1536" height="864" filter="url(#gGrain)" opacity="0.16" style="mix-blend-mode:overlay"/>
-  <!-- whole panel is the target, so a stray tap still gets you in -->
-  <rect class="enter-hit" width="1536" height="864" fill="transparent"/>
-</svg>
+<div id="enter-overlay">
+  <button id="enterBtn" type="button">ENTER</button>
 </div>
 
 <script>
@@ -463,7 +382,6 @@ function setFloor(id, withSound){
   active = id;
   imgs[id].classList.add('live');
   btns[id].classList.add('on');
-  try{ localStorage.setItem('r6.floor.' + MAP.name, id); }catch(e){}
   if(withSound) tick(f.tone);
 }
 
@@ -739,33 +657,53 @@ if(!(document.documentElement.requestFullscreen || document.documentElement.webk
   fsBtn.style.display = 'none';
 }
 
-/* ---------------- the gate ---------------- */
-var gate = document.getElementById('gate');
-var opened = false;
+/* ---------------- the landing overlay ----------------
+   The map is already rendered underneath, so the overlay has something
+   real to frost. ENTER hides the button, buys fullscreen off the click,
+   and then thaws the blur out over 1.4s.
+------------------------------------------------------- */
+var overlay  = document.getElementById('enter-overlay');
+var enterBtn = document.getElementById('enterBtn');
+var opened   = false;
+
+enterBtn.addEventListener('pointerdown', function(){ enterBtn.classList.add('pressed'); });
+['pointerup','pointercancel','pointerleave'].forEach(function(ev){
+  enterBtn.addEventListener(ev, function(){ enterBtn.classList.remove('pressed'); });
+});
+
+function defrost(){
+  overlay.style.transition =
+    'backdrop-filter 1.4s ease-out,-webkit-backdrop-filter 1.4s ease-out,background 1.4s ease-out';
+  overlay.style.backdropFilter = 'blur(0px)';
+  overlay.style.webkitBackdropFilter = 'blur(0px)';
+  overlay.style.background = 'rgba(10,5,0,0)';
+  /* only leave once the thaw has finished, or the blur would snap off */
+  setTimeout(function(){ overlay.classList.add('gone'); }, 1450);
+}
+
 function enter(){
   if(opened) return;
   opened = true;
-  gate.classList.add('gone');
+  enterBtn.classList.add('hide');
+  document.body.classList.add('entered');
   goFullscreen().catch(function(){
     /* refused or unsupported -- the map still opens, it just keeps the
        browser bars. On iOS that is the only behaviour available. */
   });
+  defrost();
   setTimeout(function(){ layout(); paintFs(); }, 90);
   var f = MAP.floors.filter(function(x){ return x.id === active; })[0];
-  tick(f ? f.tone : 659.3);
+  tick(f ? f.tone : 329.6);
 }
-gate.addEventListener('click', enter);
-gate.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') enter(); });
+enterBtn.addEventListener('click', enter);
 
 /* ---------------- go ---------------- */
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', function(){ setTimeout(layout, 120); });
 
-var start = 'roof';
-try{
-  var saved = localStorage.getItem('r6.floor.' + MAP.name);
-  if(saved && imgs[saved]) start = saved;
-}catch(e){}
+/* Always arrive in the basement -- the opening screen is a fixed shot,
+   not wherever you happened to leave off. */
+var start = 'basement';
 
 layout();
 setFloor(start, false);
@@ -782,7 +720,8 @@ if(window.matchMedia('(display-mode: fullscreen)').matches ||
    window.matchMedia('(display-mode: standalone)').matches ||
    window.navigator.standalone === true){
   opened = true;
-  gate.classList.add('gone');
+  overlay.classList.add('gone');
+  document.body.classList.add('entered');
 }
 
 })();
