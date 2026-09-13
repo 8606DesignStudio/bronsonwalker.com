@@ -343,10 +343,10 @@ var MAPS = {
     dir: 'maps/consulate/',
     w: 600, h: 462,
     floors: [
-      { id:'roof',     key:'1', nm:'Bird’s-eye', tone:3200 },
-      { id:'2f',       key:'2', nm:'2F',              tone:2700 },
-      { id:'1f',       key:'3', nm:'1F',              tone:2300 },
-      { id:'basement', key:'4', nm:'Basement',        tone:1900 }
+      { id:'roof',     key:'1', nm:'Bird’s-eye', tone:1800 },
+      { id:'2f',       key:'2', nm:'2F',              tone:1500 },
+      { id:'1f',       key:'3', nm:'1F',              tone:1250 },
+      { id:'basement', key:'4', nm:'Basement',        tone:1000 }
     ]
   }
 };
@@ -598,7 +598,7 @@ sndBtn.addEventListener('click', function(){
   sndOn = !sndOn;
   try{ localStorage.setItem('r6.sound', sndOn ? 'on' : 'off'); }catch(e){}
   paintSnd();
-  if(sndOn) tick(2700);
+  if(sndOn) tick(1500);
 });
 
 function noiseBuffer(){
@@ -618,7 +618,7 @@ function grain(t, centre, peak, dur){
 
   var hp = ac.createBiquadFilter();
   hp.type = 'highpass';
-  hp.frequency.value = 600;          /* no rumble -- paper has no body */
+  hp.frequency.value = 300;          /* trim rumble, but leave some warmth */
 
   var bp = ac.createBiquadFilter();
   bp.type = 'bandpass';
@@ -643,9 +643,9 @@ function tick(centre){
     if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
     if(ac.state === 'suspended') ac.resume();
     var t = ac.currentTime;
-    var c = centre || 2400;
-    grain(t,         c,       0.22, 0.075);   /* the flick */
-    grain(t + 0.045, c * 0.8, 0.07, 0.055);   /* the sheet settling */
+    var c = centre || 1400;
+    grain(t,         c,       0.12, 0.075);   /* the flick */
+    grain(t + 0.045, c * 0.8, 0.04, 0.055);   /* the sheet settling */
   }catch(e){}
 }
 
@@ -724,7 +724,7 @@ function enter(){
   defrost();
   setTimeout(function(){ layout(); paintFs(); }, 90);
   var f = MAP.floors.filter(function(x){ return x.id === active; })[0];
-  tick(f ? f.tone : 1900);
+  tick(f ? f.tone : 1000);
 }
 enterBtn.addEventListener('click', enter);
 
