@@ -3,19 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0d10">
+<meta name="theme-color" content="#05070a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="R6 Maps">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>R6 Map Room &mdash; Consulate</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0b0d10;
-  --panel:rgba(16,19,24,0.82);
+  --bg:#05070a;
+  --panel:rgba(11,14,19,0.78);
   --line:rgba(255,255,255,0.13);
   --line-hot:rgba(120,200,255,0.55);
   --ink:#e8edf3;
   --ink-dim:#8d98a6;
   --hot:#4bb8e9;
-  --rail-w:96px;
+  --pad:10px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
@@ -25,62 +31,21 @@ body{
   font-family:"Nunito",system-ui,sans-serif;
   overflow:hidden;
   overscroll-behavior:none;
-  display:flex;
-  flex-direction:column;
 }
 
-/* ---------------- header ---------------- */
-header{
-  flex:0 0 auto;
-  display:flex;
-  align-items:baseline;
-  gap:14px;
-  padding:calc(10px + env(safe-area-inset-top)) 16px 10px calc(16px + env(safe-area-inset-left));
-  border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(20,24,30,0.9),rgba(11,13,16,0.9));
-}
-.mapname{
-  font-family:"Barlow Condensed",sans-serif;
-  font-weight:700;
-  font-size:clamp(1.3rem,4.5vw,1.75rem);
-  letter-spacing:.14em;
-  text-transform:uppercase;
-  color:var(--ink);
-}
-.mapname span{color:var(--hot);}
-.tagline{
-  font-size:.72rem;
-  letter-spacing:.1em;
-  text-transform:uppercase;
-  color:var(--ink-dim);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.hbtns{margin-left:auto;display:flex;gap:8px;flex:0 0 auto;}
-.hbtn{
-  width:34px;height:34px;border-radius:8px;
-  border:1px solid var(--line);
-  background:rgba(255,255,255,0.04);
-  color:var(--ink-dim);
-  font-size:.95rem;line-height:1;
-  display:grid;place-items:center;cursor:pointer;
-}
-.hbtn:hover{color:var(--ink);border-color:var(--line-hot);}
-.hbtn.on{color:var(--hot);border-color:var(--line-hot);}
-
-/* ---------------- stage ---------------- */
+/* ---------------------------------------------------------------
+   The map owns the whole viewport. Every control floats over it,
+   so nothing eats a strip of screen just to hold a title.
+----------------------------------------------------------------- */
 #stage{
-  position:relative;
-  flex:1 1 auto;
-  min-height:0;
+  position:fixed;
+  inset:0;
   overflow:hidden;
   touch-action:none;
   cursor:grab;
 }
 #stage.dragging{cursor:grabbing;}
 
-/* the stack of floors -- all four are the same camera, so they register exactly */
 #sheet{
   position:absolute;
   transform-origin:0 0;
@@ -100,35 +65,70 @@ header{
 }
 #sheet img.live{opacity:1;}
 
-/* ---------------- floor rail ---------------- */
-#rail{
+/* ---------------- floating chrome ---------------- */
+.chip{
   position:absolute;
-  top:50%;
-  right:calc(12px + env(safe-area-inset-right));
-  transform:translateY(-50%);
-  width:var(--rail-w);
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  padding:8px;
   border:1px solid var(--line);
-  border-radius:12px;
+  border-radius:10px;
   background:var(--panel);
   backdrop-filter:blur(9px);
   -webkit-backdrop-filter:blur(9px);
-  box-shadow:0 10px 30px rgba(0,0,0,.55);
+  box-shadow:0 8px 24px rgba(0,0,0,.5);
+}
+
+#brand{
+  top:calc(var(--pad) + env(safe-area-inset-top));
+  left:calc(var(--pad) + env(safe-area-inset-left));
+  padding:7px 12px;
+  font-family:"Barlow Condensed",sans-serif;
+  font-weight:700;
+  font-size:1rem;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  line-height:1;
+  pointer-events:none;
+}
+#brand span{color:var(--hot);}
+
+#tools{
+  top:calc(var(--pad) + env(safe-area-inset-top));
+  right:calc(var(--pad) + env(safe-area-inset-right));
+  padding:5px;
+  display:flex;
+  gap:5px;
+}
+.hbtn{
+  width:32px;height:32px;border-radius:7px;
+  border:1px solid transparent;
+  background:rgba(255,255,255,0.04);
+  color:var(--ink-dim);
+  font-size:.9rem;line-height:1;
+  display:grid;place-items:center;cursor:pointer;
+}
+.hbtn:hover{color:var(--ink);border-color:var(--line-hot);}
+.hbtn.on{color:var(--hot);border-color:var(--line-hot);}
+
+#rail{
+  top:50%;
+  right:calc(var(--pad) + env(safe-area-inset-right));
+  transform:translateY(-50%);
+  width:92px;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  padding:7px;
 }
 #rail .cap{
   font-family:"Barlow Condensed",sans-serif;
-  font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;
-  color:var(--ink-dim);text-align:center;padding-bottom:2px;
+  font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-dim);text-align:center;padding-bottom:1px;
 }
 .floor{
   display:flex;align-items:center;gap:8px;
   width:100%;
   padding:7px 8px;
   border:1px solid transparent;
-  border-radius:8px;
+  border-radius:7px;
   background:rgba(255,255,255,0.03);
   color:var(--ink-dim);
   cursor:pointer;
@@ -137,86 +137,53 @@ header{
   transition:background .15s,color .15s,border-color .15s;
 }
 .floor:hover{background:rgba(255,255,255,0.07);color:var(--ink);}
-.floor .key{
-  flex:0 0 20px;
-  font-size:.95rem;font-weight:700;letter-spacing:.04em;
-  text-align:center;
-}
-.floor .nm{
-  font-size:.7rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
-  line-height:1.1;
-}
-.floor.on{
-  background:rgba(75,184,233,0.15);
-  border-color:var(--line-hot);
-  color:#fff;
-}
+.floor .key{flex:0 0 18px;font-size:.9rem;font-weight:700;text-align:center;}
+.floor .nm{font-size:.68rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;line-height:1.1;}
+.floor.on{background:rgba(75,184,233,0.15);border-color:var(--line-hot);color:#fff;}
 .floor.on .key{color:var(--hot);}
 
-/* ---------------- overlays ---------------- */
 #compass{
-  position:absolute;
-  left:calc(12px + env(safe-area-inset-left));
-  bottom:calc(12px + env(safe-area-inset-bottom));
-  padding:8px 11px;
-  border:1px solid var(--line);
-  border-radius:10px;
-  background:var(--panel);
-  backdrop-filter:blur(9px);
-  -webkit-backdrop-filter:blur(9px);
+  left:calc(var(--pad) + env(safe-area-inset-left));
+  bottom:calc(var(--pad) + env(safe-area-inset-bottom));
+  padding:7px 10px;
   font-family:"Barlow Condensed",sans-serif;
-  font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+  font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;
   color:var(--ink-dim);
   line-height:1.5;
   pointer-events:none;
 }
-#compass b{display:block;color:var(--ink);font-size:.7rem;letter-spacing:.16em;}
+#compass b{display:block;color:var(--ink);font-size:.68rem;letter-spacing:.16em;}
+
 #zoompill{
-  position:absolute;
   left:50%;
-  bottom:calc(12px + env(safe-area-inset-bottom));
+  bottom:calc(var(--pad) + env(safe-area-inset-bottom));
   transform:translateX(-50%);
   padding:6px 12px;
-  border:1px solid var(--line-hot);
   border-radius:999px;
-  background:var(--panel);
-  backdrop-filter:blur(9px);
-  -webkit-backdrop-filter:blur(9px);
+  border-color:var(--line-hot);
   font-family:"Barlow Condensed",sans-serif;
   font-size:.72rem;letter-spacing:.12em;
   color:var(--hot);
   opacity:0;
   transition:opacity .2s;
-  pointer-events:auto;
   cursor:pointer;
 }
 #zoompill.show{opacity:1;}
 
 /* ---------------- info sheet ---------------- */
 #info{
-  position:absolute;
-  inset:0;
-  background:rgba(6,8,10,0.9);
-  backdrop-filter:blur(6px);
-  -webkit-backdrop-filter:blur(6px);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  z-index:5;
+  position:fixed;inset:0;
+  background:rgba(4,6,9,0.92);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;
+  padding:20px;z-index:60;
 }
 #info.show{display:flex;}
 #info .card{
-  max-width:440px;
-  max-height:100%;
-  overflow:auto;
-  border:1px solid var(--line);
-  border-radius:14px;
-  background:#11151a;
-  padding:22px;
-  font-size:.87rem;
-  line-height:1.6;
-  color:var(--ink-dim);
+  max-width:440px;max-height:100%;overflow:auto;
+  border:1px solid var(--line);border-radius:14px;
+  background:#0c1116;padding:22px;
+  font-size:.87rem;line-height:1.6;color:var(--ink-dim);
 }
 #info h2{
   font-family:"Barlow Condensed",sans-serif;
@@ -232,19 +199,51 @@ header{
   font-family:"Barlow Condensed",sans-serif;
   font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;
 }
-#info a{color:var(--hot);}
+
+/* ---------------- landing gate ----------------
+   Fullscreen can only be requested from a real user gesture, which is
+   the whole reason this opens on a button instead of dropping you in.
+   Same hatch release as the /svg landing.
+------------------------------------------------ */
+#gate{
+  position:fixed;inset:0;z-index:100;
+  background:#05070a;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+}
+#gate.gone{display:none;}
+#gate svg{width:100%;height:100%;display:block;}
+#gate .enter-hit{cursor:pointer;}
+#gate .enter-label{
+  font-family:"Nunito",system-ui,sans-serif;font-weight:700;
+  letter-spacing:0.34em;fill:#F5B800;
+}
+#gate .sub{
+  font-family:"Nunito",system-ui,sans-serif;font-weight:400;
+  letter-spacing:0.16em;fill:#6f6653;
+}
+/* The ring breathes so the button reads as live. Opacity only -- animating
+   transform makes Chrome rasterise the blur to the untransformed box. */
+@keyframes pulse{ 0%,100%{opacity:0.30;} 50%{opacity:0.85;} }
+#gate .ring-pulse{animation:pulse 3.4s ease-in-out infinite;}
+@keyframes flicker{ 0%,96%,100%{opacity:1;} 97%{opacity:0.55;} 98%{opacity:0.95;} }
+#gate .flick{animation:flicker 6s linear infinite;}
+@media (prefers-reduced-motion: reduce){
+  #gate .ring-pulse,#gate .flick{animation:none;}
+}
 
 /* ---------------- narrow phones ---------------- */
 @media (max-width:560px){
-  :root{--rail-w:62px;}
-  .tagline{display:none;}
+  :root{--pad:8px;}
+  #rail{width:58px;}
   .floor{flex-direction:column;gap:1px;padding:6px 2px;align-items:center;}
-  .floor .key{flex:0 0 auto;font-size:.9rem;}
-  .floor .nm{font-size:.5rem;letter-spacing:.06em;}
-  #compass{font-size:.55rem;padding:6px 8px;}
+  .floor .key{flex:0 0 auto;font-size:.85rem;}
+  .floor .nm{font-size:.48rem;letter-spacing:.06em;}
+  #brand{font-size:.82rem;padding:6px 9px;}
+  #compass{font-size:.54rem;padding:5px 8px;}
 }
 @media (max-height:430px){
-  #rail{padding:5px;gap:4px;}
+  #rail{padding:4px;gap:3px;}
   #rail .cap{display:none;}
   .floor{padding:5px 6px;}
 }
@@ -252,28 +251,27 @@ header{
 </head>
 <body>
 
-<header>
-  <div class="mapname">Consul<span>ate</span></div>
-  <div class="tagline">Interactive floor stack</div>
-  <div class="hbtns">
-    <button class="hbtn on" id="sndBtn" title="Sound">&#9834;</button>
-    <button class="hbtn" id="infoBtn" title="About this map">i</button>
-  </div>
-</header>
-
 <div id="stage">
   <div id="sheet"></div>
 
-  <nav id="rail">
+  <div class="chip" id="brand">Consul<span>ate</span></div>
+
+  <div class="chip" id="tools">
+    <button class="hbtn on" id="sndBtn" title="Sound">&#9834;</button>
+    <button class="hbtn" id="fsBtn" title="Full screen">&#9974;</button>
+    <button class="hbtn" id="infoBtn" title="About this map">i</button>
+  </div>
+
+  <nav class="chip" id="rail">
     <div class="cap">Floor</div>
   </nav>
 
-  <div id="compass">
+  <div class="chip" id="compass">
     <b>&#9660; Front entrance</b>
     Blueprint orientation
   </div>
 
-  <div id="zoompill">1.0&times; &#8635;</div>
+  <div class="chip" id="zoompill">1.0&times; &#8635;</div>
 </div>
 
 <div id="info">
@@ -295,10 +293,115 @@ header{
     <p><strong>Controls:</strong> drag to pan, pinch or scroll to zoom, double&#8209;tap
     to reset. Keys <strong>1&ndash;4</strong> or <strong>&#8593;/&#8595;</strong>
     change floor.</p>
+    <p><strong>On a phone:</strong> add this to your home screen and it opens with no
+    browser bars at all.</p>
     <p>Blueprints &copy; Ubisoft Entertainment. This is a fan reference, not
     affiliated with Ubisoft.</p>
     <button class="close" id="infoClose">Close</button>
   </div>
+</div>
+
+<div id="gate">
+<svg viewBox="0 0 1536 864" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="gBack" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0" stop-color="#16202c"/>
+      <stop offset="0.55" stop-color="#0a0f16"/>
+      <stop offset="1" stop-color="#04060a"/>
+    </radialGradient>
+    <linearGradient id="gRing" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd98f"/>
+      <stop offset="0.5" stop-color="#F5B800"/>
+      <stop offset="1" stop-color="#a06a12"/>
+    </linearGradient>
+    <filter id="gGlow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="gSoft" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="34"/>
+    </filter>
+    <filter id="gGrain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0"/>
+    </filter>
+    <filter id="gScuff" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="23" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="gDirt" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.014" numOctaves="5" seed="3" result="t"/>
+      <feColorMatrix in="t" type="matrix"
+        values="0 0 0 0 0.075
+                0 0 0 0 0.062
+                0 0 0 0 0.040
+                1.15 0.45 0 0 -0.45"/>
+    </filter>
+    <radialGradient id="gVign" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0.35" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.88"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1536" height="864" fill="url(#gBack)"/>
+  <!-- hull plating behind the button -->
+  <g stroke="#141c26" stroke-width="2" opacity="0.8">
+    <line x1="0" y1="216" x2="1536" y2="216"/>
+    <line x1="0" y1="648" x2="1536" y2="648"/>
+    <line x1="512" y1="0" x2="512" y2="864"/>
+    <line x1="1024" y1="0" x2="1024" y2="864"/>
+  </g>
+  <rect width="1536" height="864" filter="url(#gDirt)" opacity="0.18"/>
+  <g fill="#2a3340" opacity="0.55">
+    <circle cx="512" cy="216" r="4"/><circle cx="1024" cy="216" r="4"/>
+    <circle cx="512" cy="648" r="4"/><circle cx="1024" cy="648" r="4"/>
+  </g>
+
+  <!-- the button: a hatch release, worn from use -->
+  <ellipse cx="768" cy="432" rx="290" ry="290" fill="#F5B800" opacity="0.06" filter="url(#gSoft)"/>
+  <!-- unfiltered: a blurred stroke here leaves a visible filter-region square -->
+  <g class="ring-pulse">
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="1.5" opacity="0.28"/>
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="6" opacity="0.07"/>
+    <circle cx="768" cy="432" r="186" fill="none" stroke="#F5B800" stroke-width="14" opacity="0.03"/>
+  </g>
+  <circle cx="768" cy="432" r="158" fill="#0b1017" stroke="#1d2733" stroke-width="10"/>
+  <circle cx="768" cy="432" r="158" fill="none" stroke="url(#gRing)" stroke-width="3" opacity="0.85" filter="url(#gScuff)"/>
+  <circle cx="768" cy="432" r="140" fill="none" stroke="#F5B800" stroke-width="1.2" opacity="0.30" filter="url(#gScuff)"/>
+  <!-- scuffed inner face -->
+  <circle cx="768" cy="432" r="150" fill="#0d131b"/>
+  <circle cx="768" cy="432" r="150" filter="url(#gDirt)" opacity="0.30"/>
+  <!-- wear where thumbs land, low on the face -->
+  <ellipse cx="768" cy="512" rx="86" ry="34" fill="#F5B800" opacity="0.05"/>
+
+  <!-- letter-spacing adds a trailing gap, so nudge left of centre to compensate -->
+  <g class="flick">
+    <text class="enter-label" x="757" y="418" font-size="62" text-anchor="middle">ENTER</text>
+    <text class="enter-label" x="757" y="418" font-size="62" text-anchor="middle"
+          opacity="0.5" filter="url(#gGlow)">ENTER</text>
+  </g>
+  <text class="sub" x="761" y="470" font-size="17" text-anchor="middle">FULL SCREEN</text>
+
+  <!-- tick marks around the dial, a few worn away -->
+  <g stroke="#F5B800" stroke-width="3" opacity="0.35">
+    <line x1="768" y1="252" x2="768" y2="268"/>
+    <line x1="948" y1="432" x2="932" y2="432"/>
+    <line x1="768" y1="612" x2="768" y2="596"/>
+    <line x1="588" y1="432" x2="604" y2="432"/>
+  </g>
+  <g stroke="#F5B800" stroke-width="2" opacity="0.16">
+    <line x1="895" y1="305" x2="884" y2="316"/>
+    <line x1="895" y1="559" x2="884" y2="548"/>
+    <line x1="641" y1="559" x2="652" y2="548"/>
+    <line x1="641" y1="305" x2="652" y2="316"/>
+  </g>
+
+  <text class="sub" x="768" y="742" font-size="15" text-anchor="middle" opacity="0.55">R6 MAP ROOM &#183; CONSULATE</text>
+
+  <rect width="1536" height="864" fill="url(#gVign)"/>
+  <rect width="1536" height="864" filter="url(#gGrain)" opacity="0.16" style="mix-blend-mode:overlay"/>
+  <!-- whole panel is the target, so a stray tap still gets you in -->
+  <rect class="enter-hit" width="1536" height="864" fill="transparent"/>
+</svg>
 </div>
 
 <script>
@@ -373,12 +476,12 @@ var view = { s:1, tx:0, ty:0 };
 var MAX_ZOOM = 7;
 
 function layout(){
-  var pad = 16;
+  var pad = 12;
   var sw = stage.clientWidth, sh = stage.clientHeight;
   if(sw - pad <= 0 || sh - pad <= 0) return;
 
   /* keep the building clear of the rail on wide screens */
-  var railBite = sw > 560 ? 110 : 0;
+  var railBite = sw > 560 ? 108 : 0;
   var avail = sw - pad - railBite;
 
   var ar = MAP.w / MAP.h;
@@ -439,11 +542,13 @@ function resetView(){
   clampView(); applyView();
 }
 
-/* ---------------- pointer: drag, pinch, double-tap ---------------- */
-/* tapCand is the "this might turn out to be a tap" record. It is torn down
-   the moment the touch becomes something else -- a drag, or a second finger.
-   Without that, the opening finger of a pinch counts as a tap, and the next
-   touch reads as a double tap and throws the zoom away. */
+/* ---------------- pointer: drag, pinch, double-tap ----------------
+   tapCand is the "this might turn out to be a tap" record. It is torn
+   down the moment the touch becomes something else -- a drag, or a
+   second finger. Without that, the opening finger of a pinch counts as
+   a tap, and the next touch reads as a double tap and throws the zoom
+   away, which on a phone fires constantly.
+------------------------------------------------------------------- */
 var ptrs = {}, gesture = null, panning = null, tapCand = null, lastTap = 0;
 var TAP_SLOP = 8, TAP_MS = 250, DBL_MS = 300;
 
@@ -454,7 +559,7 @@ function ptrList(){
 }
 
 stage.addEventListener('pointerdown', function(e){
-  if(e.target.closest('#rail') || e.target.closest('#zoompill')) return;
+  if(e.target.closest('#rail') || e.target.closest('#tools') || e.target.closest('#zoompill')) return;
 
   /* Record the pointer first. Capture is a convenience -- if it throws the
      gesture bookkeeping must still be correct, or the pinch never starts. */
@@ -548,7 +653,8 @@ window.addEventListener('keydown', function(e){
 
   if(e.key === 'ArrowDown' && i < ids.length-1){ e.preventDefault(); setFloor(ids[i+1], true); }
   else if(e.key === 'ArrowUp' && i > 0){ e.preventDefault(); setFloor(ids[i-1], true); }
-  else if(e.key === '0' || e.key === 'Escape'){ resetView(); closeInfo(); }
+  else if(e.key === '0'){ resetView(); }
+  else if(e.key === 'Escape'){ closeInfo(); }
 });
 
 /* ---------------- sound ----------------
@@ -559,10 +665,7 @@ var ac = null, sndOn = true;
 try{ sndOn = localStorage.getItem('r6.sound') !== 'off'; }catch(e){}
 
 var sndBtn = document.getElementById('sndBtn');
-function paintSnd(){
-  sndBtn.classList.toggle('on', sndOn);
-  sndBtn.innerHTML = sndOn ? '&#9834;' : '&#9834;̸';
-}
+function paintSnd(){ sndBtn.classList.toggle('on', sndOn); }
 paintSnd();
 sndBtn.addEventListener('click', function(){
   sndOn = !sndOn;
@@ -604,6 +707,56 @@ document.getElementById('infoBtn').addEventListener('click', function(){ info.cl
 document.getElementById('infoClose').addEventListener('click', closeInfo);
 info.addEventListener('click', function(e){ if(e.target === info) closeInfo(); });
 
+/* ---------------- fullscreen ---------------- */
+function fsElement(){
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+function goFullscreen(){
+  var el = document.documentElement;
+  var req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+  if(!req) return Promise.reject();
+  try{
+    var p = req.call(el);
+    return (p && p.then) ? p : Promise.resolve();
+  }catch(e){ return Promise.reject(e); }
+}
+function exitFullscreen(){
+  var ex = document.exitFullscreen || document.webkitExitFullscreen;
+  if(ex) try{ ex.call(document); }catch(e){}
+}
+var fsBtn = document.getElementById('fsBtn');
+function paintFs(){ fsBtn.classList.toggle('on', !!fsElement()); }
+fsBtn.addEventListener('click', function(){
+  if(fsElement()) exitFullscreen();
+  else goFullscreen().catch(function(){});
+});
+document.addEventListener('fullscreenchange', function(){ paintFs(); setTimeout(layout, 80); });
+document.addEventListener('webkitfullscreenchange', function(){ paintFs(); setTimeout(layout, 80); });
+
+/* iOS Safari has no element fullscreen, so the button would be a lie there.
+   Add to Home Screen is the real answer and the info panel says so. */
+if(!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)){
+  fsBtn.style.display = 'none';
+}
+
+/* ---------------- the gate ---------------- */
+var gate = document.getElementById('gate');
+var opened = false;
+function enter(){
+  if(opened) return;
+  opened = true;
+  gate.classList.add('gone');
+  goFullscreen().catch(function(){
+    /* refused or unsupported -- the map still opens, it just keeps the
+       browser bars. On iOS that is the only behaviour available. */
+  });
+  setTimeout(function(){ layout(); paintFs(); }, 90);
+  var f = MAP.floors.filter(function(x){ return x.id === active; })[0];
+  tick(f ? f.tone : 659.3);
+}
+gate.addEventListener('click', enter);
+gate.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') enter(); });
+
 /* ---------------- go ---------------- */
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', function(){ setTimeout(layout, 120); });
@@ -616,11 +769,21 @@ try{
 
 layout();
 setFloor(start, false);
+paintFs();
 
 /* re-fit once the first image has real dimensions, in case the font
    or the rail settled after first paint */
 if(imgs[start].complete) layout();
 else imgs[start].addEventListener('load', layout);
+
+/* already running as an installed app? then there is no gate to buy
+   anything -- drop straight in. */
+if(window.matchMedia('(display-mode: fullscreen)').matches ||
+   window.matchMedia('(display-mode: standalone)').matches ||
+   window.navigator.standalone === true){
+  opened = true;
+  gate.classList.add('gone');
+}
 
 })();
 </script>

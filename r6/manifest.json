@@ -1,0 +1,16 @@
+{
+  "name": "R6 Map Room",
+  "short_name": "R6 Maps",
+  "description": "Rainbow Six Siege map reference — floor-by-floor.",
+  "start_url": "/r6/",
+  "scope": "/r6/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "background_color": "#05070a",
+  "theme_color": "#05070a",
+  "orientation": "any",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
