@@ -792,8 +792,11 @@ window.addEventListener('keydown', function(e){
    identically is exactly what starts to sound synthetic.
    Still no asset to load.
 ---------------------------------------- */
-var ac = null, noiseBuf = null, sndOn = true;
-try{ sndOn = localStorage.getItem('r6.sound') !== 'off'; }catch(e){}
+/* Off by default. The paper tick is good on its own but it fires on every
+   floor change and every room press, which is too much for something you
+   glance at -- so it is opt-in via the note button, not opt-out. */
+var ac = null, noiseBuf = null, sndOn = false;
+try{ sndOn = localStorage.getItem('r6.sound') === 'on'; }catch(e){}
 
 var sndBtn = document.getElementById('sndBtn');
 function paintSnd(){ sndBtn.classList.toggle('on', sndOn); }
