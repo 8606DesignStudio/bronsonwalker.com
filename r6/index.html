@@ -190,10 +190,8 @@ body{
   transition:background .15s,color .15s,border-color .15s;
 }
 .floor:hover{background:rgba(255,255,255,0.07);color:var(--ink);}
-.floor .key{flex:0 0 18px;font-size:.9rem;font-weight:700;text-align:center;}
-.floor .nm{font-size:.68rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;line-height:1.1;}
+.floor .nm{font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1.1;white-space:nowrap;}
 .floor.on{background:rgba(75,184,233,0.15);border-color:var(--line-hot);color:#fff;}
-.floor.on .key{color:var(--hot);}
 
 #compass{
   left:calc(var(--pad) + env(safe-area-inset-left));
@@ -306,9 +304,8 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 @media (max-width:560px){
   :root{--pad:8px;}
   #rail{width:58px;}
-  .floor{flex-direction:column;gap:1px;padding:6px 2px;align-items:center;}
-  .floor .key{flex:0 0 auto;font-size:.85rem;}
-  .floor .nm{font-size:.48rem;letter-spacing:.06em;}
+  .floor{flex-direction:column;gap:1px;padding:7px 2px;align-items:center;text-align:center;}
+  .floor .nm{font-size:.54rem;letter-spacing:.06em;white-space:normal;}
   #brand{font-size:.82rem;padding:6px 9px;}
   #compass{font-size:.54rem;padding:5px 8px;}
 }
@@ -323,7 +320,7 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 
 <div id="stage">
   <div id="sheet">
-    <svg id="rooms" viewBox="0 0 600 462" preserveAspectRatio="none"></svg>
+    <svg id="rooms" viewBox="0 0 1100 462" preserveAspectRatio="none"></svg>
   </div>
 
   <div class="chip" id="brand">Consul<span>ate</span></div>
@@ -363,8 +360,7 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
     orientation &mdash; the one every community resource and the in&#8209;game
     tactical map share &mdash; with the <strong>main entrance at the bottom</strong>.</p>
     <p><strong>Controls:</strong> drag to pan, pinch or scroll to zoom, double&#8209;tap
-    to reset. Keys <strong>1&ndash;4</strong> or <strong>&#8593;/&#8595;</strong>
-    change floor.</p>
+    to reset. <strong>&#8593;/&#8595;</strong> change floor.</p>
     <p><strong>On a phone:</strong> add this to your home screen and it opens with no
     browser bars at all.</p>
     <p>Blueprints &copy; Ubisoft Entertainment. This is a fan reference, not
@@ -392,12 +388,17 @@ var MAPS = {
   consulate: {
     name: 'Consulate',
     dir: 'maps/consulate/',
-    w: 600, h: 462,
+    /* The image is wider than any phone in landscape (2.38:1). 'focus' is
+       the box that holds the building and a ring of plaza -- that is what
+       gets fitted to the screen at rest; the rest of the width is street
+       context that fills a wide screen instead of leaving bars. */
+    w: 1100, h: 462,
+    focus: { x:250, y:0, w:600, h:462 },
     floors: [
-      { id:'roof',     key:'1', nm:'Bird’s-eye', tone:1800 },
-      { id:'2f',       key:'2', nm:'2F',              tone:1500 },
-      { id:'1f',       key:'3', nm:'1F',              tone:1250 },
-      { id:'basement', key:'4', nm:'Basement',        tone:1000 }
+      { id:'roof',     nm:'Bird’s-eye',   tone:1800 },
+      { id:'2f',       nm:'Second floor', tone:1500 },
+      { id:'1f',       nm:'First floor',  tone:1250 },
+      { id:'basement', nm:'Basement',     tone:1000 }
     ]
   }
 };
@@ -423,7 +424,7 @@ MAP.floors.forEach(function(f){
   var b = document.createElement('button');
   b.className = 'floor';
   b.type = 'button';
-  b.innerHTML = '<span class="key">' + f.key + '</span><span class="nm">' + f.nm + '</span>';
+  b.innerHTML = '<span class="nm">' + f.nm + '</span>';
   b.addEventListener('click', function(){ setFloor(f.id, true); });
   rail.appendChild(b);
   btns[f.id] = b;
@@ -476,7 +477,7 @@ function inPoly(p, x, y){
    Two lines are tried as well -- "Lower Spiral" stacked fits a square
    room far better than strung out on one line. */
 function fitLabel(g, name, bb){
-  var W = bb.w * 600, H = bb.h * 462;
+  var W = bb.w * MAP.w, H = bb.h * MAP.h;
   var maxW = W * 0.86, maxH = H * 0.80;
   var options = [[name]];
   var sp = name.split(' ');
@@ -488,8 +489,8 @@ function fitLabel(g, name, bb){
     var probe = 20;
     lines.forEach(function(ln, i){
       var t = document.createElementNS(SVGNS, 'text');
-      t.setAttribute('x', bb.cx * 600);
-      t.setAttribute('y', bb.cy * 462 + (i - (lines.length - 1) / 2) * probe * 1.05);
+      t.setAttribute('x', bb.cx * MAP.w);
+      t.setAttribute('y', bb.cy * MAP.h + (i - (lines.length - 1) / 2) * probe * 1.05);
       t.setAttribute('font-size', probe);
       t.textContent = ln;
       g.appendChild(t);
@@ -507,8 +508,8 @@ function fitLabel(g, name, bb){
   while(g.firstChild) g.removeChild(g.firstChild);
   best.lines.forEach(function(ln, i){
     var t = document.createElementNS(SVGNS, 'text');
-    t.setAttribute('x', bb.cx * 600);
-    t.setAttribute('y', bb.cy * 462 + (i - (best.lines.length - 1) / 2) * size * 1.05);
+    t.setAttribute('x', bb.cx * MAP.w);
+    t.setAttribute('y', bb.cy * MAP.h + (i - (best.lines.length - 1) / 2) * size * 1.05);
     t.setAttribute('font-size', size);
     t.setAttribute('stroke-width', Math.max(0.4, size * 0.055));
     t.textContent = ln;
@@ -523,7 +524,7 @@ function buildRooms(floorId){
   list.forEach(function(r){
     var poly = document.createElementNS(SVGNS, 'polygon');
     poly.setAttribute('points', r.p.map(function(q){
-      return (q[0] * 600).toFixed(2) + ',' + (q[1] * 462).toFixed(2);
+      return (q[0] * MAP.w).toFixed(2) + ',' + (q[1] * MAP.h).toFixed(2);
     }).join(' '));
     roomsEl.appendChild(poly);
     r.el = poly;
@@ -598,14 +599,16 @@ function layout(){
   var railBite = sw > 560 ? 108 : 0;
   var avail = sw - pad - railBite;
 
-  var ar = MAP.w / MAP.h;
-  var w = avail, h = w / ar;
-  if(h > sh - pad){ h = sh - pad; w = h * ar; }
+  /* Fit the focus box (the building), not the whole image. The building
+     sits exactly as large as it would alone; the extra width of the image
+     runs out under the chips and past the screen edge. */
+  var F = MAP.focus;
+  var k = Math.min(avail / F.w, (sh - pad) / F.h);   /* screen px per image px */
 
-  base.w = Math.round(w);
-  base.h = Math.round(h);
-  base.x = Math.round((sw - railBite - base.w) / 2);
-  base.y = Math.round((sh - base.h) / 2);
+  base.w = Math.round(MAP.w * k);
+  base.h = Math.round(MAP.h * k);
+  base.x = Math.round((sw - railBite) / 2 - (F.x + F.w / 2) * k);
+  base.y = Math.round(sh / 2 - (F.y + F.h / 2) * k);
 
   sheet.style.left   = base.x + 'px';
   sheet.style.top    = base.y + 'px';
@@ -773,9 +776,6 @@ pill.addEventListener('click', resetView);
 window.addEventListener('keydown', function(e){
   var ids = MAP.floors.map(function(f){ return f.id; });
   var i = ids.indexOf(active);
-
-  var byKey = MAP.floors.filter(function(f){ return f.key === e.key; })[0];
-  if(byKey){ setFloor(byKey.id, true); return; }
 
   if(e.key === 'ArrowDown' && i < ids.length-1){ e.preventDefault(); setFloor(ids[i+1], true); }
   else if(e.key === 'ArrowUp' && i > 0){ e.preventDefault(); setFloor(ids[i-1], true); }
