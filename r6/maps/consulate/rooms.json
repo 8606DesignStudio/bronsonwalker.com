@@ -2,8 +2,8 @@
   "version": 1,
   "map": "consulate",
   "coords": "normalised 0-1 against the 1100x462 floor images; all floors share one frame",
-  "names_source": "R6-Strats callout maps -- which turned out (2026-09-14) to be the PRE-REWORK map, identical to r6trainer's 2020 images. Names are unverified against the current layout.",
-  "status": "FIRST PASS. Only rooms whose walls are unambiguous in the blueprint are here, and their names are unverified (see names_source). Draw the rest with projects/r6/test/tracer.html.",
+  "names_source": "Bronson's own gameplay, 2026-09-15 onward -- callout names read off the in-game HUD while walking the current (Y8S2 rework) Consulate on Xbox. Earlier community sources were dropped: R6-Strats and r6trainer both turned out to be the PRE-REWORK map.",
+  "status": "IN PROGRESS. Traced by hand from gameplay with projects/r6/test/tracer.html. Every area here was seen in game; floors not yet walked are empty rather than guessed.",
   "floors": {
     "roof": [],
     "2f": [
