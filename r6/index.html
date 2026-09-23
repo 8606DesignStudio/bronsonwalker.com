@@ -124,9 +124,12 @@ body{
    current zoom in applyView(). Only the floor you are looking at draws its
    cameras -- the others are on other sheets of the blueprint.
 ------------------------------------------- */
+/* Screen space, not map space: one user unit here is one CSS pixel, and each
+   marker is placed at the screen position its map coordinate currently lands
+   on. Recomputed in applyView(), so it tracks every pan, zoom and resize. */
 #camlayer{
   position:absolute;inset:0;width:100%;height:100%;
-  z-index:3;pointer-events:none;overflow:visible;
+  z-index:2;pointer-events:none;
   opacity:0;transition:opacity .25s ease;
 }
 body.cams #camlayer{opacity:1;}
@@ -193,6 +196,7 @@ body.cams #zoompill{bottom:calc(var(--pad) + 46px + env(safe-area-inset-bottom))
 /* ---------------- floating chrome ---------------- */
 .chip{
   position:absolute;
+  z-index:10;                    /* above the camera markers */
   border:1px solid var(--line);
   border-radius:10px;
   background:var(--panel);
@@ -394,8 +398,16 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 <div id="stage">
   <div id="sheet">
     <svg id="rooms" viewBox="0 0 1100 462" preserveAspectRatio="none"></svg>
-    <svg id="camlayer" viewBox="0 0 1100 462" preserveAspectRatio="none"></svg>
   </div>
+
+  <!-- Deliberately OUTSIDE #sheet. A room label belongs to the building and
+       grows with it; a camera marker belongs to the screen and must not. It
+       used to live in #sheet and cancel the zoom with a 1/s counter-scale,
+       which is right on paper and wrong in practice: #sheet is a composited
+       layer, so a zoom stretches its last raster -- markers and all -- and
+       only re-renders afterwards. The marker visibly ballooned and snapped
+       back. Out here nothing scales it, so there is nothing to cancel. -->
+  <svg id="camlayer"></svg>
 
   <div class="chip" id="brand">Consul<span>ate</span></div>
 
@@ -722,12 +734,18 @@ function buildCams(){
   sizeCams();
 }
 
-/* keep every marker the same size on screen, wherever the zoom is */
+/* Put every marker where its spot on the building currently is on screen, at
+   the size it would be with the map at rest -- so zooming moves markers but
+   never grows them, and a marker looks the same on a phone as it did before
+   any of this. base/view is the same arithmetic toMap() inverts for hit-testing. */
 function sizeCams(){
-  var k = 1 / view.s;
+  if(!camEls.length || !base.w) return;
+  var k0 = base.w / MAP.w;                  /* screen px per map unit, map at rest */
   camEls.forEach(function(e){
+    var x = base.x + view.tx + view.s * (e.c.p[0] * base.w);
+    var y = base.y + view.ty + view.s * (e.c.p[1] * base.h);
     e.g.setAttribute('transform',
-      'translate(' + (e.c.p[0] * MAP.w).toFixed(2) + ',' + (e.c.p[1] * MAP.h).toFixed(2) + ') scale(' + k + ')');
+      'translate(' + x.toFixed(2) + ',' + y.toFixed(2) + ') scale(' + k0.toFixed(4) + ')');
   });
 }
 
