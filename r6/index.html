@@ -85,12 +85,15 @@ body{
   overflow:visible;
 }
 /* ---------------- the press envelope ----------------
-   A name does not blink on and blink off. It arrives fast and overshoots the
-   way a light does, settles, holds, then dies away more slowly than it came --
-   attack 110ms, hold ~1.5s, release 480ms, inside the same 2.2s as before.
-   The room fills with cyan on the same envelope, so the swell belongs to the
-   room and the name is riding it rather than the two being separate events.
-   Asymmetry is the whole point: equal in and out is what reads as a toggle.
+   The arrival is exactly what it always was: straight up to full in 200ms,
+   eased, nothing past it. A version that overshot and settled back got built
+   and thrown out -- on a press it reads as the map wobbling rather than as
+   the room answering, and a press is a hard, certain thing.
+
+   The departure is the part that changed. It holds, then takes 500ms to go
+   instead of 200 -- two and a half times longer than it came -- and drifts
+   very slightly outward as it dies rather than switching off. Asymmetry is
+   the whole point: equal in and out is what reads as a toggle.
 ------------------------------------------------------ */
 #rooms polygon{
   fill:rgba(75,184,233,0);
@@ -103,10 +106,12 @@ body{
   stroke:rgba(140,215,255,0.85);
   animation:roomFill 2.2s linear forwards;
 }
+/* up to the resting fill and no further -- the two inner stops only bend the
+   rise into the same ease the old 0.2s transition had */
 @keyframes roomFill{
   0%   {fill:rgba(75,184,233,0);    stroke:rgba(140,215,255,0);}
-  5%   {fill:rgba(75,184,233,0.42); stroke:rgba(200,240,255,1);}   /* the swell */
-  16%  {fill:rgba(75,184,233,0.20); stroke:rgba(140,215,255,0.85);} /* settles */
+  4%   {fill:rgba(75,184,233,0.14); stroke:rgba(140,215,255,0.61);}
+  9%   {fill:rgba(75,184,233,0.20); stroke:rgba(140,215,255,0.85);}
   78%  {fill:rgba(75,184,233,0.20); stroke:rgba(140,215,255,0.85);}
   90%  {fill:rgba(75,184,233,0.07); stroke:rgba(140,215,255,0.30);}
   100% {fill:rgba(75,184,233,0);    stroke:rgba(140,215,255,0);}
@@ -119,24 +124,26 @@ body{
 #rooms g.show{animation:roomName 2.2s linear forwards;}
 @keyframes roomName{
   0%   {opacity:0;}
-  5%   {opacity:1;}
+  4%   {opacity:0.72;}
+  9%   {opacity:1;}
   78%  {opacity:1;}
   90%  {opacity:0.40;}
   100% {opacity:0;}
 }
-/* The overshoot lives in a little scale, since opacity cannot go past 1. Only
-   where the browser can scale about the name's own middle -- without
-   transform-box the origin is the corner of the map and the name would fly. */
+/* The only movement is on the way out: the name eases very slightly outward
+   as it dies, so it dissolves rather than switches off. It never moves on the
+   way in. Behind @supports because without transform-box the scale origin is
+   the corner of the map and the name would fly across the building. */
 @supports (transform-box: fill-box){
   #rooms g{transform-box:fill-box;transform-origin:50% 50%;}
-  #rooms g.show{animation-name:roomNamePulse;}
-  @keyframes roomNamePulse{
-    0%   {opacity:0;   transform:scale(0.955);}
-    5%   {opacity:1;   transform:scale(1.040);}   /* past it */
-    15%  {opacity:1;   transform:scale(1);}       /* and back */
-    78%  {opacity:1;   transform:scale(1);}
-    90%  {opacity:0.40;transform:scale(1.010);}   /* dissolving outward */
-    100% {opacity:0;   transform:scale(1.022);}
+  #rooms g.show{animation-name:roomNameDrift;}
+  @keyframes roomNameDrift{
+    0%   {opacity:0;    transform:scale(1);}
+    4%   {opacity:0.72; transform:scale(1);}
+    9%   {opacity:1;    transform:scale(1);}
+    78%  {opacity:1;    transform:scale(1);}
+    90%  {opacity:0.40; transform:scale(1.010);}
+    100% {opacity:0;    transform:scale(1.022);}
   }
 }
 @media (prefers-reduced-motion: reduce){
