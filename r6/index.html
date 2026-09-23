@@ -84,6 +84,14 @@ body{
   pointer-events:none;
   overflow:visible;
 }
+/* ---------------- the press envelope ----------------
+   A name does not blink on and blink off. It arrives fast and overshoots the
+   way a light does, settles, holds, then dies away more slowly than it came --
+   attack 110ms, hold ~1.5s, release 480ms, inside the same 2.2s as before.
+   The room fills with cyan on the same envelope, so the swell belongs to the
+   room and the name is riding it rather than the two being separate events.
+   Asymmetry is the whole point: equal in and out is what reads as a toggle.
+------------------------------------------------------ */
 #rooms polygon{
   fill:rgba(75,184,233,0);
   stroke:rgba(75,184,233,0);
@@ -93,15 +101,48 @@ body{
 #rooms polygon.hit{
   fill:rgba(75,184,233,0.20);
   stroke:rgba(140,215,255,0.85);
+  animation:roomFill 2.2s linear forwards;
 }
+@keyframes roomFill{
+  0%   {fill:rgba(75,184,233,0);    stroke:rgba(140,215,255,0);}
+  5%   {fill:rgba(75,184,233,0.42); stroke:rgba(200,240,255,1);}   /* the swell */
+  16%  {fill:rgba(75,184,233,0.20); stroke:rgba(140,215,255,0.85);} /* settles */
+  78%  {fill:rgba(75,184,233,0.20); stroke:rgba(140,215,255,0.85);}
+  90%  {fill:rgba(75,184,233,0.07); stroke:rgba(140,215,255,0.30);}
+  100% {fill:rgba(75,184,233,0);    stroke:rgba(140,215,255,0);}
+}
+
 /* Nothing is written on the map until you ask. A press writes the name
    into the room itself -- in place, at the room's own size -- rather than
    throwing a chip up at the top where it means nothing. */
-#rooms g{
-  opacity:0;
-  transition:opacity .2s ease;
+#rooms g{opacity:0;}
+#rooms g.show{animation:roomName 2.2s linear forwards;}
+@keyframes roomName{
+  0%   {opacity:0;}
+  5%   {opacity:1;}
+  78%  {opacity:1;}
+  90%  {opacity:0.40;}
+  100% {opacity:0;}
 }
-#rooms g.show{opacity:1;}
+/* The overshoot lives in a little scale, since opacity cannot go past 1. Only
+   where the browser can scale about the name's own middle -- without
+   transform-box the origin is the corner of the map and the name would fly. */
+@supports (transform-box: fill-box){
+  #rooms g{transform-box:fill-box;transform-origin:50% 50%;}
+  #rooms g.show{animation-name:roomNamePulse;}
+  @keyframes roomNamePulse{
+    0%   {opacity:0;   transform:scale(0.955);}
+    5%   {opacity:1;   transform:scale(1.040);}   /* past it */
+    15%  {opacity:1;   transform:scale(1);}       /* and back */
+    78%  {opacity:1;   transform:scale(1);}
+    90%  {opacity:0.40;transform:scale(1.010);}   /* dissolving outward */
+    100% {opacity:0;   transform:scale(1.022);}
+  }
+}
+@media (prefers-reduced-motion: reduce){
+  #rooms g.show{animation-name:roomName;}
+  #rooms polygon.hit{animation:none;}
+}
 
 /* A room name is written in two passes. Underneath, a copy of the name in
    cyan, blurred, which is the only thing on the map that glows -- it reads as
@@ -653,11 +694,20 @@ function buildRooms(floorId){
   });
 }
 
+/* as long as the press envelope in the stylesheet: the classes come off as the
+   animation lands on zero, so it can be played again */
+var LABEL_LIFE = 2200;
+
 function showRoom(r){
   if(hitEl){ hitEl.classList.remove('hit'); hitEl = null; }
   if(shownLabel){ shownLabel.classList.remove('show'); shownLabel = null; }
   if(popTimer){ clearTimeout(popTimer); popTimer = null; }
   if(!r) return;
+
+  /* Pressing the same room twice takes the class off and puts it straight back
+     on, which to the browser is no change at all and plays nothing. Reading a
+     layout value in between is what makes the second press a second press. */
+  r.el.getBoundingClientRect();
 
   r.el.classList.add('hit');
   r.label.classList.add('show');
@@ -668,7 +718,7 @@ function showRoom(r){
     if(shownLabel){ shownLabel.classList.remove('show'); shownLabel = null; }
     if(hitEl){ hitEl.classList.remove('hit'); hitEl = null; }
     popTimer = null;
-  }, 2000);
+  }, LABEL_LIFE);
 }
 
 /* screen point -> normalised map coords */
