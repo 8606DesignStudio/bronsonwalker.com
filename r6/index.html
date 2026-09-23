@@ -117,6 +117,79 @@ body{
 
 
 
+/* ---------------- cameras ----------------
+   The camera layer lives inside #sheet too, so a marker is pinned to its spot
+   on the building. But a marker is not a label: it should stay the same size
+   on screen however far you zoom in, so each one is counter-scaled by the
+   current zoom in applyView(). Only the floor you are looking at draws its
+   cameras -- the others are on other sheets of the blueprint.
+------------------------------------------- */
+#camlayer{
+  position:absolute;inset:0;width:100%;height:100%;
+  z-index:3;pointer-events:none;overflow:visible;
+  opacity:0;transition:opacity .25s ease;
+}
+body.cams #camlayer{opacity:1;}
+/* nothing marks the map until you are through the door */
+body:not(.entered) #camlayer{opacity:0;}
+.cam circle.ring{fill:none;stroke:rgba(75,184,233,0.9);stroke-width:1.5;vector-effect:non-scaling-stroke;}
+.cam circle.pip{fill:rgba(75,184,233,0.9);}
+.cam text{
+  fill:#F5B800;stroke:rgba(0,0,0,0.9);stroke-width:3;paint-order:stroke;
+  font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11px;
+  dominant-baseline:middle;opacity:0;transition:opacity .2s ease;
+}
+/* the one you are on: gold, named, and breathing */
+.cam.now circle.ring{stroke:#F5B800;stroke-width:2;}
+.cam.now circle.pip{fill:#F5B800;}
+.cam.now text{opacity:1;}
+@keyframes camPulse{
+  0%,100%{r:9;opacity:.9;}
+  50%    {r:13;opacity:0;}
+}
+.cam.now circle.halo{fill:none;stroke:#F5B800;stroke-width:1.5;vector-effect:non-scaling-stroke;
+  animation:camPulse 2.2s ease-out infinite;}
+.cam circle.halo{display:none;}
+.cam.now circle.halo{display:block;}
+@media (prefers-reduced-motion: reduce){ .cam.now circle.halo{animation:none;opacity:.5;} }
+
+/* the walk: one step back, where you are, one step on */
+#cambar{
+  left:50%;
+  bottom:calc(var(--pad) + env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  display:none;align-items:center;gap:4px;padding:4px;
+  border-color:rgba(245,184,0,.34);
+}
+body.cams #cambar{display:flex;}
+/* the zoom pill shares this spot, so it steps up out of the way */
+body.cams #zoompill{bottom:calc(var(--pad) + 46px + env(safe-area-inset-bottom));}
+.cbtn{
+  width:34px;height:34px;border-radius:7px;border:1px solid transparent;
+  background:rgba(255,255,255,0.04);color:var(--ink-dim);
+  font-size:1.15rem;line-height:1;display:grid;place-items:center;cursor:pointer;
+}
+.cbtn:hover{color:#F5B800;border-color:rgba(245,184,0,.5);}
+#camNow{
+  display:flex;align-items:baseline;gap:8px;padding:0 10px;min-width:168px;
+  font-family:"Barlow Condensed",sans-serif;
+}
+#camNo{
+  font-size:.74rem;letter-spacing:.1em;color:var(--ink-dim);font-weight:600;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+#camNo b{color:#F5B800;font-size:.95rem;font-weight:700;}
+#camName{
+  font-size:.86rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+@media (max-width:560px){
+  #camNow{min-width:120px;padding:0 7px;gap:6px;}
+  #camName{font-size:.74rem;}
+  .cbtn{width:30px;height:30px;}
+  body.cams #zoompill{bottom:calc(var(--pad) + 42px + env(safe-area-inset-bottom));}
+}
+
 /* ---------------- floating chrome ---------------- */
 .chip{
   position:absolute;
@@ -321,11 +394,13 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 <div id="stage">
   <div id="sheet">
     <svg id="rooms" viewBox="0 0 1100 462" preserveAspectRatio="none"></svg>
+    <svg id="camlayer" viewBox="0 0 1100 462" preserveAspectRatio="none"></svg>
   </div>
 
   <div class="chip" id="brand">Consul<span>ate</span></div>
 
   <div class="chip" id="tools">
+    <button class="hbtn" id="camBtn" title="Cameras">&#9673;</button>
     <button class="hbtn on" id="sndBtn" title="Sound">&#9834;</button>
     <button class="hbtn" id="fsBtn" title="Full screen">&#9974;</button>
     <button class="hbtn" id="infoBtn" title="About this map">i</button>
@@ -341,6 +416,15 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
   </div>
 
   <div class="chip" id="zoompill">1.0&times; &#8635;</div>
+
+  <div class="chip" id="cambar">
+    <button class="cbtn" id="camPrev" type="button" title="Previous camera">&#8249;</button>
+    <div id="camNow">
+      <span id="camNo"><b>1</b>/10</span>
+      <span id="camName">&mdash;</span>
+    </div>
+    <button class="cbtn" id="camNext" type="button" title="Next camera">&#8250;</button>
+  </div>
 </div>
 
 <div id="info">
@@ -359,8 +443,14 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
     in&#8209;game north to align to. This uses Ubisoft's canonical blueprint
     orientation &mdash; the one every community resource and the in&#8209;game
     tactical map share &mdash; with the <strong>main entrance at the bottom</strong>.</p>
+    <p><strong>Cameras:</strong> the &#9673; button marks the defender cameras and
+    opens the walk along the bottom. They step in the order they step in game, and
+    that order crosses floors &mdash; going one past the last basement camera puts
+    you outside on the roof sheet, because that is where the next camera in the
+    cycle is. Tap a marker to jump to it.</p>
     <p><strong>Controls:</strong> drag to pan, pinch or scroll to zoom, double&#8209;tap
-    to reset. <strong>&#8593;/&#8595;</strong> change floor.</p>
+    to reset. <strong>&#8593;/&#8595;</strong> change floor,
+    <strong>&#8592;/&#8594;</strong> step the cameras, <strong>C</strong> shows them.</p>
     <p><strong>On a phone:</strong> add this to your home screen and it opens with no
     browser bars at all.</p>
     <p>Blueprints &copy; Ubisoft Entertainment. This is a fan reference, not
@@ -440,6 +530,7 @@ function setFloor(id, withSound){
   btns[id].classList.add('on');
   showRoom(null);
   buildRooms(id);
+  buildCams();            /* the cameras on screen belong to the floor on screen */
   if(withSound) tick(f.tone);
 }
 
@@ -574,11 +665,132 @@ function roomAt(clientX, clientY){
   return null;
 }
 
+/* ---------------- the camera cycle ----------------
+   In game the cameras step in one fixed order and that walk crosses floors --
+   you drop from the second floor to the basement to the car park without
+   choosing to. So the cycle is the data, and the floor is a consequence of
+   where you are in it: stepping to camera 8 puts you on the roof sheet.
+   The order is Bronson's own, set by the order he placed them, and it is
+   carried in "i" because the per-floor lists cannot hold a cross-floor walk.
+--------------------------------------------------- */
+var camsEl = document.getElementById('camlayer');
+var CAMS   = [];       /* in cycle order: {i, n, p, f} */
+var camOn  = false;
+var camAt  = 0;
+var camEls = [];       /* the markers drawn for the floor on screen */
+
+try{ camOn = localStorage.getItem('r6.cams') === 'on'; }catch(e){}
+
+function readCams(d){
+  var out = [];
+  var byFloor = d.cameras || {};
+  MAP.floors.forEach(function(f){
+    (byFloor[f.id] || []).forEach(function(c){
+      out.push({ i:c.i, n:c.n, p:c.p, f:f.id });
+    });
+  });
+  /* "i" is the order. Without it all we honestly have is the order they sit
+     in the file, so say so by leaving them in it rather than inventing one. */
+  if(out.every(function(c){ return typeof c.i === 'number'; })){
+    out.sort(function(a, b){ return a.i - b.i; });
+  }
+  out.forEach(function(c, k){ c.k = k; });
+  return out;
+}
+
+function buildCams(){
+  camEls = [];
+  while(camsEl.firstChild) camsEl.removeChild(camsEl.firstChild);
+  if(!camOn) return;          /* off means gone, not just invisible */
+  CAMS.forEach(function(c){
+    if(c.f !== active) return;               /* other floors are other sheets */
+    var g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('class', 'cam' + (c.k === camAt ? ' now' : ''));
+    ['halo', 'ring', 'pip'].forEach(function(cls){
+      var el = document.createElementNS(SVGNS, 'circle');
+      el.setAttribute('class', cls);
+      el.setAttribute('r', cls === 'pip' ? 3.4 : 9);
+      g.appendChild(el);
+    });
+    var t = document.createElementNS(SVGNS, 'text');
+    t.setAttribute('x', 14);
+    t.textContent = c.n;
+    g.appendChild(t);
+    camsEl.appendChild(g);
+    camEls.push({ c:c, g:g });
+  });
+  sizeCams();
+}
+
+/* keep every marker the same size on screen, wherever the zoom is */
+function sizeCams(){
+  var k = 1 / view.s;
+  camEls.forEach(function(e){
+    e.g.setAttribute('transform',
+      'translate(' + (e.c.p[0] * MAP.w).toFixed(2) + ',' + (e.c.p[1] * MAP.h).toFixed(2) + ') scale(' + k + ')');
+  });
+}
+
+function paintCamBar(){
+  var c = CAMS[camAt];
+  document.getElementById('camNo').innerHTML =
+    '<b>' + (c ? c.i || (camAt + 1) : 0) + '</b>/' + CAMS.length;
+  document.getElementById('camName').textContent = c ? c.n : '—';
+}
+
+function toneOf(id){
+  var f = MAP.floors.filter(function(x){ return x.id === id; })[0];
+  return f ? f.tone : 1400;
+}
+
+/* the walk wraps, the same way it does in game */
+function setCam(k, withSound){
+  if(!CAMS.length) return;
+  camAt = ((k % CAMS.length) + CAMS.length) % CAMS.length;
+  var c = CAMS[camAt];
+  if(c.f !== active) setFloor(c.f, withSound);     /* the floor follows the camera */
+  else { buildCams(); if(withSound) tick(toneOf(active)); }
+  paintCamBar();
+}
+function stepCam(d){ setCam(camAt + d, true); }
+
+function paintCams(){
+  document.body.classList.toggle('cams', camOn);
+  document.getElementById('camBtn').classList.toggle('on', camOn);
+  buildCams();
+}
+function toggleCams(){
+  camOn = !camOn;
+  try{ localStorage.setItem('r6.cams', camOn ? 'on' : 'off'); }catch(e){}
+  paintCams();
+  if(camOn && CAMS.length){ setCam(camAt, true); }
+}
+document.getElementById('camBtn').addEventListener('click', toggleCams);
+document.getElementById('camPrev').addEventListener('click', function(){ stepCam(-1); });
+document.getElementById('camNext').addEventListener('click', function(){ stepCam(1); });
+
+/* a marker is small, so the tap target is generous and measured on screen */
+function camAtPoint(clientX, clientY){
+  if(!camOn) return null;
+  var r = stage.getBoundingClientRect();
+  var best = null, bestD = 22;
+  camEls.forEach(function(e){
+    var x = r.left + base.x + view.tx + view.s * (e.c.p[0] * base.w);
+    var y = r.top  + base.y + view.ty + view.s * (e.c.p[1] * base.h);
+    var dd = Math.hypot(clientX - x, clientY - y);
+    if(dd < bestD){ bestD = dd; best = e.c; }
+  });
+  return best;
+}
+
 fetch('maps/consulate/rooms.json')
   .then(function(r){ return r.json(); })
   .then(function(d){
     ROOMS = d.floors || {};
+    CAMS = readCams(d);
     if(active) buildRooms(active);
+    paintCams();
+    paintCamBar();
   })
   .catch(function(){ /* no rooms yet is a fine state */ });
 
@@ -622,6 +834,7 @@ function layout(){
 function applyView(){
   sheet.style.transform =
     'translate(' + view.tx + 'px,' + view.ty + 'px) scale(' + view.s + ')';
+  sizeCams();                     /* markers hold their screen size through the zoom */
   var zoomed = view.s > 1.01;
   pill.classList.toggle('show', zoomed);
   if(zoomed) pill.textContent = view.s.toFixed(1) + '× ↻';
@@ -725,6 +938,10 @@ function endPtr(e){
       resetView(); lastTap = 0; showRoom(null);
     } else {
       lastTap = now;
+      /* a camera marker wins over the room under it -- it is the smaller,
+         more deliberate target, and it is drawn on top */
+      var cam = camAtPoint(tapCand.x, tapCand.y);
+      if(cam){ setCam(cam.k, true); tapCand = null; return; }
       /* tapping a room says its name for two seconds */
       var r = roomAt(tapCand.x, tapCand.y);
       if(r){
@@ -779,6 +996,9 @@ window.addEventListener('keydown', function(e){
 
   if(e.key === 'ArrowDown' && i < ids.length-1){ e.preventDefault(); setFloor(ids[i+1], true); }
   else if(e.key === 'ArrowUp' && i > 0){ e.preventDefault(); setFloor(ids[i-1], true); }
+  else if(e.key === 'ArrowRight' && camOn){ e.preventDefault(); stepCam(1); }
+  else if(e.key === 'ArrowLeft'  && camOn){ e.preventDefault(); stepCam(-1); }
+  else if(e.key === 'c' || e.key === 'C'){ toggleCams(); }
   else if(e.key === '0'){ resetView(); }
   else if(e.key === 'Escape'){ closeInfo(); }
 });
