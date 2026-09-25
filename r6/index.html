@@ -516,7 +516,7 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 
 <div id="stage">
   <div id="sheet">
-    <svg id="rooms" viewBox="0 0 1100 462" preserveAspectRatio="none"></svg>
+    <svg id="rooms" viewBox="0 0 1760 739" preserveAspectRatio="none"></svg>
   </div>
 
   <!-- Deliberately OUTSIDE #sheet. A room label belongs to the building and
@@ -635,8 +635,9 @@ var MAPS = {
        the box that holds the building and a ring of plaza -- that is what
        gets fitted to the screen at rest; the rest of the width is street
        context that fills a wide screen instead of leaving bars. */
-    w: 1100, h: 462,
-    focus: { x:250, y:0, w:600, h:462 },
+    w: 1760, h: 739,           /* 1.6x the original 1100x462 -- same frame, more pixels in it
+                                   (2026-09-25, switching to Bronson's own in-game captures) */
+    focus: { x:400, y:0, w:960, h:739 },
     floors: [
       { id:'roof',     nm:'Bird’s-eye',   tone:1800 },
       { id:'2f',       nm:'Second floor', tone:1500 },
@@ -726,7 +727,7 @@ function inPoly(p, x, y){
    what Reception happened to get under the old rule, which is the one Bronson
    picked out as right. Nothing collides, because the map only ever shows one
    name at a time. */
-var LABEL_SIZE = 14.5;          /* map units, of the 1100x462 frame */
+var LABEL_SIZE = 23.2;          /* map units, of the 1760x739 frame (14.5 * 1.6, was 1100x462) */
 
 /* Where the name sits: the middle of the room -- but a bounding-box middle
    falls outside an L-shaped room, and a name floating in the room next door
