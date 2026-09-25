@@ -224,14 +224,24 @@ body:not(.entered) #camlayer{opacity:0;}
 }
 body.bombs #bomblayer{opacity:1;}
 body:not(.entered) #bomblayer{opacity:0;}
-.bomb polygon.tri{fill:rgba(255,122,69,0.85);}
-.bomb text{
+/* a yellow diamond with a black A/B letter in it, matching how the game
+   itself marks a site -- A is whichever of the pair was placed first, B
+   the second (set once, in the tracer, at placement). The diamond and its
+   letter are the marker; they show for every choice, not just the one
+   you've stepped to, same as the tracer's own canvas. */
+.bomb polygon.dia{fill:#eab308;stroke:#78350f;stroke-width:1.3;vector-effect:non-scaling-stroke;}
+.bomb text.letter{
+  fill:#000;text-anchor:middle;dominant-baseline:central;
+  font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:9px;
+  pointer-events:none;
+}
+.bomb text.nm{
   fill:#ff7a45;stroke:rgba(0,0,0,0.9);stroke-width:3;paint-order:stroke;
   font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11px;
   dominant-baseline:middle;opacity:0;transition:opacity .2s ease;
 }
-.bomb.now polygon.tri{fill:#F5B800;}
-.bomb.now text{opacity:1;fill:#ffd9b0;}
+.bomb.now polygon.dia{fill:#fff;stroke:#eab308;}
+.bomb.now text.nm{opacity:1;fill:#ffd9b0;}
 /* the picked choice's other half, on a floor not currently on screen --
    NOT a ghosted floor image (that made the map unreadable, tried and
    rejected 2026-09-25). Just the icon itself, faded, still labelled so you
@@ -987,10 +997,15 @@ function readBombs(d){
   var byFloor = d.bombsites || {};
   var flat = [];
   MAP.floors.forEach(function(f){
-    (byFloor[f.id] || []).forEach(function(b){ flat.push({ g:b.g, n:b.n, p:b.p, f:f.id }); });
+    (byFloor[f.id] || []).forEach(function(b){ flat.push({ g:b.g, s:b.s, n:b.n, p:b.p, f:f.id }); });
   });
   var groups = {};
   flat.forEach(function(b){ (groups[b.g] = groups[b.g] || []).push(b); });
+  /* A before B always, regardless of which floor's array happened to list
+     it first -- the bar and the ghost logic both assume sites[0] is A */
+  Object.keys(groups).forEach(function(g){
+    groups[g].sort(function(a, b){ return a.s < b.s ? -1 : 1; });
+  });
   return Object.keys(groups).map(Number).sort(function(a, b){ return a - b; })
     .map(function(g){ return { g:g, sites:groups[g] }; });
 }
@@ -1025,12 +1040,17 @@ function buildBombs(){
       var halo = document.createElementNS(SVGNS, 'circle');
       halo.setAttribute('class', 'halo'); halo.setAttribute('r', 9);
       g.appendChild(halo);
-      var tri = document.createElementNS(SVGNS, 'polygon');
-      tri.setAttribute('class', 'tri');
-      tri.setAttribute('points', '0,-9 7.8,4.5 -7.8,4.5');
-      g.appendChild(tri);
+      var dia = document.createElementNS(SVGNS, 'polygon');
+      dia.setAttribute('class', 'dia');
+      dia.setAttribute('points', '0,-9 9,0 0,9 -9,0');
+      g.appendChild(dia);
+      var lt = document.createElementNS(SVGNS, 'text');
+      lt.setAttribute('class', 'letter');
+      lt.textContent = s.s || '?';
+      g.appendChild(lt);
       var t = document.createElementNS(SVGNS, 'text');
-      t.setAttribute('x', 12);
+      t.setAttribute('class', 'nm');
+      t.setAttribute('x', 14);
       t.textContent = s.n;
       g.appendChild(t);
       bombsEl.appendChild(g);
