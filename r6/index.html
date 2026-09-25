@@ -212,6 +212,35 @@ body:not(.entered) #camlayer{opacity:0;}
 .cam.now circle.halo{display:block;}
 @media (prefers-reduced-motion: reduce){ .cam.now circle.halo{animation:none;opacity:.5;} }
 
+/* ---------------- bomb sites ----------------
+   Same screen-space reasoning as cameras (see #camlayer above): the layer
+   lives outside #sheet so markers hold their size through a zoom. A choice
+   is two sites, so both can be "now" at once when their pair is active. */
+#bomblayer{
+  position:absolute;inset:0;width:100%;height:100%;
+  z-index:2;pointer-events:none;
+  opacity:0;transition:opacity .25s ease;
+}
+body.bombs #bomblayer{opacity:1;}
+body:not(.entered) #bomblayer{opacity:0;}
+.bomb polygon.tri{fill:rgba(255,122,69,0.85);}
+.bomb text{
+  fill:#ff7a45;stroke:rgba(0,0,0,0.9);stroke-width:3;paint-order:stroke;
+  font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11px;
+  dominant-baseline:middle;opacity:0;transition:opacity .2s ease;
+}
+.bomb.now polygon.tri{fill:#F5B800;}
+.bomb.now text{opacity:1;fill:#ffd9b0;}
+@keyframes bombPulse{
+  0%,100%{r:9;opacity:.9;}
+  50%    {r:13;opacity:0;}
+}
+.bomb.now circle.halo{fill:none;stroke:#F5B800;stroke-width:1.5;vector-effect:non-scaling-stroke;
+  animation:bombPulse 2.2s ease-out infinite;}
+.bomb circle.halo{display:none;}
+.bomb.now circle.halo{display:block;}
+@media (prefers-reduced-motion: reduce){ .bomb.now circle.halo{animation:none;opacity:.5;} }
+
 /* the walk: one step back, where you are, one step on */
 #cambar{
   left:50%;
@@ -247,6 +276,31 @@ body.cams #zoompill{bottom:calc(var(--pad) + 46px + env(safe-area-inset-bottom))
   #camName{font-size:.74rem;}
   .cbtn{width:30px;height:30px;}
   body.cams #zoompill{bottom:calc(var(--pad) + 42px + env(safe-area-inset-bottom));}
+}
+
+/* stacked left of the compass, not centered like #cambar -- two names read
+   better as a small column than crammed onto one line */
+#bombbar{
+  left:calc(var(--pad) + env(safe-area-inset-left));
+  bottom:calc(var(--pad) + 54px + env(safe-area-inset-bottom));
+  display:none;align-items:center;gap:4px;padding:4px;
+  border-color:rgba(255,122,69,.34);
+}
+body.bombs #bombbar{display:flex;}
+#bombNow{
+  display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:0 8px;min-width:120px;
+  font-family:"Barlow Condensed",sans-serif;
+}
+#bombNo{font-size:.62rem;letter-spacing:.1em;color:var(--ink-dim);font-weight:600;font-variant-numeric:tabular-nums;}
+#bombNo b{color:#ff7a45;font-size:.8rem;font-weight:700;}
+#bombA, #bombB{
+  font-size:.76rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;
+}
+@media (max-width:560px){
+  #bombbar{bottom:calc(var(--pad) + 48px + env(safe-area-inset-bottom));}
+  #bombNow{min-width:96px;padding:0 6px;}
+  #bombA, #bombB{font-size:.68rem;}
 }
 
 /* ---------------- floating chrome ---------------- */
@@ -464,11 +518,14 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
        only re-renders afterwards. The marker visibly ballooned and snapped
        back. Out here nothing scales it, so there is nothing to cancel. -->
   <svg id="camlayer"></svg>
+  <!-- Same reasoning as camlayer above: screen space, not map space. -->
+  <svg id="bomblayer"></svg>
 
   <div class="chip" id="brand">Consul<span>ate</span></div>
 
   <div class="chip" id="tools">
     <button class="hbtn" id="camBtn" title="Cameras">&#9673;</button>
+    <button class="hbtn" id="bombBtn" title="Bomb sites">&#9650;</button>
     <button class="hbtn on" id="sndBtn" title="Sound">&#9834;</button>
     <button class="hbtn" id="fsBtn" title="Full screen">&#9974;</button>
     <button class="hbtn" id="infoBtn" title="About this map">i</button>
@@ -493,6 +550,20 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
     </div>
     <button class="cbtn" id="camNext" type="button" title="Next camera">&#8250;</button>
   </div>
+
+  <!-- Bottom-left, above the compass, and its two names stacked -- a choice
+       is a pair, so the control should read as one. Everything else here
+       (cambar included) is a first pass; the layout is Bronson's to tune
+       once bomb-site data actually exists to look at. -->
+  <div class="chip" id="bombbar">
+    <button class="cbtn" id="bombPrev" type="button" title="Previous choice">&#8249;</button>
+    <div id="bombNow">
+      <span id="bombNo"><b>1</b>/4</span>
+      <span id="bombA">&mdash;</span>
+      <span id="bombB">&mdash;</span>
+    </div>
+    <button class="cbtn" id="bombNext" type="button" title="Next choice">&#8250;</button>
+  </div>
 </div>
 
 <div id="info">
@@ -516,9 +587,14 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
     that order crosses floors &mdash; going one past the last basement camera puts
     you outside on the roof sheet, because that is where the next camera in the
     cycle is. Tap a marker to jump to it.</p>
+    <p><strong>Bomb sites:</strong> the &#9650; button marks the possible bomb-site
+    pairs &mdash; a map usually has four, and only one is live in a given round.
+    The bar shows both sites in the pair on screen; a pair can straddle two floors,
+    so only the one on the floor you're looking at gets a marker.</p>
     <p><strong>Controls:</strong> drag to pan, pinch or scroll to zoom, double&#8209;tap
     to reset. <strong>&#8593;/&#8595;</strong> change floor,
-    <strong>&#8592;/&#8594;</strong> step the cameras, <strong>C</strong> shows them.</p>
+    <strong>&#8592;/&#8594;</strong> step the cameras, <strong>C</strong> shows them,
+    <strong>B</strong> shows the bomb sites.</p>
     <p><strong>On a phone:</strong> add this to your home screen and it opens with no
     browser bars at all.</p>
     <p>Blueprints &copy; Ubisoft Entertainment. This is a fan reference, not
@@ -599,6 +675,7 @@ function setFloor(id, withSound){
   showRoom(null);
   buildRooms(id);
   buildCams();            /* the cameras on screen belong to the floor on screen */
+  buildBombs();
   if(withSound) tick(f.tone);
 }
 
@@ -872,14 +949,127 @@ function camAtPoint(clientX, clientY){
   return best;
 }
 
+/* ---------------- bomb site choices ----------------
+   A "choice" is two sites sharing a group number "g" -- the tracer pairs
+   them as they're placed. Unlike the camera cycle a choice has no in-game
+   walk order, so stepping through choices does not change floor: a pair can
+   straddle two floors, and there is no single one to jump to. Only the site
+   (or sites) that happen to be on the floor on screen get a marker; the bar
+   still names both, so the pair reads even when only one is visible.
+------------------------------------------------------- */
+var bombsEl = document.getElementById('bomblayer');
+var BOMBS  = [];       /* in choice order: {g, sites:[{n,p,f}, ...]} */
+var bombOn = false;
+var bombAt = 0;
+var bombEls = [];      /* the markers drawn for the floor on screen */
+
+try{ bombOn = localStorage.getItem('r6.bombs') === 'on'; }catch(e){}
+
+function readBombs(d){
+  var byFloor = d.bombsites || {};
+  var flat = [];
+  MAP.floors.forEach(function(f){
+    (byFloor[f.id] || []).forEach(function(b){ flat.push({ g:b.g, n:b.n, p:b.p, f:f.id }); });
+  });
+  var groups = {};
+  flat.forEach(function(b){ (groups[b.g] = groups[b.g] || []).push(b); });
+  return Object.keys(groups).map(Number).sort(function(a, b){ return a - b; })
+    .map(function(g){ return { g:g, sites:groups[g] }; });
+}
+
+function buildBombs(){
+  bombEls = [];
+  while(bombsEl.firstChild) bombsEl.removeChild(bombsEl.firstChild);
+  if(!bombOn) return;
+  BOMBS.forEach(function(choice, gi){
+    choice.sites.forEach(function(s){
+      if(s.f !== active) return;               /* other floors are other sheets */
+      var g = document.createElementNS(SVGNS, 'g');
+      g.setAttribute('class', 'bomb' + (gi === bombAt ? ' now' : ''));
+      var halo = document.createElementNS(SVGNS, 'circle');
+      halo.setAttribute('class', 'halo'); halo.setAttribute('r', 9);
+      g.appendChild(halo);
+      var tri = document.createElementNS(SVGNS, 'polygon');
+      tri.setAttribute('class', 'tri');
+      tri.setAttribute('points', '0,-9 7.8,4.5 -7.8,4.5');
+      g.appendChild(tri);
+      var t = document.createElementNS(SVGNS, 'text');
+      t.setAttribute('x', 12);
+      t.textContent = s.n;
+      g.appendChild(t);
+      bombsEl.appendChild(g);
+      bombEls.push({ s:s, gi:gi, g:g });
+    });
+  });
+  sizeBombs();
+}
+
+function sizeBombs(){
+  if(!bombEls.length || !base.w) return;
+  var k0 = base.w / MAP.w;
+  bombEls.forEach(function(e){
+    var x = base.x + view.tx + view.s * (e.s.p[0] * base.w);
+    var y = base.y + view.ty + view.s * (e.s.p[1] * base.h);
+    e.g.setAttribute('transform',
+      'translate(' + x.toFixed(2) + ',' + y.toFixed(2) + ') scale(' + k0.toFixed(4) + ')');
+  });
+}
+
+function paintBombBar(){
+  var c = BOMBS[bombAt];
+  document.getElementById('bombNo').innerHTML = '<b>' + (c ? bombAt + 1 : 0) + '</b>/' + BOMBS.length;
+  document.getElementById('bombA').textContent = c && c.sites[0] ? c.sites[0].n : '—';
+  document.getElementById('bombB').textContent = c && c.sites[1] ? c.sites[1].n : '—';
+}
+
+function setBomb(k, withSound){
+  if(!BOMBS.length) return;
+  bombAt = ((k % BOMBS.length) + BOMBS.length) % BOMBS.length;
+  buildBombs();
+  if(withSound) tick(toneOf(active));
+  paintBombBar();
+}
+function stepBomb(d){ setBomb(bombAt + d, true); }
+
+function paintBombs(){
+  document.body.classList.toggle('bombs', bombOn);
+  document.getElementById('bombBtn').classList.toggle('on', bombOn);
+  buildBombs();
+}
+function toggleBombs(){
+  bombOn = !bombOn;
+  try{ localStorage.setItem('r6.bombs', bombOn ? 'on' : 'off'); }catch(e){}
+  paintBombs();
+  if(bombOn && BOMBS.length){ setBomb(bombAt, true); }
+}
+document.getElementById('bombBtn').addEventListener('click', toggleBombs);
+document.getElementById('bombPrev').addEventListener('click', function(){ stepBomb(-1); });
+document.getElementById('bombNext').addEventListener('click', function(){ stepBomb(1); });
+
+function bombAtPoint(clientX, clientY){
+  if(!bombOn) return null;
+  var r = stage.getBoundingClientRect();
+  var best = null, bestD = 22;
+  bombEls.forEach(function(e){
+    var x = r.left + base.x + view.tx + view.s * (e.s.p[0] * base.w);
+    var y = r.top  + base.y + view.ty + view.s * (e.s.p[1] * base.h);
+    var dd = Math.hypot(clientX - x, clientY - y);
+    if(dd < bestD){ bestD = dd; best = e; }
+  });
+  return best;
+}
+
 fetch('maps/consulate/rooms.json')
   .then(function(r){ return r.json(); })
   .then(function(d){
     ROOMS = d.floors || {};
     CAMS = readCams(d);
+    BOMBS = readBombs(d);
     if(active) buildRooms(active);
     paintCams();
     paintCamBar();
+    paintBombs();
+    paintBombBar();
   })
   .catch(function(){ /* no rooms yet is a fine state */ });
 
@@ -924,6 +1114,7 @@ function applyView(){
   sheet.style.transform =
     'translate(' + view.tx + 'px,' + view.ty + 'px) scale(' + view.s + ')';
   sizeCams();                     /* markers hold their screen size through the zoom */
+  sizeBombs();
   var zoomed = view.s > 1.01;
   pill.classList.toggle('show', zoomed);
   if(zoomed) pill.textContent = view.s.toFixed(1) + '× ↻';
@@ -1027,10 +1218,12 @@ function endPtr(e){
       resetView(); lastTap = 0; showRoom(null);
     } else {
       lastTap = now;
-      /* a camera marker wins over the room under it -- it is the smaller,
-         more deliberate target, and it is drawn on top */
+      /* a camera or bomb-site marker wins over the room under it -- each is
+         the smaller, more deliberate target, and both are drawn on top */
       var cam = camAtPoint(tapCand.x, tapCand.y);
       if(cam){ setCam(cam.k, true); tapCand = null; return; }
+      var bomb = bombAtPoint(tapCand.x, tapCand.y);
+      if(bomb){ setBomb(bomb.gi, true); tapCand = null; return; }
       /* tapping a room says its name for two seconds */
       var r = roomAt(tapCand.x, tapCand.y);
       if(r){
@@ -1088,6 +1281,7 @@ window.addEventListener('keydown', function(e){
   else if(e.key === 'ArrowRight' && camOn){ e.preventDefault(); stepCam(1); }
   else if(e.key === 'ArrowLeft'  && camOn){ e.preventDefault(); stepCam(-1); }
   else if(e.key === 'c' || e.key === 'C'){ toggleCams(); }
+  else if(e.key === 'b' || e.key === 'B'){ toggleBombs(); }
   else if(e.key === '0'){ resetView(); }
   else if(e.key === 'Escape'){ closeInfo(); }
 });
