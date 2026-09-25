@@ -68,15 +68,6 @@ body{
   -webkit-user-drag:none;
 }
 #sheet img.live{opacity:1;z-index:1;}
-/* A bomb-site choice can straddle two floors -- Consulate's Tellers/Servers
-   pairs 1F with the basement. While that choice is picked, the OTHER floor
-   shows through at reduced opacity instead of vanishing off screen, the way
-   the reference sites do it (his description: full first floor, basement
-   turned down to about half). Explicit z-index, not DOM order, because
-   which floor happens to load first in MAP.floors shouldn't decide which
-   one paints on top. Transition is fine here, unlike a floor switch -- this
-   fades in on top of a floor that never moves, nothing to flicker through. */
-#sheet img.ghost{opacity:.42;z-index:2;}   /* under #rooms (bumped to 3) -- the active floor's own labels must not be covered. No transition: same virtual-time-budget gotcha as everywhere else in this project -- it doesn't drive the animation timeline, only JS timers, so a transitioning value reads wrong under the headless harness. Not worth chasing for something this quick. */
 
 /* ---------------- room labels ----------------
    The overlay lives INSIDE #sheet, so it inherits the pan/zoom transform
@@ -90,7 +81,7 @@ body{
   inset:0;
   width:100%;
   height:100%;
-  z-index:3;          /* above .live (1) and .ghost (2) -- an integer, unlike a stray 1.5 that got silently dropped once */
+  z-index:2;          /* the floor images are appended after it in the DOM */
   pointer-events:none;
   overflow:visible;
 }
@@ -241,13 +232,13 @@ body:not(.entered) #bomblayer{opacity:0;}
 }
 .bomb.now polygon.tri{fill:#F5B800;}
 .bomb.now text{opacity:1;fill:#ffd9b0;}
-/* the picked choice's other half, showing through from the ghosted floor --
-   labelled like "now" so you know what it's called, but not gold: gold
-   means "the floor you're standing on," and this floor isn't it. (Tapping
-   it still jumps you there -- hit-testing is done in JS off real
-   coordinates, not CSS pointer-events, same as every other marker.) */
-.bomb.ghost polygon.tri{fill:none;stroke:#F5B800;stroke-width:1.5;vector-effect:non-scaling-stroke;}
-.bomb.ghost text{opacity:1;fill:#ffd9b0;}
+/* the picked choice's other half, on a floor not currently on screen --
+   NOT a ghosted floor image (that made the map unreadable, tried and
+   rejected 2026-09-25). Just the icon itself, faded, still labelled so you
+   know what it's called. Tapping it still jumps you to its floor --
+   hit-testing is done in JS off real coordinates, not CSS pointer-events,
+   same as every other marker. */
+.bomb.ghost{opacity:.45;}                   /* group opacity -- fades the label along with the icon, which is fine */
 .bomb.ghost circle.halo{display:none;}      /* the pulse means "you're here"; this isn't */
 @keyframes bombPulse{
   0%,100%{r:9;opacity:.9;}
@@ -1008,15 +999,14 @@ function ghostFloorFor(choice){
   return ids.filter(function(id){ return id !== active; })[0];
 }
 
-var ghostImg = null;      /* the floor image currently showing through, if any */
-
 function buildBombs(){
   bombEls = [];
   while(bombsEl.firstChild) bombsEl.removeChild(bombsEl.firstChild);
-  if(ghostImg){ imgs[ghostImg].classList.remove('ghost'); ghostImg = null; }
   if(!bombOn) return;
+  /* the floor of the picked choice's OTHER site, if it isn't this one --
+     drawn as a faded icon on this floor (see .bomb.ghost), never as a
+     ghosted floor image: tried that, it made the map unreadable */
   var ghost = ghostFloorFor(BOMBS[bombAt]);
-  if(ghost){ imgs[ghost].classList.add('ghost'); ghostImg = ghost; }
   BOMBS.forEach(function(choice, gi){
     choice.sites.forEach(function(s){
       var onGhost = gi === bombAt && s.f === ghost;
