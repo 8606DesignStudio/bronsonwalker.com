@@ -516,7 +516,7 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 
 <div id="stage">
   <div id="sheet">
-    <svg id="rooms" viewBox="0 0 1760 739" preserveAspectRatio="none"></svg>
+    <svg id="rooms" viewBox="0 0 1320 800" preserveAspectRatio="none"></svg>
   </div>
 
   <!-- Deliberately OUTSIDE #sheet. A room label belongs to the building and
@@ -635,9 +635,14 @@ var MAPS = {
        the box that holds the building and a ring of plaza -- that is what
        gets fitted to the screen at rest; the rest of the width is street
        context that fills a wide screen instead of leaving bars. */
-    w: 1760, h: 739,           /* 1.6x the original 1100x462 -- same frame, more pixels in it
-                                   (2026-09-25, switching to Bronson's own in-game captures) */
-    focus: { x:400, y:0, w:960, h:739 },
+    w: 1320, h: 800,           /* 2026-09-25: one fixed crop applied identically to all four
+                                   of Bronson's in-game captures, anchored on the bottom-right
+                                   corner (his reference point -- the screenshots share one
+                                   camera position) with only the top and left trimmed to clear
+                                   the game's own HUD. Natural aspect from that crop is 1.65:1,
+                                   not the old 2.38:1 -- going wider would have meant either
+                                   showing the vote-menu panel or cropping into the building. */
+    focus: { x:100, y:0, w:1020, h:800 },
     floors: [
       { id:'roof',     nm:'Bird’s-eye',   tone:1800 },
       { id:'2f',       nm:'Second floor', tone:1500 },
@@ -727,7 +732,10 @@ function inPoly(p, x, y){
    what Reception happened to get under the old rule, which is the one Bronson
    picked out as right. Nothing collides, because the map only ever shows one
    name at a time. */
-var LABEL_SIZE = 23.2;          /* map units, of the 1760x739 frame (14.5 * 1.6, was 1100x462) */
+var LABEL_SIZE = 17.4;          /* map units, of the 1320x800 frame -- scaled to keep the same
+                                    proportion of frame width as the original 14.5/1100 pick.
+                                    A placeholder until Bronson re-picks one on real labels,
+                                    same as "Reception is perfect" settled the original. */
 
 /* Where the name sits: the middle of the room -- but a bounding-box middle
    falls outside an L-shaped room, and a name floating in the room next door
