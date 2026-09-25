@@ -58,6 +58,7 @@ body{
   height:100%;
   display:block;
   opacity:0;
+  z-index:0;
   /* No transition on purpose. Cross-fading two stacked floors puts both
      at partial opacity at once, so for a moment you are looking through
      one floor at another -- it reads as a flicker. A hard cut is cleaner
@@ -66,7 +67,16 @@ body{
   user-select:none;
   -webkit-user-drag:none;
 }
-#sheet img.live{opacity:1;}
+#sheet img.live{opacity:1;z-index:1;}
+/* A bomb-site choice can straddle two floors -- Consulate's Tellers/Servers
+   pairs 1F with the basement. While that choice is picked, the OTHER floor
+   shows through at reduced opacity instead of vanishing off screen, the way
+   the reference sites do it (his description: full first floor, basement
+   turned down to about half). Explicit z-index, not DOM order, because
+   which floor happens to load first in MAP.floors shouldn't decide which
+   one paints on top. Transition is fine here, unlike a floor switch -- this
+   fades in on top of a floor that never moves, nothing to flicker through. */
+#sheet img.ghost{opacity:.42;z-index:2;}   /* under #rooms (bumped to 3) -- the active floor's own labels must not be covered. No transition: same virtual-time-budget gotcha as everywhere else in this project -- it doesn't drive the animation timeline, only JS timers, so a transitioning value reads wrong under the headless harness. Not worth chasing for something this quick. */
 
 /* ---------------- room labels ----------------
    The overlay lives INSIDE #sheet, so it inherits the pan/zoom transform
@@ -80,7 +90,7 @@ body{
   inset:0;
   width:100%;
   height:100%;
-  z-index:2;          /* the floor images are appended after it in the DOM */
+  z-index:3;          /* above .live (1) and .ghost (2) -- an integer, unlike a stray 1.5 that got silently dropped once */
   pointer-events:none;
   overflow:visible;
 }
@@ -231,6 +241,14 @@ body:not(.entered) #bomblayer{opacity:0;}
 }
 .bomb.now polygon.tri{fill:#F5B800;}
 .bomb.now text{opacity:1;fill:#ffd9b0;}
+/* the picked choice's other half, showing through from the ghosted floor --
+   labelled like "now" so you know what it's called, but not gold: gold
+   means "the floor you're standing on," and this floor isn't it. (Tapping
+   it still jumps you there -- hit-testing is done in JS off real
+   coordinates, not CSS pointer-events, same as every other marker.) */
+.bomb.ghost polygon.tri{fill:none;stroke:#F5B800;stroke-width:1.5;vector-effect:non-scaling-stroke;}
+.bomb.ghost text{opacity:1;fill:#ffd9b0;}
+.bomb.ghost circle.halo{display:none;}      /* the pulse means "you're here"; this isn't */
 @keyframes bombPulse{
   0%,100%{r:9;opacity:.9;}
   50%    {r:13;opacity:0;}
@@ -977,15 +995,34 @@ function readBombs(d){
     .map(function(g){ return { g:g, sites:groups[g] }; });
 }
 
+/* If the picked choice's two sites sit on different floors, the other one
+   -- relative to whichever floor is on screen right now -- is the floor to
+   ghost. Null for a same-floor choice (nothing to ghost) or when neither of
+   the choice's floors is the one on screen. */
+function ghostFloorFor(choice){
+  if(!choice) return null;
+  var floors = {};
+  choice.sites.forEach(function(s){ floors[s.f] = true; });
+  var ids = Object.keys(floors);
+  if(ids.length < 2 || ids.indexOf(active) < 0) return null;
+  return ids.filter(function(id){ return id !== active; })[0];
+}
+
+var ghostImg = null;      /* the floor image currently showing through, if any */
+
 function buildBombs(){
   bombEls = [];
   while(bombsEl.firstChild) bombsEl.removeChild(bombsEl.firstChild);
+  if(ghostImg){ imgs[ghostImg].classList.remove('ghost'); ghostImg = null; }
   if(!bombOn) return;
+  var ghost = ghostFloorFor(BOMBS[bombAt]);
+  if(ghost){ imgs[ghost].classList.add('ghost'); ghostImg = ghost; }
   BOMBS.forEach(function(choice, gi){
     choice.sites.forEach(function(s){
-      if(s.f !== active) return;               /* other floors are other sheets */
+      var onGhost = gi === bombAt && s.f === ghost;
+      if(s.f !== active && !onGhost) return;    /* other floors are other sheets, except the ghost */
       var g = document.createElementNS(SVGNS, 'g');
-      g.setAttribute('class', 'bomb' + (gi === bombAt ? ' now' : ''));
+      g.setAttribute('class', 'bomb' + (gi === bombAt ? ' now' : '') + (onGhost ? ' ghost' : ''));
       var halo = document.createElementNS(SVGNS, 'circle');
       halo.setAttribute('class', 'halo'); halo.setAttribute('r', 9);
       g.appendChild(halo);
@@ -998,7 +1035,7 @@ function buildBombs(){
       t.textContent = s.n;
       g.appendChild(t);
       bombsEl.appendChild(g);
-      bombEls.push({ s:s, gi:gi, g:g });
+      bombEls.push({ s:s, gi:gi, g:g, ghost:onGhost });
     });
   });
   sizeBombs();
@@ -1223,6 +1260,9 @@ function endPtr(e){
       var cam = camAtPoint(tapCand.x, tapCand.y);
       if(cam){ setCam(cam.k, true); tapCand = null; return; }
       var bomb = bombAtPoint(tapCand.x, tapCand.y);
+      /* the ghosted half of the picked choice isn't on this floor yet --
+         tapping it takes you to the floor it's actually on, same choice */
+      if(bomb && bomb.ghost){ setFloor(bomb.s.f, true); tapCand = null; return; }
       if(bomb){ setBomb(bomb.gi, true); tapCand = null; return; }
       /* tapping a room says its name for two seconds */
       var r = roomAt(tapCand.x, tapCand.y);
