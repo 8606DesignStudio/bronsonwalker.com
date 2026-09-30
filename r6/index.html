@@ -232,8 +232,9 @@ body:not(.entered) #bomblayer{opacity:0;}
 /* A yellow diamond, red border, black A/B letter -- his pick over the
    in-game white-fill/gold-border look this used to invert to for the
    active one, back when there was an inactive one sitting nearby to
-   distinguish it from. Site-name text stays the warm cream that used to
-   mark "active", now just the one colour it always is.
+   distinguish it from. Site-name text is the same gold as .cam text
+   below -- his ask, for the map's two marker types to read as one family
+   rather than each keeping its own name-label colour.
    No vector-effect:non-scaling-stroke here, same as .cam above and for
    the same reason: that property is exactly what would fight the point
    of this change -- it keeps a line a constant number of SCREEN pixels
@@ -251,7 +252,7 @@ body:not(.entered) #bomblayer{opacity:0;}
   pointer-events:none;
 }
 .bomb text.nm{
-  fill:#ffd9b0;stroke:rgba(0,0,0,0.9);stroke-width:4;paint-order:stroke;
+  fill:#F5B800;stroke:rgba(0,0,0,0.9);stroke-width:4;paint-order:stroke;
   font-family:"Barlow Condensed",sans-serif;font-weight:600;
   dominant-baseline:middle;
 }
