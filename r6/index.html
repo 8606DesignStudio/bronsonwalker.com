@@ -313,11 +313,12 @@ body.cams #zoompill{bottom:calc(var(--pad) + 46px + env(safe-area-inset-bottom))
   body.cams #zoompill{bottom:calc(var(--pad) + 42px + env(safe-area-inset-bottom));}
 }
 
-/* stacked left of the compass, not centered like #cambar -- two names read
-   better as a small column than crammed onto one line */
+/* bottom-left, not centered like #cambar -- two names read better as a
+   small column than crammed onto one line. Sits at the base pad now that
+   the orientation chip that used to float above it is gone. */
 #bombbar{
   left:calc(var(--pad) + env(safe-area-inset-left));
-  bottom:calc(var(--pad) + 54px + env(safe-area-inset-bottom));
+  bottom:calc(var(--pad) + env(safe-area-inset-bottom));
   display:none;align-items:center;gap:4px;padding:4px;
   border-color:rgba(255,122,69,.34);
 }
@@ -414,18 +415,6 @@ body.bombs #bombbar{display:flex;}
 .floor:hover{background:rgba(255,255,255,0.07);color:var(--ink);}
 .floor .nm{font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1.1;white-space:nowrap;}
 .floor.on{background:rgba(75,184,233,0.15);border-color:var(--line-hot);color:#fff;}
-
-#compass{
-  left:calc(var(--pad) + env(safe-area-inset-left));
-  bottom:calc(var(--pad) + env(safe-area-inset-bottom));
-  padding:7px 10px;
-  font-family:"Barlow Condensed",sans-serif;
-  font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--ink-dim);
-  line-height:1.5;
-  pointer-events:none;
-}
-#compass b{display:block;color:var(--ink);font-size:.68rem;letter-spacing:.16em;}
 
 #zoompill{
   left:50%;
@@ -529,7 +518,6 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
   .floor{flex-direction:column;gap:1px;padding:7px 2px;align-items:center;text-align:center;}
   .floor .nm{font-size:.54rem;letter-spacing:.06em;white-space:normal;}
   #brand{font-size:.82rem;padding:6px 9px;}
-  #compass{font-size:.54rem;padding:5px 8px;}
 }
 @media (max-height:430px){
   #rail{padding:4px;gap:3px;}
@@ -569,11 +557,6 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
     <div class="cap">Floor</div>
   </nav>
 
-  <div class="chip" id="compass">
-    <b>&#9660; Front entrance</b>
-    Blueprint orientation
-  </div>
-
   <div class="chip" id="zoompill">1.0&times; &#8635;</div>
 
   <div class="chip" id="cambar">
@@ -585,10 +568,10 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
     <button class="cbtn" id="camNext" type="button" title="Next camera">&#8250;</button>
   </div>
 
-  <!-- Bottom-left, above the compass, and its two names stacked -- a choice
-       is a pair, so the control should read as one. Everything else here
-       (cambar included) is a first pass; the layout is Bronson's to tune
-       once bomb-site data actually exists to look at. -->
+  <!-- Bottom-left, and its two names stacked -- a choice is a pair, so the
+       control should read as one. Everything else here (cambar included)
+       is a first pass; the layout is Bronson's to tune once bomb-site data
+       actually exists to look at. -->
   <div class="chip" id="bombbar">
     <button class="cbtn" id="bombPrev" type="button" title="Previous choice">&#8249;</button>
     <div id="bombNow">
