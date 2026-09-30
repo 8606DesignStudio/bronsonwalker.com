@@ -833,7 +833,7 @@ var CAMS   = [];       /* in cycle order: {i, n, p, f} */
 var camOn  = false;
 var camAt  = 0;
 var camEls = [];       /* the markers drawn for the floor on screen */
-var CAM_NAME_SIZE = 11;   /* map units -- set via JS attribute, not CSS, same reason as LABEL_SIZE */
+var CAM_NAME_SIZE = 16;   /* map units -- matches BOMB_NAME_SIZE, his ask; set via JS attribute, not CSS, same reason as LABEL_SIZE */
 
 try{ camOn = localStorage.getItem('r6.cams') === 'on'; }catch(e){}
 
