@@ -530,7 +530,6 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
   <div class="chip" id="tools">
     <button class="hbtn" id="camBtn" title="Cameras">&#9673;</button>
     <button class="hbtn" id="bombBtn" title="Bomb sites">&#9650;</button>
-    <button class="hbtn on" id="sndBtn" title="Sound">&#9834;</button>
     <button class="hbtn" id="fsBtn" title="Full screen">&#9974;</button>
     <button class="hbtn" id="infoBtn" title="About this map">i</button>
   </div>
@@ -661,12 +660,12 @@ MAP.floors.forEach(function(f){
   b.className = 'floor';
   b.type = 'button';
   b.innerHTML = '<span class="nm">' + f.nm + '</span>';
-  b.addEventListener('click', function(){ setFloor(f.id, true); });
+  b.addEventListener('click', function(){ setFloor(f.id); });
   rail.appendChild(b);
   btns[f.id] = b;
 });
 
-function setFloor(id, withSound){
+function setFloor(id){
   if(id === active) return;
   var f = MAP.floors.filter(function(x){ return x.id === id; })[0];
   if(!f) return;
@@ -678,7 +677,6 @@ function setFloor(id, withSound){
   buildRooms(id);
   buildCams();            /* the cameras on screen belong to the floor on screen */
   buildBombs();
-  if(withSound) tick(f.tone);
 }
 
 /* ---------------- rooms ----------------
@@ -909,21 +907,16 @@ function paintCamBar(){
   document.getElementById('camName').textContent = c ? c.n : '—';
 }
 
-function toneOf(id){
-  var f = MAP.floors.filter(function(x){ return x.id === id; })[0];
-  return f ? f.tone : 1400;
-}
-
 /* the walk wraps, the same way it does in game */
-function setCam(k, withSound){
+function setCam(k){
   if(!CAMS.length) return;
   camAt = ((k % CAMS.length) + CAMS.length) % CAMS.length;
   var c = CAMS[camAt];
-  if(c.f !== active) setFloor(c.f, withSound);     /* the floor follows the camera */
-  else { buildCams(); if(withSound) tick(toneOf(active)); }
+  if(c.f !== active) setFloor(c.f);     /* the floor follows the camera */
+  else buildCams();
   paintCamBar();
 }
-function stepCam(d){ setCam(camAt + d, true); }
+function stepCam(d){ setCam(camAt + d); }
 
 function paintCams(){
   document.body.classList.toggle('cams', camOn);
@@ -1091,7 +1084,7 @@ function paintBombBar(){
   document.getElementById('bombB').textContent = c && c.sites[1] ? c.sites[1].n : '—';
 }
 
-function setBomb(k, withSound){
+function setBomb(k){
   if(!BOMBS.length) return;
   bombAt = ((k % BOMBS.length) + BOMBS.length) % BOMBS.length;
   var c = BOMBS[bombAt];
@@ -1099,11 +1092,11 @@ function setBomb(k, withSound){
      ONE floor, I'll go to the other myself if I want it", and A is the
      well-defined choice of which one: same floor as B when the pair
      doesn't cross floors, and the site named first in the bar otherwise. */
-  if(c.sites[0].f !== active) setFloor(c.sites[0].f, withSound);   /* the floor follows the choice */
-  else { buildBombs(); if(withSound) tick(toneOf(active)); }
+  if(c.sites[0].f !== active) setFloor(c.sites[0].f);   /* the floor follows the choice */
+  else buildBombs();
   paintBombBar();
 }
-function stepBomb(d){ setBomb(bombAt + d, true); }
+function stepBomb(d){ setBomb(bombAt + d); }
 
 function paintBombs(){
   document.body.classList.toggle('bombs', bombOn);
@@ -1297,21 +1290,15 @@ function endPtr(e){
       /* a camera or bomb-site marker wins over the room under it -- each is
          the smaller, more deliberate target, and both are drawn on top */
       var cam = camAtPoint(tapCand.x, tapCand.y);
-      if(cam){ setCam(cam.k, true); tapCand = null; return; }
+      if(cam){ setCam(cam.k); tapCand = null; return; }
       var bomb = bombAtPoint(tapCand.x, tapCand.y);
       /* the ghosted half of the picked choice isn't on this floor yet --
          tapping it takes you to the floor it's actually on, same choice */
-      if(bomb && bomb.ghost){ setFloor(bomb.s.f, true); tapCand = null; return; }
-      if(bomb){ setBomb(bomb.gi, true); tapCand = null; return; }
+      if(bomb && bomb.ghost){ setFloor(bomb.s.f); tapCand = null; return; }
+      if(bomb){ setBomb(bomb.gi); tapCand = null; return; }
       /* tapping a room says its name for two seconds */
       var r = roomAt(tapCand.x, tapCand.y);
-      if(r){
-        showRoom(r);
-        var f = MAP.floors.filter(function(x){ return x.id === active; })[0];
-        tick(f ? f.tone : 1400);
-      } else {
-        showRoom(null);
-      }
+      if(r){ showRoom(r); } else { showRoom(null); }
     }
   }
   tapCand = null;
@@ -1354,8 +1341,8 @@ window.addEventListener('keydown', function(e){
   var ids = MAP.floors.map(function(f){ return f.id; });
   var i = ids.indexOf(active);
 
-  if(e.key === 'ArrowDown' && i < ids.length-1){ e.preventDefault(); setFloor(ids[i+1], true); }
-  else if(e.key === 'ArrowUp' && i > 0){ e.preventDefault(); setFloor(ids[i-1], true); }
+  if(e.key === 'ArrowDown' && i < ids.length-1){ e.preventDefault(); setFloor(ids[i+1]); }
+  else if(e.key === 'ArrowUp' && i > 0){ e.preventDefault(); setFloor(ids[i-1]); }
   else if(e.key === 'ArrowRight' && camOn){ e.preventDefault(); stepCam(1); }
   else if(e.key === 'ArrowLeft'  && camOn){ e.preventDefault(); stepCam(-1); }
   else if(e.key === 'c' || e.key === 'C'){ toggleCams(); }
@@ -1363,79 +1350,6 @@ window.addEventListener('keydown', function(e){
   else if(e.key === '0'){ resetView(); }
   else if(e.key === 'Escape'){ closeInfo(); }
 });
-
-/* ---------------- sound ----------------
-   A sheet being flicked over, not a beep. Paper is broadband noise with
-   a very fast attack and almost no tail, so this is a short burst of
-   white noise through a band-pass that darkens as it decays, plus a
-   quieter second grain for the sheet settling. Every trigger jitters its
-   filter and its position in the noise buffer -- a sample replayed
-   identically is exactly what starts to sound synthetic.
-   Still no asset to load.
----------------------------------------- */
-/* Off by default. The paper tick is good on its own but it fires on every
-   floor change and every room press, which is too much for something you
-   glance at -- so it is opt-in via the note button, not opt-out. */
-var ac = null, noiseBuf = null, sndOn = false;
-try{ sndOn = localStorage.getItem('r6.sound') === 'on'; }catch(e){}
-
-var sndBtn = document.getElementById('sndBtn');
-function paintSnd(){ sndBtn.classList.toggle('on', sndOn); }
-paintSnd();
-sndBtn.addEventListener('click', function(){
-  sndOn = !sndOn;
-  try{ localStorage.setItem('r6.sound', sndOn ? 'on' : 'off'); }catch(e){}
-  paintSnd();
-  if(sndOn) tick(1500);
-});
-
-function noiseBuffer(){
-  if(noiseBuf) return noiseBuf;
-  var n = Math.floor(ac.sampleRate * 0.4);
-  noiseBuf = ac.createBuffer(1, n, ac.sampleRate);
-  var d = noiseBuf.getChannelData(0);
-  for(var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
-  return noiseBuf;
-}
-
-/* one grain of paper: a filtered burst of noise that darkens as it dies */
-function grain(t, centre, peak, dur){
-  var src = ac.createBufferSource();
-  src.buffer = noiseBuffer();
-  src.loop = true;
-
-  var hp = ac.createBiquadFilter();
-  hp.type = 'highpass';
-  hp.frequency.value = 300;          /* trim rumble, but leave some warmth */
-
-  var bp = ac.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.Q.value = 0.7;                  /* broad: a band, not a pitch */
-  bp.frequency.setValueAtTime(centre * (0.9 + Math.random() * 0.2), t);
-  bp.frequency.exponentialRampToValueAtTime(centre * 0.55, t + dur);
-
-  var g = ac.createGain();
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(peak, t + 0.004);          /* the snap */
-  g.gain.exponentialRampToValueAtTime(peak * 0.18, t + dur * 0.3);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-  src.connect(hp); hp.connect(bp); bp.connect(g); g.connect(ac.destination);
-  src.start(t, Math.random() * 0.3);   /* random point in the noise */
-  src.stop(t + dur + 0.02);
-}
-
-function tick(centre){
-  if(!sndOn) return;
-  try{
-    if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
-    if(ac.state === 'suspended') ac.resume();
-    var t = ac.currentTime;
-    var c = centre || 1400;
-    grain(t,         c,       0.12, 0.075);   /* the flick */
-    grain(t + 0.045, c * 0.8, 0.04, 0.055);   /* the sheet settling */
-  }catch(e){}
-}
 
 /* ---------------- info sheet ---------------- */
 var info = document.getElementById('info');
@@ -1511,8 +1425,6 @@ function enter(){
   });
   defrost();
   setTimeout(function(){ layout(); paintFs(); }, 90);
-  var f = MAP.floors.filter(function(x){ return x.id === active; })[0];
-  tick(f ? f.tone : 1000);
 }
 enterBtn.addEventListener('click', enter);
 
@@ -1554,7 +1466,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(onResize, 12
 var start = 'basement';
 
 layout();
-setFloor(start, false);
+setFloor(start);
 paintFs();
 
 /* re-fit once the first image has real dimensions, in case the font
