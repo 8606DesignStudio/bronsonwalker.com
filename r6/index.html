@@ -1511,8 +1511,34 @@ function enter(){
 enterBtn.addEventListener('click', enter);
 
 /* ---------------- go ---------------- */
-window.addEventListener('resize', layout);
-window.addEventListener('orientationchange', function(){ setTimeout(layout, 120); });
+/* A fingertip pinch or drag on a phone can make the browser's own address
+   bar slide out of the way mid-gesture -- that changes the visible screen
+   height, which fires 'resize' here same as rotating the phone would.
+   layout() re-fits the map to whatever height it's given, which is right
+   for a rotation but wrong here: it changes base.w mid-pinch, and every
+   marker's screen size rides on base.w (see sizeBombs/sizeCams), so the
+   marker visibly grows or shrinks as a side effect of the browser chrome
+   moving, not because you zoomed. touch-action:none keeps the page itself
+   from scrolling, but doesn't stop the browser deciding on its own to hide
+   that bar. So: while a finger is actually down (ptrs is non-empty, see
+   the pointer handling above), a resize is remembered but not acted on;
+   it's applied the moment the last finger lifts, same layout() either way,
+   just not while mid-gesture. */
+var pendingResize = false;
+function onResize(){
+  if(Object.keys(ptrs).length){ pendingResize = true; return; }
+  layout();
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', function(){ setTimeout(onResize, 120); });
+/* stage's own pointerup/pointercancel handlers (endPtr, bound earlier) run
+   first and empty ptrs -- by the time these fire, on their way up from the
+   same event, ptrs already reflects whether any finger is still down */
+['pointerup','pointercancel'].forEach(function(ev){
+  window.addEventListener(ev, function(){
+    if(pendingResize && !Object.keys(ptrs).length){ pendingResize = false; layout(); }
+  });
+});
 
 /* Always arrive in the basement -- the opening screen is a fixed shot,
    not wherever you happened to leave off. */
