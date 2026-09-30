@@ -219,8 +219,10 @@ body:not(.entered) #camlayer{opacity:0;}
    rather than a badge floating over whatever happens to be under it at
    the moment. (Cameras stay the other way, outside #sheet holding a
    constant screen size -- this was the one he asked to change and
-   cameras weren't.) A choice is two sites, so both can be "now" at once
-   when their pair is active. */
+   cameras weren't.) Only the picked choice's site(s) ever build (see
+   buildBombs) -- the other three choices don't exist on the map at all
+   until stepped to, so there is no more "now vs not" state to style: every
+   .bomb drawn IS the one you're looking at. */
 #bomblayer{
   position:absolute;inset:0;width:100%;height:100%;
   z-index:3;pointer-events:none;         /* above #rooms' 2, so a marker never sits under a room fill */
@@ -228,11 +230,11 @@ body:not(.entered) #camlayer{opacity:0;}
 }
 body.bombs #bomblayer{opacity:1;}
 body:not(.entered) #bomblayer{opacity:0;}
-/* a yellow diamond with a black A/B letter in it, matching how the game
-   itself marks a site -- A is whichever of the pair was placed first, B
-   the second (set once, in the tracer, at placement). The diamond and its
-   letter are the marker; they show for every choice, not just the one
-   you've stepped to, same as the tracer's own canvas.
+/* A yellow diamond, red border, black A/B letter -- his pick over the
+   in-game white-fill/gold-border look this used to invert to for the
+   active one, back when there was an inactive one sitting nearby to
+   distinguish it from. Site-name text stays the warm cream that used to
+   mark "active", now just the one colour it always is.
    No vector-effect:non-scaling-stroke here (contrast .cam above): that
    property is exactly what would fight the point of this change -- it
    keeps a line a constant number of SCREEN pixels regardless of the
@@ -242,19 +244,17 @@ body:not(.entered) #bomblayer{opacity:0;}
    the way a line drawn on the blueprint itself would. Font-size is set in
    JS (buildBombs), not here, for the same reason LABEL_SIZE is: matching
    #rooms' own convention for a size that has to live in map units. */
-.bomb polygon.dia{fill:#eab308;stroke:#78350f;stroke-width:1.6;}
+.bomb polygon.dia{fill:#eab308;stroke:#dc2626;stroke-width:1.6;}
 .bomb text.letter{
   fill:#000;text-anchor:middle;dominant-baseline:central;
   font-family:"Barlow Condensed",sans-serif;font-weight:700;
   pointer-events:none;
 }
 .bomb text.nm{
-  fill:#ff7a45;stroke:rgba(0,0,0,0.9);stroke-width:4;paint-order:stroke;
+  fill:#ffd9b0;stroke:rgba(0,0,0,0.9);stroke-width:4;paint-order:stroke;
   font-family:"Barlow Condensed",sans-serif;font-weight:600;
-  dominant-baseline:middle;opacity:0;transition:opacity .2s ease;
+  dominant-baseline:middle;
 }
-.bomb.now polygon.dia{fill:#fff;stroke:#eab308;}
-.bomb.now text.nm{opacity:1;fill:#ffd9b0;}
 /* the picked choice's other half, on a floor not currently on screen --
    NOT a ghosted floor image (that made the map unreadable, tried and
    rejected 2026-09-25). Just the icon itself, faded, still labelled so you
@@ -262,16 +262,19 @@ body:not(.entered) #bomblayer{opacity:0;}
    hit-testing is done in JS off real coordinates, not CSS pointer-events,
    same as every other marker. */
 .bomb.ghost{opacity:.45;}                   /* group opacity -- fades the label along with the icon, which is fine */
-.bomb.ghost circle.halo{display:none;}      /* the pulse means "you're here"; this isn't */
 @keyframes bombPulse{
   0%,100%{r:18;opacity:.9;}
   50%    {r:25;opacity:0;}
 }
-.bomb.now circle.halo{fill:none;stroke:#F5B800;stroke-width:1.5;
+.bomb circle.halo{fill:none;stroke:#dc2626;stroke-width:1.5;
   animation:bombPulse 2.2s ease-out infinite;}
-.bomb circle.halo{display:none;}
-.bomb.now circle.halo{display:block;}
-@media (prefers-reduced-motion: reduce){ .bomb.now circle.halo{animation:none;opacity:.5;} }
+/* .ghost is a second class on the SAME element as .bomb, so this is
+   strictly more specific (3 classes) than the rule above (2) -- it wins
+   outright, no source-order tie-break needed, unlike the old four-rule
+   now/ghost split this replaced. The pulse means "you're here"; a ghost
+   isn't. */
+.bomb.ghost circle.halo{display:none;}
+@media (prefers-reduced-motion: reduce){ .bomb circle.halo{animation:none;opacity:.5;} }
 
 /* the walk: one step back, where you are, one step on */
 #cambar{
@@ -1054,44 +1057,52 @@ function buildBombs(){
   bombEls = [];
   while(bombsEl.firstChild) bombsEl.removeChild(bombsEl.firstChild);
   if(!bombOn) return;
+  /* Only the picked choice ever draws -- the other three choices' sites,
+     even the ones sitting right here on this same floor, stay hidden
+     until they're the one stepped to. His ask: cycling through choices
+     should feel like picking one thing at a time, not filtering a
+     cluttered map down to whichever letter happens to be lit. */
+  var choice = BOMBS[bombAt];
+  if(!choice) return;
   /* the floor of the picked choice's OTHER site, if it isn't this one --
      drawn as a faded icon on this floor (see .bomb.ghost), never as a
      ghosted floor image: tried that, it made the map unreadable */
-  var ghost = ghostFloorFor(BOMBS[bombAt]);
-  BOMBS.forEach(function(choice, gi){
-    choice.sites.forEach(function(s){
-      var onGhost = gi === bombAt && s.f === ghost;
-      if(s.f !== active && !onGhost) return;    /* other floors are other sheets, except the ghost */
-      var g = document.createElementNS(SVGNS, 'g');
-      g.setAttribute('class', 'bomb' + (gi === bombAt ? ' now' : '') + (onGhost ? ' ghost' : ''));
-      /* Positioned once, here, in map units -- not recomputed per frame the
-         way sizeCams() still does for the screen-space camera layer. The
-         parent #sheet transform (applyView) already carries every marker
-         inside it through every pan, zoom and resize for free, exactly
-         like buildRooms()'s polygons two floors up. */
-      g.setAttribute('transform',
-        'translate(' + (s.p[0] * MAP.w).toFixed(2) + ',' + (s.p[1] * MAP.h).toFixed(2) + ')');
-      var halo = document.createElementNS(SVGNS, 'circle');
-      halo.setAttribute('class', 'halo'); halo.setAttribute('r', BOMB_HALO);
-      g.appendChild(halo);
-      var dia = document.createElementNS(SVGNS, 'polygon');
-      dia.setAttribute('class', 'dia');
-      dia.setAttribute('points', BOMB_POINTS);
-      g.appendChild(dia);
-      var lt = document.createElementNS(SVGNS, 'text');
-      lt.setAttribute('class', 'letter');
-      lt.setAttribute('font-size', BOMB_LETTER_SIZE);
-      lt.textContent = s.s || '?';
-      g.appendChild(lt);
-      var t = document.createElementNS(SVGNS, 'text');
-      t.setAttribute('class', 'nm');
-      t.setAttribute('x', BOMB_HW + 6);
-      t.setAttribute('font-size', BOMB_NAME_SIZE);
-      t.textContent = s.n;
-      g.appendChild(t);
-      bombsEl.appendChild(g);
-      bombEls.push({ s:s, gi:gi, g:g, ghost:onGhost });
-    });
+  var ghost = ghostFloorFor(choice);
+  choice.sites.forEach(function(s){
+    var onGhost = s.f === ghost;
+    if(s.f !== active && !onGhost) return;    /* other floors are other sheets, except the ghost */
+    var g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('class', 'bomb' + (onGhost ? ' ghost' : ''));
+    /* Positioned once, here, in map units -- not recomputed per frame the
+       way sizeCams() still does for the screen-space camera layer. The
+       parent #sheet transform (applyView) already carries every marker
+       inside it through every pan, zoom and resize for free, exactly
+       like buildRooms()'s polygons two floors up. */
+    g.setAttribute('transform',
+      'translate(' + (s.p[0] * MAP.w).toFixed(2) + ',' + (s.p[1] * MAP.h).toFixed(2) + ')');
+    var halo = document.createElementNS(SVGNS, 'circle');
+    halo.setAttribute('class', 'halo'); halo.setAttribute('r', BOMB_HALO);
+    g.appendChild(halo);
+    var dia = document.createElementNS(SVGNS, 'polygon');
+    dia.setAttribute('class', 'dia');
+    dia.setAttribute('points', BOMB_POINTS);
+    g.appendChild(dia);
+    var lt = document.createElementNS(SVGNS, 'text');
+    lt.setAttribute('class', 'letter');
+    lt.setAttribute('font-size', BOMB_LETTER_SIZE);
+    lt.textContent = s.s || '?';
+    g.appendChild(lt);
+    var t = document.createElementNS(SVGNS, 'text');
+    t.setAttribute('class', 'nm');
+    t.setAttribute('x', BOMB_HW + 6);
+    t.setAttribute('font-size', BOMB_NAME_SIZE);
+    t.textContent = s.n;
+    g.appendChild(t);
+    bombsEl.appendChild(g);
+    /* gi kept as bombAt (not the choice's own index anymore, since only the
+       active choice ever builds markers) -- bombAtPoint/endPtr still read
+       .gi to know which choice a tap belongs to */
+    bombEls.push({ s:s, gi:bombAt, g:g, ghost:onGhost });
   });
 }
 
@@ -1105,8 +1116,13 @@ function paintBombBar(){
 function setBomb(k, withSound){
   if(!BOMBS.length) return;
   bombAt = ((k % BOMBS.length) + BOMBS.length) % BOMBS.length;
-  buildBombs();
-  if(withSound) tick(toneOf(active));
+  var c = BOMBS[bombAt];
+  /* readBombs() guarantees sites[0] is always A -- his ask was "take me to
+     ONE floor, I'll go to the other myself if I want it", and A is the
+     well-defined choice of which one: same floor as B when the pair
+     doesn't cross floors, and the site named first in the bar otherwise. */
+  if(c.sites[0].f !== active) setFloor(c.sites[0].f, withSound);   /* the floor follows the choice */
+  else { buildBombs(); if(withSound) tick(toneOf(active)); }
   paintBombBar();
 }
 function stepBomb(d){ setBomb(bombAt + d, true); }
