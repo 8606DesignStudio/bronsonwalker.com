@@ -276,8 +276,12 @@ body:not(.entered) #bomblayer{opacity:0;}
 .bomb.ghost circle.halo{display:none;}
 @media (prefers-reduced-motion: reduce){ .bomb circle.halo{animation:none;opacity:.5;} }
 
-/* the walk: one step back, where you are, one step on */
-#cambar{
+/* the walk: one step back, where you are, one step on.
+   Cameras and bomb sites are mutually exclusive now (toggleCams/toggleBombs
+   each switch the other off), so #cambar and #bombbar can share this exact
+   spot and never collide -- one shared rule for position and palette,
+   rather than two copies that could drift apart. */
+#cambar, #bombbar{
   left:50%;
   bottom:calc(var(--pad) + env(safe-area-inset-bottom));
   transform:translateX(-50%);
@@ -285,8 +289,6 @@ body:not(.entered) #bomblayer{opacity:0;}
   border-color:rgba(245,184,0,.34);
 }
 body.cams #cambar{display:flex;}
-/* the zoom pill shares this spot, so it steps up out of the way */
-body.cams #zoompill{bottom:calc(var(--pad) + 46px + env(safe-area-inset-bottom));}
 .cbtn{
   width:34px;height:34px;border-radius:7px;border:1px solid transparent;
   background:rgba(255,255,255,0.04);color:var(--ink-dim);
@@ -310,31 +312,27 @@ body.cams #zoompill{bottom:calc(var(--pad) + 46px + env(safe-area-inset-bottom))
   #camNow{min-width:120px;padding:0 7px;gap:6px;}
   #camName{font-size:.74rem;}
   .cbtn{width:30px;height:30px;}
-  body.cams #zoompill{bottom:calc(var(--pad) + 42px + env(safe-area-inset-bottom));}
 }
 
-/* bottom-left, not centered like #cambar -- two names read better as a
-   small column than crammed onto one line. Sits at the base pad now that
-   the orientation chip that used to float above it is gone. */
-#bombbar{
-  left:calc(var(--pad) + env(safe-area-inset-left));
-  bottom:calc(var(--pad) + env(safe-area-inset-bottom));
-  display:none;align-items:center;gap:4px;padding:4px;
-  border-color:rgba(255,122,69,.34);
-}
+/* Same slot, same palette as #cambar (declared together above) -- his
+   call: he liked the camera picker's placement and colour and wanted the
+   bomb-site one to match exactly rather than keep its own orange identity,
+   which only worked when they could theoretically show at once. Two names
+   read better as a small stacked column than crammed onto one line, so
+   #bombNow differs from #camNow there, but the gold accent (#bombNo b,
+   .cbtn:hover, border-color above) is identical. */
 body.bombs #bombbar{display:flex;}
 #bombNow{
   display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:0 8px;min-width:120px;
   font-family:"Barlow Condensed",sans-serif;
 }
 #bombNo{font-size:.62rem;letter-spacing:.1em;color:var(--ink-dim);font-weight:600;font-variant-numeric:tabular-nums;}
-#bombNo b{color:#ff7a45;font-size:.8rem;font-weight:700;}
+#bombNo b{color:#F5B800;font-size:.8rem;font-weight:700;}
 #bombA, #bombB{
   font-size:.76rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
   color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;
 }
 @media (max-width:560px){
-  #bombbar{bottom:calc(var(--pad) + 48px + env(safe-area-inset-bottom));}
   #bombNow{min-width:96px;padding:0 6px;}
   #bombA, #bombB{font-size:.68rem;}
 }
@@ -415,22 +413,6 @@ body.bombs #bombbar{display:flex;}
 .floor:hover{background:rgba(255,255,255,0.07);color:var(--ink);}
 .floor .nm{font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1.1;white-space:nowrap;}
 .floor.on{background:rgba(75,184,233,0.15);border-color:var(--line-hot);color:#fff;}
-
-#zoompill{
-  left:50%;
-  bottom:calc(var(--pad) + env(safe-area-inset-bottom));
-  transform:translateX(-50%);
-  padding:6px 12px;
-  border-radius:999px;
-  border-color:var(--line-hot);
-  font-family:"Barlow Condensed",sans-serif;
-  font-size:.72rem;letter-spacing:.12em;
-  color:var(--hot);
-  opacity:0;
-  transition:opacity .2s;
-  cursor:pointer;
-}
-#zoompill.show{opacity:1;}
 
 /* ---------------- info sheet ---------------- */
 #info{
@@ -557,8 +539,6 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
     <div class="cap">Floor</div>
   </nav>
 
-  <div class="chip" id="zoompill">1.0&times; &#8635;</div>
-
   <div class="chip" id="cambar">
     <button class="cbtn" id="camPrev" type="button" title="Previous camera">&#8249;</button>
     <div id="camNow">
@@ -664,7 +644,6 @@ var MAP    = MAPS.consulate;
 var stage  = document.getElementById('stage');
 var sheet  = document.getElementById('sheet');
 var rail   = document.getElementById('rail');
-var pill   = document.getElementById('zoompill');
 var imgs   = {};
 var btns   = {};
 var active = null;
@@ -954,6 +933,13 @@ function paintCams(){
 function toggleCams(){
   camOn = !camOn;
   try{ localStorage.setItem('r6.cams', camOn ? 'on' : 'off'); }catch(e){}
+  /* either/or with bomb sites -- they now share #cambar's exact screen
+     slot, so both showing at once isn't a style choice, it's a collision */
+  if(camOn && bombOn){
+    bombOn = false;
+    try{ localStorage.setItem('r6.bombs', 'off'); }catch(e){}
+    paintBombs();
+  }
   paintCams();
   if(camOn && CAMS.length){ setCam(camAt, true); }
 }
@@ -1005,6 +991,15 @@ var bombAt = 0;
 var bombEls = [];      /* the markers drawn for the floor on screen */
 
 try{ bombOn = localStorage.getItem('r6.bombs') === 'on'; }catch(e){}
+/* A returning visitor could have both saved 'on' from before cams and
+   bombs shared a slot -- that's not a state either toggle function can
+   reach anymore, so it's only possible here, once, on load. Cameras win
+   the tie arbitrarily; the correction is saved so it doesn't need
+   re-deciding next time. */
+if(camOn && bombOn){
+  bombOn = false;
+  try{ localStorage.setItem('r6.bombs', 'off'); }catch(e){}
+}
 
 function readBombs(d){
   var byFloor = d.bombsites || {};
@@ -1118,6 +1113,12 @@ function paintBombs(){
 function toggleBombs(){
   bombOn = !bombOn;
   try{ localStorage.setItem('r6.bombs', bombOn ? 'on' : 'off'); }catch(e){}
+  /* either/or with cameras -- see toggleCams for why */
+  if(bombOn && camOn){
+    camOn = false;
+    try{ localStorage.setItem('r6.cams', 'off'); }catch(e){}
+    paintCams();
+  }
   paintBombs();
   if(bombOn && BOMBS.length){ setBomb(bombAt, true); }
 }
@@ -1193,9 +1194,6 @@ function applyView(){
   sheet.style.transform =
     'translate(' + view.tx + 'px,' + view.ty + 'px) scale(' + view.s + ')';
   sizeCams();                     /* markers hold their screen size through the zoom */
-  var zoomed = view.s > 1.01;
-  pill.classList.toggle('show', zoomed);
-  if(zoomed) pill.textContent = view.s.toFixed(1) + '× ↻';
 }
 
 function clampView(){
@@ -1247,7 +1245,7 @@ function ptrList(){
 }
 
 stage.addEventListener('pointerdown', function(e){
-  if(e.target.closest('#rail') || e.target.closest('#tools') || e.target.closest('#zoompill')) return;
+  if(e.target.closest('#rail') || e.target.closest('#tools')) return;
 
   /* Record the pointer first. Capture is a convenience -- if it throws the
      gesture bookkeeping must still be correct, or the pinch never starts. */
@@ -1350,7 +1348,6 @@ stage.addEventListener('wheel', function(e){
 }, { passive:false });
 
 stage.addEventListener('dblclick', function(){ if(view.s > 1.01) resetView(); });
-pill.addEventListener('click', resetView);
 
 /* ---------------- keyboard ---------------- */
 window.addEventListener('keydown', function(e){
