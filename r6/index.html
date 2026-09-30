@@ -522,10 +522,23 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
 
   <div class="chip" id="tools">
     <button class="hbtn" id="camBtn" title="Cameras">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h4l2 3h4a2 2 0 0 1 2 2z"/>
-        <circle cx="12" cy="13" r="3.6"/>
+      <!-- a ceiling dome, not a point-and-shoot (his correction, with a
+           reference photo of exactly this) -- flat mounting collar, a
+           seam where it meets the dome bulb, lens low in the bulb. A
+           solid silhouette read better than outline once there's a lens
+           ring to punch through it, same lesson the bomb icon already
+           forced. The lens is the SAME ring+pip pair the on-map camera
+           markers already use (.cam circle.ring / .cam circle.pip),
+           and the seam is the same idea again at a smaller scale --
+           all three (dome, seam, lens) are real transparent cutouts in
+           one compound path (fill-rule=evenodd), not a second colour,
+           since a toolbar icon only has currentColor to work with. -->
+      <svg viewBox="0 0 24 24" width="18" height="18">
+        <path fill="currentColor" fill-rule="evenodd"
+              d="M7 5L17 5C18.8 5 20.5 6.6 20.5 9.5C20.5 14.7 16.8 18.7 12 19.3C7.2 18.7 3.5 14.7 3.5 9.5C3.5 6.6 5.2 5 7 5Z
+                 M5 9.6Q12 10.1 19 9.6L19 10.1Q12 10.6 5 10.1Z
+                 M15.4 13.9a3.4 3.4 0 1 1-6.8 0 3.4 3.4 0 0 1 6.8 0z
+                 M13.3 13.9a1.3 1.3 0 1 1-2.6 0 1.3 1.3 0 0 1 2.6 0z"/>
       </svg>
     </button>
     <button class="hbtn" id="bombBtn" title="Bomb sites">
