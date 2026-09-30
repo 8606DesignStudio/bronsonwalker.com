@@ -175,28 +175,32 @@ body{
 
 
 /* ---------------- cameras ----------------
-   The camera layer lives inside #sheet too, so a marker is pinned to its spot
-   on the building. But a marker is not a label: it should stay the same size
-   on screen however far you zoom in, so each one is counter-scaled by the
-   current zoom in applyView(). Only the floor you are looking at draws its
-   cameras -- the others are on other sheets of the blueprint.
-------------------------------------------- */
-/* Screen space, not map space: one user unit here is one CSS pixel, and each
-   marker is placed at the screen position its map coordinate currently lands
-   on. Recomputed in applyView(), so it tracks every pan, zoom and resize. */
-#camlayer{
+   Lives inside #sheet, same as #rooms and #bomblayer: markers are anchored
+   to the map and grow as you zoom in, matching bomb sites (his call --
+   they used to hold a constant screen size via a JS counter-scale, which
+   is exactly what made them compress as you zoomed into a room instead of
+   growing with it). Only the floor you are looking at draws its cameras --
+   the others are on other sheets of the blueprint. Unlike bomb sites,
+   every camera on the floor draws at once; "now" (the one you've stepped
+   to) just changes colour and shows its name, so that distinction stays
+   real here and the CSS keeps it.
+   No vector-effect:non-scaling-stroke (see #bomblayer for why) -- the
+   ring and halo thicken with the fill as you zoom, same as everything
+   else in this viewBox. Font-size is set in JS (buildCams), not here,
+   matching LABEL_SIZE and the bomb markers' own convention. */
+#camlayer, #bomblayer{
   position:absolute;inset:0;width:100%;height:100%;
-  z-index:2;pointer-events:none;
+  z-index:3;pointer-events:none;         /* above #rooms' 2, so a marker never sits under a room fill */
   opacity:0;transition:opacity .25s ease;
 }
 body.cams #camlayer{opacity:1;}
 /* nothing marks the map until you are through the door */
 body:not(.entered) #camlayer{opacity:0;}
-.cam circle.ring{fill:none;stroke:rgba(75,184,233,0.9);stroke-width:1.5;vector-effect:non-scaling-stroke;}
+.cam circle.ring{fill:none;stroke:rgba(75,184,233,0.9);stroke-width:1.5;}
 .cam circle.pip{fill:rgba(75,184,233,0.9);}
 .cam text{
   fill:#F5B800;stroke:rgba(0,0,0,0.9);stroke-width:3;paint-order:stroke;
-  font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:11px;
+  font-family:"Barlow Condensed",sans-serif;font-weight:600;
   dominant-baseline:middle;opacity:0;transition:opacity .2s ease;
 }
 /* the one you are on: gold, named, and breathing */
@@ -207,7 +211,7 @@ body:not(.entered) #camlayer{opacity:0;}
   0%,100%{r:9;opacity:.9;}
   50%    {r:13;opacity:0;}
 }
-.cam.now circle.halo{fill:none;stroke:#F5B800;stroke-width:1.5;vector-effect:non-scaling-stroke;
+.cam.now circle.halo{fill:none;stroke:#F5B800;stroke-width:1.5;
   animation:camPulse 2.2s ease-out infinite;}
 .cam circle.halo{display:none;}
 .cam.now circle.halo{display:block;}
@@ -223,11 +227,6 @@ body:not(.entered) #camlayer{opacity:0;}
    buildBombs) -- the other three choices don't exist on the map at all
    until stepped to, so there is no more "now vs not" state to style: every
    .bomb drawn IS the one you're looking at. */
-#bomblayer{
-  position:absolute;inset:0;width:100%;height:100%;
-  z-index:3;pointer-events:none;         /* above #rooms' 2, so a marker never sits under a room fill */
-  opacity:0;transition:opacity .25s ease;
-}
 body.bombs #bomblayer{opacity:1;}
 body:not(.entered) #bomblayer{opacity:0;}
 /* A yellow diamond, red border, black A/B letter -- his pick over the
@@ -235,14 +234,15 @@ body:not(.entered) #bomblayer{opacity:0;}
    active one, back when there was an inactive one sitting nearby to
    distinguish it from. Site-name text stays the warm cream that used to
    mark "active", now just the one colour it always is.
-   No vector-effect:non-scaling-stroke here (contrast .cam above): that
-   property is exactly what would fight the point of this change -- it
-   keeps a line a constant number of SCREEN pixels regardless of the
-   shape's own scale, which is the cameras' trick, not this one. Left
-   plain, stroke-width is in the SAME map units as everything else in this
-   viewBox, so the border thickens right along with the fill as you zoom,
-   the way a line drawn on the blueprint itself would. Font-size is set in
-   JS (buildBombs), not here, for the same reason LABEL_SIZE is: matching
+   No vector-effect:non-scaling-stroke here, same as .cam above and for
+   the same reason: that property is exactly what would fight the point
+   of this change -- it keeps a line a constant number of SCREEN pixels
+   regardless of the shape's own scale, which is what a screen-space
+   marker wants and a map-space one never does. Left plain, stroke-width
+   is in the SAME map units as everything else in this viewBox, so the
+   border thickens right along with the fill as you zoom, the way a line
+   drawn on the blueprint itself would. Font-size is set in JS
+   (buildBombs), not here, for the same reason LABEL_SIZE is: matching
    #rooms' own convention for a size that has to live in map units. */
 .bomb polygon.dia{fill:#eab308;stroke:#dc2626;stroke-width:1.6;}
 .bomb text.letter{
@@ -514,16 +514,8 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
   <div id="sheet">
     <svg id="rooms" viewBox="0 0 1320 800" preserveAspectRatio="none"></svg>
     <svg id="bomblayer" viewBox="0 0 1320 800" preserveAspectRatio="none"></svg>
+    <svg id="camlayer" viewBox="0 0 1320 800" preserveAspectRatio="none"></svg>
   </div>
-
-  <!-- Deliberately OUTSIDE #sheet. A room label belongs to the building and
-       grows with it; a camera marker belongs to the screen and must not. It
-       used to live in #sheet and cancel the zoom with a 1/s counter-scale,
-       which is right on paper and wrong in practice: #sheet is a composited
-       layer, so a zoom stretches its last raster -- markers and all -- and
-       only re-renders afterwards. The marker visibly ballooned and snapped
-       back. Out here nothing scales it, so there is nothing to cancel. -->
-  <svg id="camlayer"></svg>
 
   <div class="chip" id="brand">Consul<span>ate</span></div>
 
@@ -841,6 +833,7 @@ var CAMS   = [];       /* in cycle order: {i, n, p, f} */
 var camOn  = false;
 var camAt  = 0;
 var camEls = [];       /* the markers drawn for the floor on screen */
+var CAM_NAME_SIZE = 11;   /* map units -- set via JS attribute, not CSS, same reason as LABEL_SIZE */
 
 try{ camOn = localStorage.getItem('r6.cams') === 'on'; }catch(e){}
 
@@ -869,6 +862,12 @@ function buildCams(){
     if(c.f !== active) return;               /* other floors are other sheets */
     var g = document.createElementNS(SVGNS, 'g');
     g.setAttribute('class', 'cam' + (c.k === camAt ? ' now' : ''));
+    /* Positioned once, here, in map units -- not recomputed per frame the
+       way sizeCams() used to. The parent #sheet transform (applyView)
+       already carries every marker inside it through every pan, zoom and
+       resize for free, same as #rooms and #bomblayer. */
+    g.setAttribute('transform',
+      'translate(' + (c.p[0] * MAP.w).toFixed(2) + ',' + (c.p[1] * MAP.h).toFixed(2) + ')');
     ['halo', 'ring', 'pip'].forEach(function(cls){
       var el = document.createElementNS(SVGNS, 'circle');
       el.setAttribute('class', cls);
@@ -877,26 +876,11 @@ function buildCams(){
     });
     var t = document.createElementNS(SVGNS, 'text');
     t.setAttribute('x', 14);
+    t.setAttribute('font-size', CAM_NAME_SIZE);
     t.textContent = c.n;
     g.appendChild(t);
     camsEl.appendChild(g);
     camEls.push({ c:c, g:g });
-  });
-  sizeCams();
-}
-
-/* Put every marker where its spot on the building currently is on screen, at
-   the size it would be with the map at rest -- so zooming moves markers but
-   never grows them, and a marker looks the same on a phone as it did before
-   any of this. base/view is the same arithmetic toMap() inverts for hit-testing. */
-function sizeCams(){
-  if(!camEls.length || !base.w) return;
-  var k0 = base.w / MAP.w;                  /* screen px per map unit, map at rest */
-  camEls.forEach(function(e){
-    var x = base.x + view.tx + view.s * (e.c.p[0] * base.w);
-    var y = base.y + view.ty + view.s * (e.c.p[1] * base.h);
-    e.g.setAttribute('transform',
-      'translate(' + x.toFixed(2) + ',' + y.toFixed(2) + ') scale(' + k0.toFixed(4) + ')');
   });
 }
 
@@ -1044,11 +1028,11 @@ function buildBombs(){
     if(s.f !== active && !onGhost) return;    /* other floors are other sheets, except the ghost */
     var g = document.createElementNS(SVGNS, 'g');
     g.setAttribute('class', 'bomb' + (onGhost ? ' ghost' : ''));
-    /* Positioned once, here, in map units -- not recomputed per frame the
-       way sizeCams() still does for the screen-space camera layer. The
-       parent #sheet transform (applyView) already carries every marker
-       inside it through every pan, zoom and resize for free, exactly
-       like buildRooms()'s polygons two floors up. */
+    /* Positioned once, here, in map units -- not recomputed per frame.
+       The parent #sheet transform (applyView) already carries every
+       marker inside it through every pan, zoom and resize for free,
+       exactly like buildRooms()'s polygons two floors up and buildCams()
+       right above. */
     g.setAttribute('transform',
       'translate(' + (s.p[0] * MAP.w).toFixed(2) + ',' + (s.p[1] * MAP.h).toFixed(2) + ')');
     var halo = document.createElementNS(SVGNS, 'circle');
@@ -1186,7 +1170,6 @@ function layout(){
 function applyView(){
   sheet.style.transform =
     'translate(' + view.tx + 'px,' + view.ty + 'px) scale(' + view.s + ')';
-  sizeCams();                     /* markers hold their screen size through the zoom */
 }
 
 function clampView(){
@@ -1433,18 +1416,18 @@ enterBtn.addEventListener('click', enter);
    bar slide out of the way mid-gesture -- that changes the visible screen
    height, which fires 'resize' here same as rotating the phone would.
    layout() re-fits the map to whatever height it's given, which is right
-   for a rotation but wrong here: it changes base.w mid-pinch. Bomb markers
-   live inside #sheet now and resize right along with the photo under
-   them, so a base.w change is invisible to them -- but sizeCams() still
-   holds the camera layer to a constant SCREEN size, computed FROM base.w,
-   so a resize there would visibly snap the camera markers out of step
-   with the map they're pinned to, as a side effect of the browser chrome
-   moving, not of anything the user did. touch-action:none keeps the page
-   itself from scrolling, but doesn't stop the browser deciding on its own
-   to hide that bar. So: while a finger is actually down (ptrs is
-   non-empty, see the pointer handling above), a resize is remembered but
-   not acted on; it's applied the moment the last finger lifts, same
-   layout() either way, just not mid-gesture. */
+   for a rotation but wrong here: it changes base.w mid-pinch, and base.w
+   is the size #sheet itself is set to before view.s scales on top of it
+   (see layout/applyView) -- every layer inside #sheet (the photo, rooms,
+   cameras, bomb sites) is carried along together, so a base.w jump reads
+   as the WHOLE MAP snapping to a different zoom level, as a side effect
+   of the browser chrome moving, not of anything the user did.
+   touch-action:none keeps the page itself from scrolling, but doesn't
+   stop the browser deciding on its own to hide that bar. So: while a
+   finger is actually down (ptrs is non-empty, see the pointer handling
+   above), a resize is remembered but not acted on; it's applied the
+   moment the last finger lifts, same layout() either way, just not
+   mid-gesture. */
 var pendingResize = false;
 function onResize(){
   if(Object.keys(ptrs).length){ pendingResize = true; return; }
