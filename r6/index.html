@@ -521,8 +521,33 @@ body:not(.entered) .chip{opacity:0;pointer-events:none;}
   <div class="chip" id="brand">Consul<span>ate</span></div>
 
   <div class="chip" id="tools">
-    <button class="hbtn" id="camBtn" title="Cameras">&#9673;</button>
-    <button class="hbtn" id="bombBtn" title="Bomb sites">&#9650;</button>
+    <button class="hbtn" id="camBtn" title="Cameras">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h4l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="3.6"/>
+      </svg>
+    </button>
+    <button class="hbtn" id="bombBtn" title="Bomb sites">
+      <!-- a round cartoon bomb: filled body, a zigzag fuse, a filled spark
+           at the tip -- asked for over the plain triangle because a
+           triangle alone doesn't say "bomb site" the way a fused bomb
+           silhouette does. Two things tried and dropped along the way: an
+           unfilled outline body (matching the camera icon's style) read
+           as a lowercase "6" at 18px, not a sphere -- a bomb specifically
+           needs the weight of a filled shape to say "round mass," even
+           though the camera icon works fine as a pure outline. And a
+           single smooth curve for the fuse read as one continuous stroke
+           with the circle rather than a separate part; the zigzag breaks
+           that continuity. -->
+
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="14.8" r="6.6" fill="currentColor" fill-opacity="0.9" stroke="none"/>
+        <path d="M11.3 7.6 13.2 6 11.9 4.8 13.9 3.2"/>
+        <circle cx="14.3" cy="2.7" r="1.3" fill="currentColor" stroke="none"/>
+      </svg>
+    </button>
     <button class="hbtn" id="fsBtn" title="Full screen">&#9974;</button>
     <button class="hbtn" id="infoBtn" title="About this map">i</button>
   </div>
